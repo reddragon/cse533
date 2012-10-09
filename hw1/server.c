@@ -14,7 +14,7 @@ time_service_thread(int *sockfd) {
     FD_ZERO(&writefds);
 
     FD_SET(sockfd_v, &writefds);
-    
+
     int ret = select(sockfd_v + 1, &writefds, NULL, NULL, &timeout);
     if (ret <= 0) {
       fprintf(stderr, "select returned ret: %d\n", ret);
@@ -64,13 +64,13 @@ echo_service_thread(int *sockfd) {
       printf("buf: %s\n", buf);
       break;
     }
-    
+
     // echo line back to client
     if (write(cli->sockfd, buf, strlen(buf)) < 0) {
       err_sys("echo write failed");
     }
   }
-  
+
   close(*sockfd);
   fprintf(stderr, "Closed the client connection\n");
 }
@@ -100,7 +100,7 @@ run_server(void) {
 
   // The set of socket file descriptors we can read from
   fd_set readfds, writefds;
-  
+
   struct sockaddr_in echosrv_addr, timesrv_addr;
   bzero(&echosrv_addr, sizeof(struct sockaddr_in));
   echosrv_addr.sin_family = AF_INET;
@@ -163,7 +163,7 @@ run_server(void) {
       struct sockaddr *addr;
       socklen_t sock_len;
       int new_sockfd = accept(time_sockfd, (struct sockaddr *)addr, &sock_len);
-      
+
       pthread_t tid;
       pthread_attr_t attr;
       pthread_attr_init(&attr);
@@ -180,7 +180,7 @@ run_server(void) {
 
 int 
 main(int argc, char** argv) {
-	// test_datetime_server("131.107.13.100");
+  // test_datetime_server("131.107.13.100");
   run_server();
   return 0;
 }
