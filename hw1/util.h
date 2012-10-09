@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <assert.h>
 #include <pthread.h>
@@ -45,7 +46,8 @@
 struct client_info {
   int sockfd;
   char *read_buf;
-  UINT buf_len, read_ptr;
+  int buf_len;
+  UINT read_ptr;
 };
 
 void err_sys(char *str);
@@ -53,5 +55,6 @@ BOOL is_ip_address(char *str);
 UINT min(UINT a, UINT b);
 UINT max(UINT a, UINT b);
 void read_into_buf(struct client_info *cli, UINT max_len);
-UINT buffered_readline(struct client_info *cli, char *target_buf, UINT len);
+int buffered_readline(struct client_info *cli, char *target_buf, UINT len);
+char *get_err_str(char *s);
 #endif

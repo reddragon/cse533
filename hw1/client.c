@@ -6,7 +6,7 @@ sigchld_handler(int signo) {
   int stat;
 
   while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
-    fprintf(stderr, "Signal Handler: Child %d terminated", pid);
+    fprintf(stderr, "\nSignal Handler: Child %d terminated\n", pid);
     return;
   }
 }
@@ -21,7 +21,7 @@ resolve_name_to_ip_address(char *name) {
 
   int ret;
   if ((ret = getaddrinfo(name, serv, &hints, &res)) != 0) {
-    fprintf(stderr, "Error: %s", gai_strerror(ret));
+    fprintf(stderr, "Error: %s\n", gai_strerror(ret));
     exit(1);
   }
 
@@ -141,6 +141,7 @@ main (int argc, char **argv) {
     } else {
       fprintf(stderr, "Available commands are 'echo', 'time' and 'quit' (without quotes)\n");
     }
+    usleep(50000);
   }
 
   return 0;
