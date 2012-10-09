@@ -1,5 +1,16 @@
 #include "util.h"
 
+void
+sigchld_handler(int signo) {
+	pid_t pid;
+	int stat;
+
+	while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
+		fprintf(stderr, "Signal Handler: Child %d terminated", pid);
+		return;
+	}
+}
+
 char *
 resolve_name_to_ip_address(char *name) {
 	struct addrinfo *res, hints;
@@ -67,7 +78,7 @@ print_usage(void) {
 }
 
 void 
-echo(char *ip_addr) {
+execute_childproc(char *childproc, char *ip_addr) {
 #define PIPE_BUF_SZ 1024
 	pid_t pid;
 	char pipe_buf[PIPE_BUF_SZ];
@@ -79,28 +90,22 @@ echo(char *ip_addr) {
 		err_sys("Error in fork()");
 	}
 	else if (pid == 0) {
-		// Child closes its read end
 		close(pfd[READ_PIPE_FD]);
-		/*
-		int i;
-		printf("In child\n");
-		for (i = 0; i < 10; i++) {
-			char str[300];
-			sprintf(str, "Hello ");
-			write(pfd[WRITE_PIPE_FD], str, strlen(str));
-			//printf("Written in child\n");
-		} */ 
-		execlp("xterm", "xterm", "-e", "./echocli", ip_addr, (char *) 0);
-		close(pfd[WRITE_PIPE_FD]);
-		exit(0);
+		char str[100];
+		sprintf(str, "%d", pfd[WRITE_PIPE_FD]);
+		execlp("xterm", "xterm", "-e", childproc, ip_addr, str, (char *) 0);
+		exit(1);
 	} else {
-		// Parent closes its write end	
 		close(pfd[WRITE_PIPE_FD]);
-		int bytes_read = 0;
-		while ((bytes_read = read(pfd[READ_PIPE_FD], pipe_buf, PIPE_BUF_SZ)	) != 0) {
-			printf("Read: %s\n", pipe_buf);
+    char buf[MAXMSGLEN];
+		int rb = 0;
+		while((rb = read(pfd[READ_PIPE_FD], buf, MAXMSGLEN)) > 0) {
+			if (rb == 0) continue;
+			buf[rb] = 0;
+			printf("Child Process: %s\n", buf);
 		}
-		close(pfd[READ_PIPE_FD]);
+    close(pfd[READ_PIPE_FD]);
+		fprintf(stderr, "Child process might have been terminated\n");
 	}
 }
 
@@ -119,19 +124,20 @@ main (int argc, char **argv) {
 		ip_addr = resolve_name_to_ip_address(argv[1]);
 	}
 	
+	signal(SIGCHLD, sigchld_handler);
 	char str[300];
 	printf("Use the 'echo', 'time', or 'quit' commands\n");
 	while (TRUE) {
-		printf("> ");
+		printf("\n> ");
 		int ret = scanf("%s", str);
 		if (ret == 0 || ret == EOF || !strcmp("quit", str)) {
 			printf("%sGoodbye!\n", (ret == 0 || ret == EOF ? "\n" : ""));
 			break;
 		} else if (!strcmp("echo", str)) {
-			echo(ip_addr);
+			execute_childproc("./echocli", ip_addr);
 			printf("\n");
 		} else if (!strcmp("time", str)) {
-			printf("executing time command\n");
+			execute_childproc("./timecli", ip_addr);
 		} else {
 			fprintf(stderr, "Available commands are 'echo', 'time' and 'quit' (without quotes)\n");
 		}

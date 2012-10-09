@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/errno.h>
+#include <errno.h>
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -14,7 +15,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <assert.h>
 #include <pthread.h>
+#include <signal.h>
 
 
 #define SA struct sockaddr_in
@@ -30,10 +33,13 @@
 
 #define ECHO_SERVICE_PORT 11811
 #define TIME_SERVICE_PORT 11812
-#define TIME_SERVER_SLEEP 5
+// TODO Fix this
+#define TIME_SERVER_SLEEP_SEC 2
+#define TIME_SERVER_SLEEP_USEC 0
 
 #define SRV_LISTENQ 100
 
+#define MAXMSGLEN 500
 #define MAXLEN 5000
 
 struct client_info {

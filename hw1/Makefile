@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wstrict-prototypes
+CFLAGS = -Wall -Wstrict-prototypes -g
 
 all: server client echocli timecli
 
@@ -16,5 +16,6 @@ timecli: timecli.c util.h util.c
 	$(CC) $(CFLAGS) timecli.c util.c -o timecli 
 
 clean:
-	rm client echocli server
+	rm client echocli timecli server 
+	rm -rf *.dSYM
 

@@ -1,8 +1,18 @@
 #include <stdio.h>
 #include "util.h"
 
+int lfd;
+FILE *lfp;
+
+#define MAXMSGBUF 1000
+
+int
+send_to_parent(const char *s) {
+  return write(lfd, s, strlen(s));
+}
+
 void 
-test_echo_server(char *addr) {
+run_echo_client(char *addr) {
 	int sockfd;
 	struct sockaddr_in servaddr;
 	
@@ -14,7 +24,7 @@ test_echo_server(char *addr) {
 	// Zeroes out the servaddr structure
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(TIME_SERVICE_PORT); 
+	servaddr.sin_port = htons(ECHO_SERVICE_PORT); 
 	
 	// Presentation -> Notation. Convert IP address to binary form, and
 	// save it in servaddr.sin_addr
@@ -33,34 +43,39 @@ test_echo_server(char *addr) {
   struct client_info *cli = (struct client_info *) malloc(sizeof(struct client_info));
   memset(cli, 0, sizeof(struct client_info));
   cli->sockfd = sockfd;
-  UINT gl_ret;
+  UINT scanf_ret;
   while (TRUE) {
     // TODO Take input instead of writing a synthetic string
-    char *str;
+    char str[MAXLEN], newLineChar;
     size_t str_sz = MAXLEN;
-    if ( (gl_ret = getline(&str, &str_sz, stdin) ) <= 0) {
-      // TODO ret == -1 ^D
+    if ((scanf_ret = scanf("%[^\n]", str)) == 0) {
+      continue;
+    }
+    if (scanf_ret == EOF) {
+      // TODO ^D
+      send_to_parent("Received a ^D in the input");
       break;
     }
-    // fprintf(stderr, "str: %s\n", str1);
-    if (write(cli->sockfd, str, strlen(str)) < 0) {
+    newLineChar = getchar();
+    int wret = 0;
+    if ((wret = write(cli->sockfd, str, strlen(str))) < 0) {
       err_sys("Could not write to socket");
     }
-    // fprintf(stderr, "Written to the socket: %s\n", str1);
     char rstr[MAXLEN];
     if (buffered_readline(cli, rstr, MAXLEN) < 0) {
       err_sys("buffered_readline returned with < 0 chars");
     }
-    fprintf(stderr, "Server: %s", rstr);
+    fprintf(stderr, "Server Responded: %s\n", rstr);
   }
   close(sockfd);
+  close(lfd);
 }
 
 int main(int argc, char **argv) {
-	if (argc != 2) {
-    // TODO Fill this up
-    err_sys("Usage: ./echocli <Server IP Address>");
+	if (argc != 3) {
+    err_sys("Usage: ./echocli <Server IP Address> <Log File Descriptor>");
   }
-  test_echo_server(argv[1]);
+  sscanf(argv[2], "%d", &lfd);
+  run_echo_client(argv[1]);
   return 0;
 }

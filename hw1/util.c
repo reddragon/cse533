@@ -35,13 +35,14 @@ max(UINT a, UINT b) {
 
 void
 read_into_buf(struct client_info *cli, UINT max_len) {
-  if (cli->read_buf == NULL) {
+  //if (cli->read_buf == NULL) {
     cli->read_buf = (char *) malloc(sizeof(char) * max_len);
-  }
+  //}
 
   cli->read_ptr = 0;
   // Read upto maxlen bytes in buf
   do {
+    printf("Trying to read from sockfd %d, cli->read_buf: %p, max_len: %d\n", cli->sockfd, cli->read_buf, max_len);
     if ((cli->buf_len = read(cli->sockfd, cli->read_buf, max_len)) < 0) {
       if (errno == EINTR) {
         fprintf(stderr, "Got an EINTR\n");
