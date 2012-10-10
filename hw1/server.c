@@ -1,4 +1,5 @@
 #include "util.h"
+#define NON_BLOCKING 1
 
 void
 time_service_thread(int *sockfd) {
@@ -16,15 +17,15 @@ time_service_thread(int *sockfd) {
     FD_SET(sockfd_v, &readfds);
 
     int ret = select(sockfd_v + 1, &readfds, NULL, NULL, &timeout);
-    if (ret <= 0) {
-      fprintf(stderr, "select returned ret: %d\n", ret);
+    if (ret < 0) {
+      fprintf(stderr, "select() returned %d\n", ret);
     }
 
     if (FD_ISSET(sockfd_v, &readfds)) {
       // The client might have died
       char buf[100], buflen = 100;
       if (read(sockfd_v, buf, buflen) <= 0) {
-        fprintf(stderr, "Seems like the client has died, errno: %d\n", errno);
+        fprintf(stderr, "%s", get_err_str("The client has died"));
         close(sockfd_v);
         return;
       }
@@ -32,7 +33,7 @@ time_service_thread(int *sockfd) {
       ticks = time(NULL);
       sprintf(str, "%s\n", ctime(&ticks));
       if (write(sockfd_v, str, strlen(str)) <= 0) {
-        fprintf(stderr, "Time write failed. errno: %d\n", errno);
+        fprintf(stderr, "%s", get_err_str("write() in the time service failed"));
         if (errno == EPIPE) {
           break;
         }
@@ -42,7 +43,6 @@ time_service_thread(int *sockfd) {
     }
   }
   if (errno == EPIPE) {
-    printf("Returning\n");
     return;
   }
   close(*sockfd);
@@ -63,7 +63,8 @@ echo_service_thread(int *sockfd) {
 
     // echo line back to client
     if (write(cli->sockfd, buf, strlen(buf)) < 0) {
-      err_sys("write() failed in the echo service thread");
+      fprintf(stderr, "%s\n", get_err_str("write() failed in the echo service thread"));
+      break;
     }
   }
 
@@ -95,7 +96,7 @@ run_server(void) {
   }
 
   // The set of socket file descriptors we can read from
-  fd_set readfds, writefds;
+  fd_set readfds;
 
   struct sockaddr_in echosrv_addr, timesrv_addr;
   bzero(&echosrv_addr, sizeof(struct sockaddr_in));
@@ -104,13 +105,15 @@ run_server(void) {
   echosrv_addr.sin_port = htons(ECHO_SERVICE_PORT);
 
   bind(echo_sockfd, (struct sockaddr *) &echosrv_addr, sizeof(echosrv_addr));
-  
+ 	
+#ifdef NON_BLOCKING
   if ((fileflags = fcntl(echo_sockfd, F_GETFL, 0)) == -1) {
     err_sys("Could not get fileflags");
   }
   if (fcntl(echo_sockfd, F_SETFL, fileflags | O_NONBLOCK) == -1) {
     err_sys("Could not set fileflags");
-  }
+  } 
+#endif
   
   listen(echo_sockfd, SRV_LISTENQ);
 
@@ -121,12 +124,14 @@ run_server(void) {
 
   bind(time_sockfd, (struct sockaddr *) &timesrv_addr, sizeof(timesrv_addr));
 
+#ifdef NON_BLOCKING
   if ((fileflags = fcntl(time_sockfd, F_GETFL, 0)) == -1) {
     err_sys("Could not get fileflags");
   }
   if (fcntl(time_sockfd, F_SETFL, fileflags | O_NONBLOCK) == -1) {
     err_sys("Could not set fileflags");
   }
+#endif
 
   listen(time_sockfd, SRV_LISTENQ);
 
@@ -152,7 +157,6 @@ run_server(void) {
     }
 
     if (FD_ISSET(echo_sockfd, &readfds)) {
-      fprintf(stderr, "I might have possibly received a connection for the echo service\n");
       struct sockaddr *addr = (struct sockaddr *) malloc(sizeof(struct sockaddr));
       socklen_t sock_len = sizeof(struct sockaddr);
       int new_sockfd = accept(echo_sockfd, (struct sockaddr *)addr, &sock_len);
@@ -160,6 +164,7 @@ run_server(void) {
         err_sys("Could not accept socket\n");
       }
       
+#ifdef NON_BLOCKING
       if ((fileflags = fcntl(time_sockfd, F_GETFL, 0)) == -1) {
         err_sys("Could not get fileflags");
       }
@@ -169,9 +174,9 @@ run_server(void) {
           err_sys("Could not set fileflags");
         }
       }
+#endif
 
       fprintf(stderr, "Received a connection for the echo service\n");
-      // FD_CLR(echo_sockfd, &readfds);
       pthread_t tid;
       pthread_attr_t attr;
       pthread_attr_init(&attr);
@@ -179,7 +184,6 @@ run_server(void) {
       if (pthread_create(&tid, &attr, (void *) (&echo_service_thread), (void *) (&new_sockfd)) < 0) {
         err_sys("Error in pthread_create");
       }
-      // echo_service_thread(&new_sockfd);
       assert(pthread_detach(tid));
     } else if (FD_ISSET(time_sockfd, &readfds)) {
       struct sockaddr *addr;

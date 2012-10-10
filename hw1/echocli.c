@@ -55,7 +55,6 @@ run_echo_client(char *addr) {
   UINT scanf_ret;
   while (TRUE) {
     char str[MAXLEN], newLineChar;
-    size_t str_sz = MAXLEN;
     if ((scanf_ret = scanf("%[^\n]", str)) == 0) {
       continue;
     }
@@ -68,7 +67,6 @@ run_echo_client(char *addr) {
     if ((wret = write(cli->sockfd, str, strlen(str))) <= 0) {
       err("Could not write to socket");
     }
-    printf("wret: %d\n", wret);
     char rstr[MAXLEN];
     if (buffered_readline(cli, rstr, MAXLEN) <= 0) {
       err("Could not read a line from the server's end");

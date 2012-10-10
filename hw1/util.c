@@ -57,7 +57,8 @@ read_into_buf(struct client_info *cli, UINT max_len) {
       }
       return;
     } else if (cli->buf_len == 0) {
-      fprintf(stderr, "Read a 0 byte string\n");
+      fprintf(stderr, "Client likely dropped the connection\n");
+      return;
     }
   } while(FALSE);  
 }
@@ -68,7 +69,6 @@ buffered_readline(struct client_info *cli, char *target_buf, UINT len) {
   if (cli->read_buf == NULL || cli->buf_len == 0 || cli->read_ptr >= cli->buf_len) {
     read_into_buf(cli, min(len, MAXLEN - 1));
     if (cli->buf_len <= 0) {
-      fprintf(stderr, "read_into_buf returned %d\n", cli->buf_len);
       return cli->buf_len;
     }
   }

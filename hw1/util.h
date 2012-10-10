@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <errno.h>
+#include <sys/wait.h>
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -34,8 +35,7 @@
 
 #define ECHO_SERVICE_PORT 11811
 #define TIME_SERVICE_PORT 11812
-// TODO Fix this
-#define TIME_SERVER_SLEEP_SEC 2
+#define TIME_SERVER_SLEEP_SEC 5
 #define TIME_SERVER_SLEEP_USEC 0
 
 #define SRV_LISTENQ 100

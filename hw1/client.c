@@ -13,40 +13,21 @@ sigchld_handler(int signo) {
 
 char *
 resolve_name_to_ip_address(char *name) {
-  struct addrinfo *res, hints;
-  const char *serv = "http";
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-
-  int ret;
-  if ((ret = getaddrinfo(name, serv, &hints, &res)) != 0) {
-    fprintf(stderr, "Error: %s\n", gai_strerror(ret));
-    exit(1);
-  }
-
-  char *ip_addr = NULL;
-  struct sockaddr *sa;
-  struct sockaddr_in *si;
-  while (res->ai_next != NULL) {
-    sa = res->ai_addr;
-    if (sa->sa_family == AF_INET) {
-      si = (struct sockaddr_in *)sa;
-      ip_addr = (char *)inet_ntoa(si->sin_addr);
+  char *ip_addr;
+  struct hostent *he = gethostbyname(name);
+  if (he == NULL) {
+    char str[MAXMSGLEN];
+    sprintf(str, "Did not get a valid IP address for name: %s", name);
+    err_sys(str);
+  } else {
+    struct in_addr **he_addr = (struct in_addr **)(he->h_addr_list);
+    struct in_addr **start;
+    for (start = he_addr; *start != NULL; start = start + 1) {
+      ip_addr = (char *)inet_ntoa(**start);
       break;
-    } else {
-      // Not an IPv4 / IPv6 address
     }
-    res = res->ai_next;
   }
-
-  if (ip_addr == NULL) {
-    char err_str[1000];
-    sprintf(err_str, "Could not find an IP Address corresponding to host %s", name);
-    err_sys(err_str);
-  }
-
-  printf("Found an IP Address %s corresponding to the host %s\n", ip_addr, name);
+  fprintf(stderr, "Found an IP Address %s corresponding to the name %s\n", ip_addr, name);
   return ip_addr;
 }
 
@@ -81,7 +62,6 @@ void
 execute_childproc(char *childproc, char *ip_addr) {
 #define PIPE_BUF_SZ 1024
   pid_t pid;
-  char pipe_buf[PIPE_BUF_SZ];
   int pfd[2];
   pipe(pfd);
 
@@ -100,6 +80,9 @@ execute_childproc(char *childproc, char *ip_addr) {
     char buf[MAXMSGLEN];
     int rb = 0;
     while((rb = read(pfd[READ_PIPE_FD], buf, MAXMSGLEN)) > 0) {
+      if (errno == EINTR) {
+        continue;
+      }
       if (rb == 0) continue;
       buf[rb] = 0;
       printf("Child Process: %s\n", buf);
