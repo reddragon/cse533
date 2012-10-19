@@ -2,10 +2,11 @@
 #include "utils.h"
 
 int main(int argc, char **argv) {
-  assert(argc == 2);
+  assert(argc == 1);
+  const char *cargs_file = CARGS_FILE;
   struct client_args *cargs = (struct client_args *)
     malloc(sizeof(struct client_args));
-  if (read_cargs(argv[1], cargs)) {
+  if (read_cargs(cargs_file, cargs)) {
     exit(1);
   }
   fprintf(stderr, "%s\n", cargs->file_name);

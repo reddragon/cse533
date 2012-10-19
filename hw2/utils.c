@@ -12,6 +12,38 @@ read_cargs(char *cargs_file, struct client_args *cargs) {
   return 0;
 }
 
+int
+read_sargs(char *sargs_file, struct server_args *sargs) {
+  FILE *fp = fopen(sargs_file, "r");
+  if (fp == NULL) {
+    fprintf(stderr, "Could not open file\n");
+    return 1;
+  }
+  assert(fscanf(fp, "%d%d", &sargs->serv_portno, &sargs->sw_size) == 2);
+  return 0;
+}
+
+struct sockaddr*
+get_subnet_addr(struct sockaddr *addr, struct sockaddr *ntm) {
+  struct sockaddr *sa = MALLOC(SA);
+  memcpy(sa, addr, sizeof(SA));
+  int i = 0;
+  for (i = 2; i < 6; i++) {
+    sa->sa_data[i] = (addr->sa_data[i] & 0xFF) & (ntm->sa_data[i] & 0xFF);
+  }
+  return sa;
+}
+
+char *
+sa_data_str(struct sockaddr *sa) {
+  char *str = (char *) malloc(sizeof(char) * 20);
+  int i = 0;
+  sprintf(str, "%u.%u.%u.%u", 
+    sa->sa_data[2] & 0xFF, sa->sa_data[3] & 0xFF, 
+    sa->sa_data[4] & 0xFF, sa->sa_data[5] & 0xFF);
+  return str;
+}
+
 struct ifi_info *
 get_ifi_info_plus(int family, int doaliases)
 {

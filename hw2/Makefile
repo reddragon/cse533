@@ -1,12 +1,16 @@
 CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g -I$(HOME)/unpv13e_linux/lib
 LIBS = $(HOME)/unpv13e_linux/libunp.a
-OBJ = client
+OBJ = client server
 
 all: $(OBJ)
+
+server: server.c utils.h utils.c
+	$(CC) $(CFLAGS) server.c utils.c -o server $(LIBS)
 
 client: client.c utils.h utils.c
 	$(CC) $(CFLAGS) client.c utils.c -o client $(LIBS)
 
 clean:
 	rm $(OBJ)
+
