@@ -34,6 +34,14 @@ get_subnet_addr(struct sockaddr *addr, struct sockaddr *ntm) {
   return sa;
 }
 
+UINT
+get_ntm_len(struct sockaddr *ntm) {
+  UINT len = 0;
+  int i;
+  for (i = 2; i < 6 && ((ntm->sa_data[i] & 0xFF) != 0); i++, len++); 
+  return len;
+}
+
 char *
 sa_data_str(struct sockaddr *sa) {
   char *str = (char *) malloc(sizeof(char) * 20);
@@ -42,6 +50,16 @@ sa_data_str(struct sockaddr *sa) {
     sa->sa_data[2] & 0xFF, sa->sa_data[3] & 0xFF, 
     sa->sa_data[4] & 0xFF, sa->sa_data[5] & 0xFF);
   return str;
+}
+
+struct sockaddr *
+inet_pton_sa(const char *ip_addr, UINT portno) {
+  struct sockaddr *sa;
+  struct sockaddr_in *si = MALLOC(struct sockaddr_in);
+  si->sin_family = AF_INET;
+  si->sin_port = htons(portno);
+  inet_pton(AF_INET, ip_addr, &si->sin_addr);
+  return sa = (struct sockaddr *)si;
 }
 
 struct ifi_info *
