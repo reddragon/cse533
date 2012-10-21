@@ -32,6 +32,12 @@ struct client_conn {
   BOOL is_local; // Is the server local?
 };
 
+struct server_conn {
+  struct sockaddr *serv_sa;
+  struct sockaddr *cli_sa;
+  BOOL is_local; // Is the client local?
+};
+
 struct server_args {
   UINT serv_portno;
   UINT sw_size;

@@ -61,13 +61,28 @@ get_conn(struct client_args *cargs, struct client_conn *conn) {
 
 // Connect to the server, and send the first datagram
 void
-connect_server(struct client_args *cargs, struct client_conn *conn) {
+start_tx(struct client_args *cargs, struct client_conn *conn) {
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
   Bind(sockfd, conn->cli_sa, sizeof(SA));
   struct sockaddr_in sin;
   UINT addrlen = sizeof(SA);
   Getsockname(sockfd, (SA *)&sin, &addrlen);
-  printf("Ephemeral Port Number: %d\n", sin.sin_port);
+  printf("Client's ephemeral Port Number: %d\n", sin.sin_port);
+  Connect(sockfd, conn->serv_sa, sizeof(SA));
+  // TODO
+  // Do we need getpeername here?
+  
+  // Sending the file name to the server
+  Sendto(sockfd, (void *)cargs->file_name, strlen(cargs->file_name), 
+    MSG_DONTROUTE, conn->serv_sa, sizeof(SA)); 
+  char portno_str[20];
+  struct sockaddr sa;
+  struct sockaddr_in *si = (struct sockaddr_in *) &sa;
+  socklen_t sa_sz;
+  Recvfrom(sockfd, (void *) portno_str, 20, 
+      0, &sa, &sa_sz);
+  printf("Ephemeral Port No: %s from IP Address: %s and Port: %u\n", 
+      portno_str, sa_data_str(&sa), (si->sin_port));
 }
 
 int 
@@ -87,6 +102,6 @@ main(int argc, char **argv) {
           sa_data_str(conn.serv_sa),
           sa_data_str(conn.cli_sa));
   // printf("IPServer: %s\n", Sock_ntop(sa, sizeof(SA)));
-  connect_server(cargs, &conn);
+  start_tx(cargs, &conn);
   return 0;
 }
