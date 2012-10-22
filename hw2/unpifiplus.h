@@ -4,7 +4,7 @@
 #ifndef	__unp_ifi_plus_h
 #define	__unp_ifi_plus_h
 
-#include	"unp.h"
+#include	<unp.h>
 #include	<net/if.h>
 
 #define	IFI_NAME	16			/* same as IFNAMSIZ in <net/if.h> */

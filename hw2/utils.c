@@ -1,7 +1,7 @@
 #include "utils.h"
 
 int 
-read_cargs(char *cargs_file, struct client_args *cargs) {  
+read_cargs(const char *cargs_file, struct client_args *cargs) {
   FILE *fp = fopen(cargs_file, "r");
   if (fp == NULL) {
     fprintf(stderr, "Could not open file\n");
@@ -13,7 +13,7 @@ read_cargs(char *cargs_file, struct client_args *cargs) {
 }
 
 int
-read_sargs(char *sargs_file, struct server_args *sargs) {
+read_sargs(const char *sargs_file, struct server_args *sargs) {
   FILE *fp = fopen(sargs_file, "r");
   if (fp == NULL) {
     fprintf(stderr, "Could not open file\n");
@@ -45,7 +45,6 @@ get_ntm_len(struct sockaddr *ntm) {
 char *
 sa_data_str(struct sockaddr *sa) {
   char *str = (char *) malloc(sizeof(char) * 20);
-  int i = 0;
   sprintf(str, "%u.%u.%u.%u", 
     sa->sa_data[2] & 0xFF, sa->sa_data[3] & 0xFF, 
     sa->sa_data[4] & 0xFF, sa->sa_data[5] & 0xFF);

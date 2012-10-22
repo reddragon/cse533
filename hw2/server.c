@@ -1,4 +1,7 @@
+// -*- mode: c; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 #include "utils.h"
+#include "vector.h"
+#include "fdset.h"
 
 void
 get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
@@ -58,7 +61,7 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
 
 // Most of the heavy lifting happens here
 void
-ftp(int old_sockfd, struct sockaddr* cli_sa, char *file_name) {
+ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   struct server_conn conn;
   get_conn(cli_sa, &conn);
   printf("Client is %s\nIPServer: %s\nIPClient: %s\n", 
@@ -84,7 +87,7 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, char *file_name) {
 
 
 void
-bind_udp(struct server_args *sargs, int *sockfd_arr, int *sock_arr_len) {  
+bind_udp(struct server_args *sargs, vector *v) {
   struct ifi_info *ifi, *ifi_head;
   int sockfd;
   const int yes = 1;
@@ -93,73 +96,88 @@ bind_udp(struct server_args *sargs, int *sockfd_arr, int *sock_arr_len) {
   // TODO What is doaliases doing?
   ifi_head = Get_ifi_info_plus(AF_INET, 1);
   
-  *sock_arr_len = 0;
   for (ifi = ifi_head; ifi != NULL; ifi = ifi->ifi_next) {
+    assert(ifi->ifi_ntmaddr != NULL);
+
     sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
     Setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+
     sa = (struct sockaddr_in *) ifi->ifi_addr;
     sa->sin_family = AF_INET;
     sa->sin_port = htons(sargs->serv_portno);
+
     Bind(sockfd, (SA *) sa, sizeof(*sa));
-    sockfd_arr[*sock_arr_len] = sockfd;
-    *sock_arr_len = *sock_arr_len + 1;
-    assert(ifi->ifi_ntmaddr != NULL);
+
+    vector_push_back(v, &sockfd);
+
     struct sockaddr* sn_addr = get_subnet_addr((SA *)sa, (SA *)ifi->ifi_ntmaddr);
-    printf("Bound socket on\n\taddress: %s\n\tnetwork mask: %s\n\tsubnet address: %s\n", 
-      sa_data_str((SA *)sa), 
-      sa_data_str((SA *)ifi->ifi_ntmaddr), 
-      sa_data_str(get_subnet_addr((SA *)sa, (SA *)ifi->ifi_ntmaddr)));
+    printf("Bound socket on\n\taddress: %s\n\tnetwork mask: %s\n\tsubnet address: %s\n",
+           sa_data_str((SA *)sa),
+           sa_data_str((SA *)ifi->ifi_ntmaddr),
+           sa_data_str(sn_addr));
   }
 }
 
 int main(int argc, char **argv) {
   const char *sargs_file = SARGS_FILE;
-  struct server_args *sargs = MALLOC(struct server_args);
-  int sockfd_arr[MAXSOCKS], sockfd_arr_len, i;
-  read_sargs(sargs_file, sargs);
-  bind_udp(sargs, sockfd_arr, &sockfd_arr_len);
-  
-  fd_set readfds;
+  struct server_args sargs;
+  int i;
+  vector socklist;
+
+  vector_init(&socklist, sizeof(int));
+  read_sargs(sargs_file, &sargs);
+  bind_udp(&sargs, &socklist);
+
+  fdset fds;
   struct timeval timeout;
   timeout.tv_sec = 10;
   timeout.tv_usec = 0;
 
-  int mx_sockfd = 0;
   while (1) {
-    FD_ZERO(&readfds);
-    for (i = 0; i < sockfd_arr_len; i++) {
-      FD_SET(sockfd_arr[i], &readfds);
-      mx_sockfd = (mx_sockfd < sockfd_arr[i]) ? sockfd_arr[i] : mx_sockfd;
-    }
-    Select(mx_sockfd + 1, &readfds, NULL, NULL, &timeout);
+    fdset_init(&fds);
+    fdset_add_all(&fds, &fds.rfds, &socklist);
+    fdset_add_all(&fds, &fds.exfds, &socklist);
 
-    for (i = 0; i < sockfd_arr_len; i++) {
-      if (FD_ISSET(sockfd_arr[i], &readfds)) {
-        printf("I sense something on %d\n", sockfd_arr[i]);
+    Select(fds.max_fd + 1, &fds.rfds, NULL, &fds.exfds, &timeout);
+    // TODO: Handle EINTR.
+
+    for (i = 0; i < vector_size(&socklist); i++) {
+      int fd = *(int*)vector_at(&socklist, i);
+
+      // TODO: Check exfds as well.
+      if (FD_ISSET(fd, &fds.rfds)) {
+        printf("There is a disturbance in the force at '%d'\n", fd);
         char file_name[1000];
         struct sockaddr sa;
         struct sockaddr_in *si = (struct sockaddr_in *) &sa;
         socklen_t sa_sz;
-        Recvfrom(sockfd_arr[i], (void *) file_name, 1000, 
-          0, &sa, &sa_sz);
+
+        // TODO: Fixme - handle return value and don't exit.
+        Recvfrom(fd, (void *) file_name, 1000, 0, &sa, &sa_sz);
         printf("Request for file: %s from IP Address: %s and Port: %u\n", 
-          file_name, sa_data_str(&sa), (si->sin_port));
-        
+               file_name, sa_data_str(&sa), (si->sin_port));
+
         int pid = fork();
         if (pid < 0) {
-          err_sys("Error while doing fork()");
+          // err_sys("Error while doing fork()");
+          perror("fork");
+          // Exit process.
+          exit(1);
         }
         if (pid == 0) {
-          // Close all the sockets except this one
+          // Child: Close all the sockets except the one that the
+          // child owns.
           int j;
-          for (j = 0; j < sockfd_arr_len && j != i; j++) {
-            close(sockfd_arr[j]);
+          for (j = 0; j < vector_size(&socklist); j++) {
+            int sockfd = *(int*)vector_at(&socklist, j);
+            if (sockfd != i) {
+              close(sockfd);
+            }
           }
-          ftp(sockfd_arr[i], &sa, &file_name);
+          ftp(fd, &sa, file_name);
           printf("Child process exiting\n");
           exit(0);
         }
-        
       }
     }
   }

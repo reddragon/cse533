@@ -43,8 +43,8 @@ struct server_args {
   UINT sw_size;
 };
 
-int read_cargs(char *cargs_file, struct client_args *cargs);
-int read_sargs(char *sargs_file, struct server_args *sargs);
+int read_cargs(const char *cargs_file, struct client_args *cargs);
+int read_sargs(const char *sargs_file, struct server_args *sargs);
 struct ifi_info * Get_ifi_info_plus(int family, int doaliases);
 void print_ifi_info(struct ifi_info *ifi);
 struct sockaddr* get_subnet_addr(struct sockaddr *addr, struct sockaddr *ntm);
