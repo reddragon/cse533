@@ -6,7 +6,7 @@
 
 void overlapping_memcpy_ltor(char *dest, const char *src, int len) {
     assert(len >= 0);
-    fprintf(stderr, "overlapping_memcpy_ltor(%d)\n", len);
+    // fprintf(stderr, "overlapping_memcpy_ltor(%d)\n", len);
     int i;
     for (i = 0; i < len; ++i) {
         dest[i] = src[i];

@@ -74,7 +74,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   
   // Sending the file name to the server
   Sendto(sockfd, (void *)cargs->file_name, strlen(cargs->file_name), 
-    MSG_DONTROUTE, conn->serv_sa, sizeof(SA)); 
+    MSG_DONTROUTE, conn->serv_sa, sizeof(SA));
   char portno_str[20];
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;

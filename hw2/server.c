@@ -121,7 +121,7 @@ bind_udp(struct server_args *sargs, vector *v) {
 int main(int argc, char **argv) {
   const char *sargs_file = SARGS_FILE;
   struct server_args sargs;
-  int i;
+  int i, r;
   vector socklist;
 
   vector_init(&socklist, sizeof(int));
@@ -138,28 +138,47 @@ int main(int argc, char **argv) {
     fdset_add_all(&fds, &fds.rfds, &socklist);
     fdset_add_all(&fds, &fds.exfds, &socklist);
 
-    Select(fds.max_fd + 1, &fds.rfds, NULL, &fds.exfds, &timeout);
-    // TODO: Handle EINTR.
+    r = select(fds.max_fd + 1, &fds.rfds, NULL, &fds.exfds, &timeout);
+
+    // Handle EINTR.
+    if (r < 0 && errno != EINTR) {
+      perror("select");
+      exit(1);
+    }
+    if (r < 0 && errno == EINTR) {
+      continue;
+    }
 
     for (i = 0; i < vector_size(&socklist); i++) {
       int fd = *(int*)vector_at(&socklist, i);
 
       // TODO: Check exfds as well.
       if (FD_ISSET(fd, &fds.rfds)) {
-        printf("There is a disturbance in the force at '%d'\n", fd);
-        char file_name[1000];
+        printf("There is a disturbance in the force at fd '%d'\n", fd);
+        char file_name[256];
         struct sockaddr sa;
         struct sockaddr_in *si = (struct sockaddr_in *) &sa;
         socklen_t sa_sz;
 
-        // TODO: Fixme - handle return value and don't exit.
-        Recvfrom(fd, (void *) file_name, 1000, 0, &sa, &sa_sz);
-        printf("Request for file: %s from IP Address: %s and Port: %u\n", 
-               file_name, sa_data_str(&sa), (si->sin_port));
+        // Handle return value and don't exit.
+        while (1) {
+          r = recvfrom(fd, (void *) file_name, 255, 0, &sa, &sa_sz);
+          if (r < 0 && errno == EINTR) {
+            continue;
+          }
+        }
+
+        if (r < 0) {
+          perror("recvfrom");
+          printf("Error getting file name from %s:%u\n", sa_data_str(&sa), (si->sin_port));
+          continue;
+        }
+
+        file_name[r] = '\0';
+        printf("%s:%u requested file '%s'\n", sa_data_str(&sa), (si->sin_port), file_name);
 
         int pid = fork();
         if (pid < 0) {
-          // err_sys("Error while doing fork()");
           perror("fork");
           // Exit process.
           exit(1);
@@ -177,9 +196,14 @@ int main(int argc, char **argv) {
           ftp(fd, &sa, file_name);
           printf("Child process exiting\n");
           exit(0);
-        }
-      }
-    }
-  }
+
+        } // if (pid == 0)
+
+      } // if (FD_ISSET...)
+
+    } // for (i = 0; ...)
+
+  } // while (1)
+
   return 0;
 }
