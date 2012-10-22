@@ -3,6 +3,8 @@
 #include "vector.h"
 #include "fdset.h"
 
+vector socklist;
+
 void
 get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   // TODO
@@ -54,9 +56,14 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
     conn->is_local = FALSE;
     // TODO
     // The first address might be a loopback address. Can we choose it like that?
+
+    // TODO: Make a copy here since we will free ifi_head later.
     conn->serv_sa = ifi_head->ifi_addr;
     conn->cli_sa = cli_sa;
   }
+
+  // TODO: free(3) the ifi_head here
+
 }
 
 // Most of the heavy lifting happens here
@@ -118,11 +125,69 @@ bind_udp(struct server_args *sargs, vector *v) {
   }
 }
 
+void read_cb(void *opaque) {
+  int fd = *(int*)opaque;
+  printf("There is a disturbance in the force at fd '%d'\n", fd);
+  char file_name[256];
+  struct sockaddr sa;
+  struct sockaddr_in *si = (struct sockaddr_in *) &sa;
+  socklen_t sa_sz;
+  int r;
+
+  // Handle return value return from callback in case if EINTR. Since
+  // we are using level triggered multiplexed I/O we will be invoked
+  // again in case we didn't read anything when there was something to
+  // read.
+  r = recvfrom(fd, (void *) file_name, 255, 0, &sa, &sa_sz);
+  if (r < 0 && errno == EINTR) {
+    return;
+  }
+
+  if (r < 0) {
+    perror("recvfrom");
+    printf("Error getting file name from %s:%u\n", sa_data_str(&sa), (si->sin_port));
+    return;
+  }
+
+  file_name[r] = '\0';
+  printf("%s:%u requested file '%s'\n", sa_data_str(&sa), (si->sin_port), file_name);
+  
+  int pid = fork();
+  if (pid < 0) {
+    perror("fork");
+    // Exit process.
+    exit(1);
+  }
+
+  if (pid == 0) {
+    // Child: Close all the sockets except the one that the
+    // child owns.
+    int j;
+    for (j = 0; j < vector_size(&socklist); j++) {
+      int sockfd = *(int*)vector_at(&socklist, j);
+      if (sockfd != fd) {
+        close(sockfd);
+      }
+    }
+    ftp(fd, &sa, file_name);
+    printf("Child process exiting\n");
+    exit(0);
+  } // if (pid == 0)
+}
+
+void ex_cb(void *opaque) {
+  int fd = *(int*)opaque;
+  printf("Error detected on fd '%d'\n", fd);
+}
+
+void timeout_cb(void *opaque) {
+  printf("Timeout in select(2)\n");
+}
+
 int main(int argc, char **argv) {
   const char *sargs_file = SARGS_FILE;
   struct server_args sargs;
   int i, r;
-  vector socklist;
 
   vector_init(&socklist, sizeof(int));
   read_sargs(sargs_file, &sargs);
@@ -133,77 +198,23 @@ int main(int argc, char **argv) {
   timeout.tv_sec = 10;
   timeout.tv_usec = 0;
 
-  while (1) {
-    fdset_init(&fds);
-    fdset_add_all(&fds, &fds.rfds, &socklist);
-    fdset_add_all(&fds, &fds.exfds, &socklist);
+  fdset_init(&fds);
 
-    r = select(fds.max_fd + 1, &fds.rfds, NULL, &fds.exfds, &timeout);
+  // Add every socket in socklist to fds->rev & fds->exev
+  for (i = 0; i < vector_size(&socklist); ++i) {
+    int *pfd = (int*)vector_at(&socklist, i);
+    fdset_add(&fds, &fds.rev,  *pfd, pfd, read_cb);
+    fdset_add(&fds, &fds.exev, *pfd, pfd, ex_cb  );
+  }
 
-    // Handle EINTR.
-    if (r < 0 && errno != EINTR) {
-      perror("select");
-      exit(1);
-    }
-    if (r < 0 && errno == EINTR) {
-      continue;
-    }
+  r = fdset_poll(&fds, &timeout, timeout_cb);
 
-    for (i = 0; i < vector_size(&socklist); i++) {
-      int fd = *(int*)vector_at(&socklist, i);
-
-      // TODO: Check exfds as well.
-      if (FD_ISSET(fd, &fds.rfds)) {
-        printf("There is a disturbance in the force at fd '%d'\n", fd);
-        char file_name[256];
-        struct sockaddr sa;
-        struct sockaddr_in *si = (struct sockaddr_in *) &sa;
-        socklen_t sa_sz;
-
-        // Handle return value and don't exit.
-        while (1) {
-          r = recvfrom(fd, (void *) file_name, 255, 0, &sa, &sa_sz);
-          if (r < 0 && errno == EINTR) {
-            continue;
-          }
-        }
-
-        if (r < 0) {
-          perror("recvfrom");
-          printf("Error getting file name from %s:%u\n", sa_data_str(&sa), (si->sin_port));
-          continue;
-        }
-
-        file_name[r] = '\0';
-        printf("%s:%u requested file '%s'\n", sa_data_str(&sa), (si->sin_port), file_name);
-
-        int pid = fork();
-        if (pid < 0) {
-          perror("fork");
-          // Exit process.
-          exit(1);
-        }
-        if (pid == 0) {
-          // Child: Close all the sockets except the one that the
-          // child owns.
-          int j;
-          for (j = 0; j < vector_size(&socklist); j++) {
-            int sockfd = *(int*)vector_at(&socklist, j);
-            if (sockfd != i) {
-              close(sockfd);
-            }
-          }
-          ftp(fd, &sa, file_name);
-          printf("Child process exiting\n");
-          exit(0);
-
-        } // if (pid == 0)
-
-      } // if (FD_ISSET...)
-
-    } // for (i = 0; ...)
-
-  } // while (1)
+  // Handle EINTR.
+  if (r < 0) {
+    perror("select");
+    assert(errno != EINTR);
+    exit(1);
+  }
 
   return 0;
 }

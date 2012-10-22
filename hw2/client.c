@@ -73,6 +73,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   // Do we need getpeername here?
   
   // Sending the file name to the server
+  // Q. Do we need to pass the conn->serv_sa here?
   Sendto(sockfd, (void *)cargs->file_name, strlen(cargs->file_name), 
     MSG_DONTROUTE, conn->serv_sa, sizeof(SA));
   char portno_str[20];

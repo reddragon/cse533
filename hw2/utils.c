@@ -1,5 +1,45 @@
 #include "utils.h"
 
+char *strip(char *s) {
+    char *r = s;
+    int len = strlen(s);
+    int i, plen = 0, slen = 0;
+    char *d = s;
+    int prefix = 1, suffix = 1;
+
+    for (i = 0; s[i]; ++i) {
+        if (prefix && isspace(s[i])) {
+            ++plen;
+        } else {
+            break;
+        }
+    }
+    for (i = len-1; i >= 0; --i) {
+        if (suffix && isspace(s[i])) {
+            ++slen;
+        } else {
+            break;
+        }
+    }
+    for (i = plen; i < len-slen; ++i) {
+        *d++ = s[i];
+    }
+    *d = '\0';
+    return r;
+}
+
+void set_non_blocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0); /* get current file status flags */
+    flags |= O_NONBLOCK;	       /* turn off blocking flag */
+    fcntl(fd, F_SETFL, flags);         /* set up non-blocking read */
+}
+
+void set_blocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0); /* get current file status flags */
+    flags &= ~(O_NONBLOCK);	       /* turn off blocking flag */
+    fcntl(fd, F_SETFL, flags);         /* set up non-blocking read */
+}
+
 int 
 read_cargs(const char *cargs_file, struct client_args *cargs) {
   FILE *fp = fopen(cargs_file, "r");

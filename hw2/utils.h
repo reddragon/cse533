@@ -43,6 +43,10 @@ struct server_args {
   UINT sw_size;
 };
 
+char *strip(char *s);
+void set_non_blocking(int fd);
+void set_blocking(int fd);
+
 int read_cargs(const char *cargs_file, struct client_args *cargs);
 int read_sargs(const char *sargs_file, struct server_args *sargs);
 struct ifi_info * Get_ifi_info_plus(int family, int doaliases);

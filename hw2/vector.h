@@ -19,5 +19,6 @@ void vector_pop_back(vector *v);
 int vector_size(vector *v);
 int vector_empty(vector *v);
 int vector_object_size(vector *v);
+void vector_erase(vector *v, int i);
 
 #endif // VECTOR_H

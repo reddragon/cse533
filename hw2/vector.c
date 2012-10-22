@@ -89,3 +89,10 @@ int vector_object_size(vector *v) {
     assert(v);
     return v->obj_size;
 }
+
+void vector_erase(vector *v, int i) {
+    assert(v);
+    assert(i >= 0 && i < v->size);
+    memmove(vector_get(v, i), vector_get(v, i+1), (v->size - i - 1) * v->obj_size);
+    vector_pop_back(v);
+}
