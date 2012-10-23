@@ -74,20 +74,49 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   
   // Sending the file name to the server
   // Q. Do we need to pass the conn->serv_sa here?
-  Sendto(sockfd, (void *)cargs->file_name, strlen(cargs->file_name), 
-    MSG_DONTROUTE, conn->serv_sa, sizeof(SA));
-  char portno_str[20];
+
+  packet_t pkt;
+  pkt.ack = 0;
+  pkt.seq = 0;
+  pkt.flags = FLAG_SYN;
+  pkt.datalen = strlen(cargs->file_name);
+  strcpy(pkt.data, cargs->file_name);
+
+  printf("Sending %d bytes of data to the server.", sizeof(pkt));
+  Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE,
+         conn->serv_sa, sizeof(SA));
+  int portno;
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
   socklen_t sa_sz;
-  Recvfrom(sockfd, (void *) portno_str, 20, 
-      0, &sa, &sa_sz);
-  printf("Ephemeral Port No: %s from IP Address: %s and Port: %u\n", 
-      portno_str, sa_data_str(&sa), (si->sin_port));
+
+  Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+
+  pkt.data[pkt.datalen] = '\0';
+  sscanf(pkt.data, "%d", &portno);
+
+  printf("Ephemeral Port No: %d from IP Address: %s and Port: %u\n",
+         portno, sa_data_str(&sa), (si->sin_port));
+
+  // Receive data from the socket till a packet with the FLAG_FIN flag
+  // is received. Open the file for writing.
+
+  char *file_name = pkt.data;
+  strcat(file_name, ".out");
+
+  FILE *pf = fopen(file_name, "w");
+  assert(pf);
+  while (1) {
+      Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+      fwrite(pkt.data, pkt.datalen, 1, pf);
+      if (pkt.flags && FLAG_FIN) {
+          break;
+      }
+  }
+  fclose(pf);
 }
 
-int 
-main(int argc, char **argv) {
+int main(int argc, char **argv) {
   assert(argc == 1);
   const char *cargs_file = CARGS_FILE;
   struct client_args *cargs = (struct client_args *)

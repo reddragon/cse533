@@ -1,4 +1,14 @@
 #include "utils.h"
+#include <ctype.h>
+
+
+void packet_hton(packet_t *out, const packet_t *in) {
+    *out = *in;
+    out->ack = htonl(in->ack);
+    out->seq = htonl(in->seq);
+    out->flags = htons(in->flags);
+    out->datalen = htonl(in->datalen);
+}
 
 char *strip(char *s) {
     char *r = s;

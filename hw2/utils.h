@@ -43,6 +43,21 @@ struct server_args {
   UINT sw_size;
 };
 
+enum {
+    FLAG_ACK = 1,
+    FLAG_FIN = 2,
+    FLAG_SYN = 4
+};
+
+typedef struct packet_t {
+    uint32_t ack;
+    uint32_t seq;
+    uint16_t flags;
+    uint16_t datalen;
+    char data[512];
+} packet_t;
+
+void packet_hton(packet_t *out, const packet_t *in);
 char *strip(char *s);
 void set_non_blocking(int fd);
 void set_blocking(int fd);

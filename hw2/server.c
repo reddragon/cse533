@@ -2,8 +2,22 @@
 #include "utils.h"
 #include "vector.h"
 #include "fdset.h"
+#include "algorithm.h"
 
+typedef struct inflight_request {
+  int fd; // The fd of the socket on which the request arrived.
+  pid_t pid; // The pid of the child process spawned to serve this client.
+  struct sockaddr sa; // Connection information.
+  struct sockaddr_in si;
+} inflight_request;
+
+// A list of ints storing File Descriptors of listening sockets.
 vector socklist;
+
+// Stores a list of in-flight requests that have connected, but not yet
+// terminated. Useful in case responses from the server are lost and the
+// client re-requests stuff.
+vector inflight_requests;
 
 void
 get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
@@ -19,7 +33,7 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   conn->is_local = FALSE;
   for (ifi = ifi_head; ifi != NULL; ifi = ifi->ifi_next) {
     char *if_addr_str = Sock_ntop(ifi->ifi_addr, sizeof(SA));
-    
+
     // printf("Address: %s NTM: %s NTM Len: %d\n", if_addr_str, sa_data_str(ifi->ifi_ntmaddr), get_ntm_len(ifi->ifi_ntmaddr));
 
     // If we found the same IP being used by one of the interfaces,
@@ -85,10 +99,31 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   Connect(sockfd, conn.cli_sa, sizeof(SA));
   // TODO
   // Finish the ARQ part. This is not reliable
-  char portno_str[20];
-  sprintf(portno_str, "%d", sin.sin_port);
-  Sendto(sockfd, (void *)portno_str, strlen(portno_str), 
-    MSG_DONTROUTE, conn.cli_sa, sizeof(SA)); 
+
+  packet_t pkt;
+  pkt.ack = 0;
+  pkt.seq = 0;
+  pkt.flags = FLAG_SYN;
+  pkt.datalen = sprintf(pkt.data, "%d", sin.sin_port);
+
+  Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
+
+  // Send data till we have more data to write.
+  FILE *pf = fopen(file_name, "r");
+  assert(pf);
+
+  pkt.flags = 0;
+  while (1) {
+    int bread = fread(pkt.data, 1, 512, pf);
+    if (bread == 0) {
+      break;
+    }
+    pkt.datalen = bread;
+    ++pkt.seq;
+    Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
+  }
+
+  fclose(pf);
   close(sockfd);
 }
 
@@ -108,6 +143,7 @@ bind_udp(struct server_args *sargs, vector *v) {
 
     sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
     Setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+    set_non_blocking(sockfd);
 
     sa = (struct sockaddr_in *) ifi->ifi_addr;
     sa->sin_family = AF_INET;
@@ -133,25 +169,51 @@ void read_cb(void *opaque) {
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
   socklen_t sa_sz;
   int r;
+  packet_t pkt;
 
   // Handle return value return from callback in case if EINTR. Since
   // we are using level triggered multiplexed I/O we will be invoked
   // again in case we didn't read anything when there was something to
   // read.
-  r = recvfrom(fd, (void *) file_name, 255, 0, &sa, &sa_sz);
+  r = recvfrom(fd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
   if (r < 0 && errno == EINTR) {
     return;
   }
 
   if (r < 0) {
     perror("recvfrom");
-    printf("Error getting file name from %s:%u\n", sa_data_str(&sa), (si->sin_port));
+    printf("Error getting file name from the client\n");
     return;
   }
 
-  file_name[r] = '\0';
+  assert(pkt.datalen < 512);
+  pkt.data[pkt.datalen] = '\0';
+  strcpy(file_name, pkt.data);
   printf("%s:%u requested file '%s'\n", sa_data_str(&sa), (si->sin_port), file_name);
-  
+
+#if 0
+  // TODO: Check if this is a re-request for an in-flight request.
+  inflight_request req;
+  req.fd = fd;
+  req.sa = sa;
+  req.si = *si;
+  int pos = algorithm_find(inflight_requests, req, find_inflight_request);
+
+  if (pos != -1) {
+    req = *(inflight_request*)vector_at(&inflight_requests, pos);
+
+    // Check if the process is running.
+    if (kill(pid, 0) != 0) {
+      pos = -1;
+    }
+  }
+
+  if (pos != -1) {
+    // Process is running - do nothing.
+    return;
+  }
+#endif
+
   int pid = fork();
   if (pid < 0) {
     perror("fork");
@@ -169,6 +231,8 @@ void read_cb(void *opaque) {
         close(sockfd);
       }
     }
+
+    // TODO: Add to list of in-flight requests.
     ftp(fd, &sa, file_name);
     printf("Child process exiting\n");
     exit(0);
@@ -205,6 +269,7 @@ int main(int argc, char **argv) {
     int *pfd = (int*)vector_at(&socklist, i);
     fdset_add(&fds, &fds.rev,  *pfd, pfd, read_cb);
     fdset_add(&fds, &fds.exev, *pfd, pfd, ex_cb  );
+    printf("Added FD %d to read/ex-set\n", *pfd);
   }
 
   r = fdset_poll(&fds, &timeout, timeout_cb);
