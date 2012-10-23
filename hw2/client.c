@@ -85,6 +85,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   printf("Sending %d bytes of data to the server.", sizeof(pkt));
   Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE,
          conn->serv_sa, sizeof(SA));
+
   int portno;
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;

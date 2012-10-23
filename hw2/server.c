@@ -167,7 +167,7 @@ void read_cb(void *opaque) {
   char file_name[256];
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
-  socklen_t sa_sz;
+  socklen_t sa_sz = sizeof(sa);
   int r;
   packet_t pkt;
 
