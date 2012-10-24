@@ -122,6 +122,16 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   si->sin_port = htons(portno);
   Connect(sockfd, &sa, sizeof(SA));
 
+  // Send an ACK to the server.
+  pkt.flags = FLAG_ACK;
+  pkt.ack   = 1;
+  ++pkt.seq;
+  pkt.datalen = 0;
+  memset(pkt.data, 0, sizeof(pkt.data));
+
+  printf("Sending %d bytes of data to the server\n", sizeof(pkt));
+  Send(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE); // The DONTROUTE might be wrong.
+
   // Receive data from the socket till a packet with the FLAG_FIN flag
   // is received. Open the file for writing.
 

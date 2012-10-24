@@ -117,7 +117,9 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   if (cli_ifi.ifi_brdaddr) {
     conn->is_local = TRUE;
     conn->cli_sa  = inet_pton_sa("127.0.0.1", cli_portno);
-    conn->serv_sa = inet_pton_sa(cli_ifi.ifi_brdaddr, 0); // Q. Is this correct?
+    char server_ip[40];
+    strcpy(server_ip, Sock_ntop_host(cli_ifi.ifi_brdaddr, sizeof(SA)));
+    conn->serv_sa = inet_pton_sa(server_ip, 0); // Q. Is this correct?
     return;
   }
 
