@@ -3,7 +3,7 @@
 
 #include "vector.h"
 
-typedef void* (*proc_2_arg)(const void*, const void*);
+typedef const void* (*proc_2_arg)(const void*, const void*);
 typedef int (*cmpeq_t)(const void*, const void*);
 
 /* Reduce elements in 'v' using 'val' as the initial value, and place

@@ -99,14 +99,15 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   int portno;
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
-  socklen_t sa_sz;
+  socklen_t sa_sz = sizeof(sa);
 
   Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
 
   pkt.data[pkt.datalen] = '\0';
   sscanf(pkt.data, "%d", &portno);
+  const char *serverIP = sa_data_str(&sa);
 
-  printf("Server[%s:%d] ephemeral Port No: %d\n", sa_data_str(&sa), ntohs(si->sin_port), portno);
+  printf("Server endpoints {1} [%s:%d] & {2} [%s:%d]\n", serverIP, ntohs(si->sin_port), serverIP, portno);
 
   // Disconnect port association.
   sa.sa_family = AF_UNSPEC;

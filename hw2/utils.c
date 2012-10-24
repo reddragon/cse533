@@ -92,6 +92,8 @@ get_ntm_len(struct sockaddr *ntm) {
   return len;
 }
 
+
+// Q. Are we assuming network byte order here?
 char *
 sa_data_str(struct sockaddr *sa) {
   char *str = (char *) malloc(sizeof(char) * 20);

@@ -19,20 +19,125 @@ vector socklist;
 // client re-requests stuff.
 vector inflight_requests;
 
+// Stores all the information for interfaces in this machine.
+vector interfaces;
+
+vector* get_all_interfaces(void) {
+  if (!vector_empty(&interfaces)) {
+    return &interfaces;
+  }
+  struct ifi_info *ifi, *ifi_head = Get_ifi_info_plus(AF_INET, 0);
+
+  for (ifi = ifi_head; ifi != NULL; ifi = ifi->ifi_next) {
+    vector_push_back(&interfaces, ifi);
+  }
+  return &interfaces;
+}
+
+const void* is_local_interface_reducer(const void *lhs, const void *rhs) {
+  struct ifi_info *ifi = (struct ifi_info*)rhs;
+  struct ifi_info *cli_ifi = (struct ifi_info*)lhs;
+
+  char rhs_addr[40], cli_addr[40];
+  strcpy(rhs_addr, Sock_ntop_host(ifi->ifi_addr, sizeof(SA)));
+  strcpy(cli_addr, Sock_ntop_host(cli_ifi->ifi_addr, sizeof(SA)));
+
+  printf("[1] Comparing Server '%s' and client '%s' IP.\n", rhs_addr, cli_addr);
+  if (!strcmp(cli_addr, rhs_addr)) {
+    // They are the same.
+    printf("Server and client are on the same machine.\n");
+    cli_ifi->ifi_myflags = 1;
+  }
+  return lhs;
+}
+
+const void* longest_match_reducer(const void *lhs, const void *rhs) {
+  struct ifi_info *ifi = (struct ifi_info*)rhs;
+  struct ifi_info *this_ifi = (struct ifi_info*)lhs;
+
+  // Now check if (server's IP addr & server network mask) is the
+  // same as (client's IP addr & client network mask). If yes,
+  // store it. (Only if the prefix match is longer than any
+  // previous prefix match found, thus far).
+
+  char serv_snaddr_str[40], cli_snaddr_str[40];
+
+  struct sockaddr *cli_snaddr =  get_subnet_addr(this_ifi->ifi_addr, ifi->ifi_ntmaddr);
+  struct sockaddr *serv_snaddr = get_subnet_addr(ifi->ifi_addr,      ifi->ifi_ntmaddr);
+
+  strcpy(serv_snaddr_str, Sock_ntop_host(serv_snaddr, sizeof(SA)));
+  strcpy(cli_snaddr_str,  Sock_ntop_host(cli_snaddr,  sizeof(SA)));
+
+  free(cli_snaddr);
+  free(serv_snaddr);
+
+  // this_ifi->ifi_myflags stores the length of the longet prefix, and
+  // this_ifi->ifi_brdaddr stores the actual entry that is the longest.
+
+  UINT ntm_len = get_ntm_len(ifi->ifi_ntmaddr);
+
+  printf("[2] Comparing Server '%s' and Client '%s' IP. len(netmask): %d\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
+  if (!strcmp(serv_snaddr_str, cli_snaddr_str) && ntm_len > this_ifi->ifi_myflags) {
+    printf("Server IP '%s' matches client IP '%s' with length '%d'\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
+    this_ifi->ifi_myflags = ntm_len;
+    this_ifi->ifi_brdaddr = ifi->ifi_addr;
+  }
+  return lhs;
+}
+
 void
 get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   // TODO
   // Check if this function is fine
-  // Use static/global variables to avoid calling Get_ifi_info_plus() every time.
-  struct ifi_info *ifi_head = Get_ifi_info_plus(AF_INET, 0), *ifi;
-  struct sockaddr* sa = NULL;
+
+  // The port number from which the client makes the connection.
   int cli_portno = ntohs(((struct sockaddr_in *)cli_sa)->sin_port);
+
+  vector *ifaces = get_all_interfaces();
+  struct ifi_info cli_ifi;
+
+  memset(&cli_ifi, 0, sizeof(cli_ifi));
+  cli_ifi.ifi_addr = cli_sa;
+  conn->is_local = FALSE;
+
+  // Check if the server is on the same machine as the client.
+  algorithm_reduce(ifaces, is_local_interface_reducer, &cli_ifi);
+
+  if (cli_ifi.ifi_myflags) {
+    // Client & server are on the same machine.
+    conn->is_local = TRUE;
+    conn->cli_sa  = inet_pton_sa("127.0.0.1", cli_portno);
+    conn->serv_sa = inet_pton_sa("127.0.0.1", 0);
+    return;
+  }
+
+  cli_ifi.ifi_myflags = 0; // The length of the longest match.
+  algorithm_reduce(ifaces, longest_match_reducer, &cli_ifi);
+
+  if (cli_ifi.ifi_brdaddr) {
+    conn->is_local = TRUE;
+    conn->cli_sa  = inet_pton_sa("127.0.0.1", cli_portno);
+    conn->serv_sa = inet_pton_sa(cli_ifi.ifi_brdaddr, 0); // Q. Is this correct?
+    return;
+  }
+
+  // We could not find any local interfaces.
+  conn->cli_sa  = cli_sa;
+  conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
+
+#if 0
+  struct ifi_info *ifi;
+  int i;
+  struct sockaddr* sa = NULL;
+
+  // The IP address of the client (i.e. our IP address).
   char *cli_ip_addr = sa_data_str(cli_sa);
 
   UINT longest_match_len = 0;
   // Find if the server is local to the client
   conn->is_local = FALSE;
-  for (ifi = ifi_head; ifi != NULL; ifi = ifi->ifi_next) {
+  for (i = 0; i < vector_size(ifaces); ++i) {
+    ifi = (struct ifi_info*)vector_at(ifaces, i);
     char *if_addr_str = Sock_ntop(ifi->ifi_addr, sizeof(SA));
 
     // printf("Address: %s NTM: %s NTM Len: %d\n", if_addr_str, sa_data_str(ifi->ifi_ntmaddr), get_ntm_len(ifi->ifi_ntmaddr));
@@ -63,22 +168,29 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
       conn->is_local = TRUE;
       conn->cli_sa = inet_pton_sa("127.0.0.1", cli_portno);
       conn->serv_sa = inet_pton_sa("127.0.0.1", 0);
+
+      // Q. Why do we break here?
       break;
     }
   }
-  
+
+  // Q. Isn't "sa" always NULL here??
   if (sa == NULL) {
     conn->is_local = FALSE;
     // TODO
     // The first address might be a loopback address. Can we choose it like that?
 
-    // TODO: Make a copy here since we will free ifi_head later.
-    conn->serv_sa = ifi_head->ifi_addr;
+    conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
     conn->cli_sa = cli_sa;
   }
+#endif
 
-  // TODO: free(3) the ifi_head here
+}
 
+int threeWayHandshake(void) {
+}
+
+int waitForACK(int sockfd) {
 }
 
 // Most of the heavy lifting happens here
@@ -104,20 +216,20 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   pkt.ack = 0;
   pkt.seq = 0;
   pkt.flags = FLAG_SYN;
+  memset(pkt.data, 0, sizeof(pkt.data));
   pkt.datalen = sprintf(pkt.data, "%d", ntohs(sin.sin_port));
 
   // Send the new port number on the existing socket.
   Sendto(old_sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
 
-  // Once the client sends back an ACK on the new socket we connected
-  // from, we can proceed with the file transfer.
-
-  sleep(2);
-
   // Connect this socket to the client on the original port that the
   // client sent data from.
-  printf("Client connected from port: %d\n", ntohs(((struct sockaddr_in*)(conn.cli_sa))->sin_port));
+  printf("Client has connected from port: %d\n", ntohs(((struct sockaddr_in*)(conn.cli_sa))->sin_port));
   Connect(sockfd, conn.cli_sa, sizeof(SA));
+
+  // Once the client sends back an ACK on the new socket we connected
+  // from, we can proceed with the file transfer. Wait for the ACK.
+  int r = Recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
 
   // Send data till we have more data to write.
   FILE *pf = fopen(file_name, "r");
@@ -134,7 +246,6 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
     ++pkt.seq;
     fprintf(stdout, "Sending %d bytes of file data\n", bread);
     Send(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE);
-    // , conn.cli_sa, sizeof(SA));
     if (bread == 0) {
       break;
     }
@@ -271,6 +382,7 @@ int main(int argc, char **argv) {
   int i, r;
 
   vector_init(&socklist, sizeof(int));
+  vector_init(&interfaces, sizeof(struct ifi_info));
   read_sargs(sargs_file, &sargs);
   bind_udp(&sargs, &socklist);
 
