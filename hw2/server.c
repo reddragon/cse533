@@ -23,9 +23,10 @@ void
 get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   // TODO
   // Check if this function is fine
+  // Use static/global variables to avoid calling Get_ifi_info_plus() every time.
   struct ifi_info *ifi_head = Get_ifi_info_plus(AF_INET, 0), *ifi;
   struct sockaddr* sa = NULL;
-  int cli_portno = ((struct sockaddr_in *)cli_sa)->sin_port;
+  int cli_portno = ntohs(((struct sockaddr_in *)cli_sa)->sin_port);
   char *cli_ip_addr = sa_data_str(cli_sa);
 
   UINT longest_match_len = 0;
@@ -95,8 +96,7 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   UINT addrlen = sizeof(SA);
   Getsockname(sockfd, (SA *)&sin, &addrlen);
   printf("Client: %s\n", sa_data_str(conn.cli_sa));
-  printf("Server's ephemeral Port Number: %d\n", sin.sin_port);
-  Connect(sockfd, conn.cli_sa, sizeof(SA));
+  printf("Server's ephemeral Port Number: %d\n", ntohs(sin.sin_port));
   // TODO
   // Finish the ARQ part. This is not reliable
 
@@ -104,9 +104,20 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   pkt.ack = 0;
   pkt.seq = 0;
   pkt.flags = FLAG_SYN;
-  pkt.datalen = sprintf(pkt.data, "%d", sin.sin_port);
+  pkt.datalen = sprintf(pkt.data, "%d", ntohs(sin.sin_port));
 
-  Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
+  // Send the new port number on the existing socket.
+  Sendto(old_sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
+
+  // Once the client sends back an ACK on the new socket we connected
+  // from, we can proceed with the file transfer.
+
+  sleep(2);
+
+  // Connect this socket to the client on the original port that the
+  // client sent data from.
+  printf("Client connected from port: %d\n", ntohs(((struct sockaddr_in*)(conn.cli_sa))->sin_port));
+  Connect(sockfd, conn.cli_sa, sizeof(SA));
 
   // Send data till we have more data to write.
   FILE *pf = fopen(file_name, "r");
@@ -114,13 +125,19 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   pkt.flags = 0;
   while (1) {
+    memset(pkt.data, 0, sizeof(pkt.data));
     int bread = fread(pkt.data, 1, 512, pf);
     if (bread == 0) {
-      break;
+      pkt.flags = FLAG_FIN;
     }
     pkt.datalen = bread;
     ++pkt.seq;
-    Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
+    fprintf(stdout, "Sending %d bytes of file data\n", bread);
+    Send(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE);
+    // , conn.cli_sa, sizeof(SA));
+    if (bread == 0) {
+      break;
+    }
   }
 
   fclose(pf);
@@ -165,9 +182,9 @@ void read_cb(void *opaque) {
   int fd = *(int*)opaque;
   printf("There is a disturbance in the force at fd '%d'\n", fd);
   char file_name[256];
-  struct sockaddr sa;
-  struct sockaddr_in *si = (struct sockaddr_in *) &sa;
-  socklen_t sa_sz = sizeof(sa);
+  struct sockaddr cli_sa;
+  struct sockaddr_in *cli_si = (struct sockaddr_in *) &cli_sa;
+  socklen_t sa_sz = sizeof(cli_sa);
   int r;
   packet_t pkt;
 
@@ -175,7 +192,7 @@ void read_cb(void *opaque) {
   // we are using level triggered multiplexed I/O we will be invoked
   // again in case we didn't read anything when there was something to
   // read.
-  r = recvfrom(fd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+  r = recvfrom(fd, (void*)&pkt, sizeof(pkt), 0, &cli_sa, &sa_sz);
   if (r < 0 && errno == EINTR) {
     return;
   }
@@ -189,13 +206,13 @@ void read_cb(void *opaque) {
   assert(pkt.datalen < 512);
   pkt.data[pkt.datalen] = '\0';
   strcpy(file_name, pkt.data);
-  printf("%s:%u requested file '%s'\n", sa_data_str(&sa), (si->sin_port), file_name);
+  printf("%s:%u requested file '%s'\n", sa_data_str(&cli_sa), ntohs(cli_si->sin_port), file_name);
 
 #if 0
   // TODO: Check if this is a re-request for an in-flight request.
   inflight_request req;
   req.fd = fd;
-  req.sa = sa;
+  req.sa = cli_sa;
   req.si = *si;
   int pos = algorithm_find(inflight_requests, req, find_inflight_request);
 
@@ -233,7 +250,7 @@ void read_cb(void *opaque) {
     }
 
     // TODO: Add to list of in-flight requests.
-    ftp(fd, &sa, file_name);
+    ftp(fd, &cli_sa, file_name);
     printf("Child process exiting\n");
     exit(0);
   } // if (pid == 0)

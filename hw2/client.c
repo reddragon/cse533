@@ -63,12 +63,21 @@ get_conn(struct client_args *cargs, struct client_conn *conn) {
 void
 start_tx(struct client_args *cargs, struct client_conn *conn) {
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+
+  // Bind to port 0
   Bind(sockfd, conn->cli_sa, sizeof(SA));
+
   struct sockaddr_in sin;
   UINT addrlen = sizeof(SA);
+
+  // Fetch port number at which kernel bound this socket.
   Getsockname(sockfd, (SA *)&sin, &addrlen);
-  printf("Client's ephemeral Port Number: %d\n", sin.sin_port);
+  int cliport = ntohs(sin.sin_port);
+  printf("Client's ephemeral Port Number: %d\n", cliport);
+
+  // Connect to the server.
   Connect(sockfd, conn->serv_sa, sizeof(SA));
+
   // TODO
   // Do we need getpeername here?
   
@@ -76,14 +85,15 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   // Q. Do we need to pass the conn->serv_sa here?
 
   packet_t pkt;
+  memset(&pkt, 0, sizeof(pkt));
   pkt.ack = 0;
   pkt.seq = 0;
   pkt.flags = FLAG_SYN;
   pkt.datalen = strlen(cargs->file_name);
   strcpy(pkt.data, cargs->file_name);
 
-  printf("Sending %d bytes of data to the server.", sizeof(pkt));
-  Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE,
+  printf("Sending %d bytes of data to the server\n", sizeof(pkt));
+  Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, // The DONTROUTE might be wrong.
          conn->serv_sa, sizeof(SA));
 
   int portno;
@@ -96,21 +106,48 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   pkt.data[pkt.datalen] = '\0';
   sscanf(pkt.data, "%d", &portno);
 
-  printf("Ephemeral Port No: %d from IP Address: %s and Port: %u\n",
-         portno, sa_data_str(&sa), (si->sin_port));
+  printf("Server[%s:%d] ephemeral Port No: %d\n", sa_data_str(&sa), ntohs(si->sin_port), portno);
+
+  // Disconnect port association.
+  sa.sa_family = AF_UNSPEC;
+  Connect(sockfd, &sa, sizeof(SA));
+
+  // Bind to the port we were originally bound to, and connect this
+  // socket to the new port number that the server sent us.
+  struct sockaddr_in cli_si = *(struct sockaddr_in*)conn->cli_sa;
+  cli_si.sin_port = htons(cliport);
+  Bind(sockfd, (struct sockaddr*)&cli_si, sizeof(SA));
+  sa = *(conn->serv_sa);
+  si->sin_port = htons(portno);
+  Connect(sockfd, &sa, sizeof(SA));
 
   // Receive data from the socket till a packet with the FLAG_FIN flag
   // is received. Open the file for writing.
 
-  char *file_name = pkt.data;
-  strcat(file_name, ".out");
+  char file_name[300];
+  sprintf(file_name, "%s.out", "test");
 
   FILE *pf = fopen(file_name, "w");
   assert(pf);
   while (1) {
-      Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+      fprintf(stdout, "Waiting on Recv...\n");
+      int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
+      fprintf(stdout, "recv(2) returned with exit code: %d\n", r);
+
+      if (r < 0 && errno == EINTR) {
+          continue;
+      }
+      if (r < 0) {
+          perror("recv");
+          break;
+      }
+      if (r == 0) {
+          fprintf(stdout, "End of file while recv(2)ing file\n");
+          break;
+      }
+      // , &sa, &sa_sz);
       fwrite(pkt.data, pkt.datalen, 1, pf);
-      if (pkt.flags && FLAG_FIN) {
+      if (pkt.flags & FLAG_FIN) {
           break;
       }
   }
