@@ -214,6 +214,21 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   // TODO
   // Finish the ARQ part. This is not reliable
 
+  // TODO: Start a timer after sending the first packet. If the ACK
+  // times out, we re-send the port number on both sockets so that the
+  // client can respond accordingly.
+
+  // Once the 3-way handshake is complete, we set up a sliding window
+  // with a static size, and send as many packets as will fit in that
+  // window. Once we run out of buffer space, we wait till an ACK
+  // comes in and send out more data when the ACK frees up some space
+  // in our window.
+
+  // We also set up a timer to track in case no ACKs are coming
+  // in. Also, once 3 ACKs come in for a packet, we switch to
+  // fast-retransmit and retransmit ONLY that packet and continue
+  // processing.
+
   packet_t pkt;
   pkt.ack = 0;
   pkt.seq = 0;

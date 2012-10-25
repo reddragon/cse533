@@ -93,7 +93,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   strcpy(pkt.data, cargs->file_name);
 
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
-  Sendto(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, // The DONTROUTE might be wrong.
+  Sendto(sockfd, (void*)&pkt, sizeof(pkt), conn->is_local ? MSG_DONTROUTE : 0,
          conn->serv_sa, sizeof(SA));
 
   int portno;
@@ -129,8 +129,9 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   pkt.datalen = 0;
   memset(pkt.data, 0, sizeof(pkt.data));
 
+  // TODO: Call packet_hton() and pass an output buffer.
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
-  Send(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE); // The DONTROUTE might be wrong.
+  Send(sockfd, (void*)&pkt, sizeof(pkt), conn->is_local ? MSG_DONTROUTE : 0);
 
   // Receive data from the socket till a packet with the FLAG_FIN flag
   // is received. Open the file for writing.
@@ -156,7 +157,6 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
           fprintf(stdout, "End of file while recv(2)ing file\n");
           break;
       }
-      // , &sa, &sa_sz);
       fwrite(pkt.data, pkt.datalen, 1, pf);
       if (pkt.flags & FLAG_FIN) {
           break;

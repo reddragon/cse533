@@ -35,6 +35,10 @@ vector.o: vector.c vector.h
 	$(CC) $(CFLAGS) -c -o vector.o vector.c
 algorithm.o: algorithm.c algorithm.h vector.h
 	$(CC) $(CFLAGS) -c -o algorithm.o algorithm.c
+treap.o: treap.c
+	$(CC) $(CFLAGS) -c -o treap.o treap.c
+test:
+	$(CC) $(CFLAGS) -o treap.test treap.c -DTEST
 clean:
 	rm $(OBJ)
 
