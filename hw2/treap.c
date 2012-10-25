@@ -19,6 +19,7 @@ void treap_init(treap *t);
 void treap_insert(treap *t, int key, const void *data);
 treap_node* treap_lower_bound(treap *t, int key);
 void treap_delete_leaf_node(treap *t, treap_node *n);
+void treap_delete_node(treap *t, treap_node *n);
 
 
 void treap_init(treap *t) {
@@ -74,29 +75,59 @@ void treap_insert(treap *t, int key, const void *data) {
 }
 
 void treap_rotate_right(treap_node *n) {
-    treap_node *r = n->parent;
-    treap_node *nright = n->right;
-    n->right = r;
-    r->left = nright;
-    if (r->parent) {
-        if (r->parent->left == r) {
-            r->parent->left = n;
+    treap_node *par = n->parent;
+    assert(par && par->left == n);
+    treap_node *parpar = par->parent;
+
+    par->left = n->right;
+    if (n->right) {
+        n->right->parent = par;
+    }
+
+    n->right = par;
+    par->parent = n;
+
+    if (parpar) {
+        if (parpar->left == par) {
+            parpar->left = n;
         } else {
-            r->parent->right = n;
+            parpar->right = n;
         }
     }
-    n->parent = r->parent;
-    r->parent = n;
-    if (nright) {
-        nright->parent = r;
-    }
+    n->parent = parpar;
 }
 
 void treap_rotate_left(treap_node *n) {
+    treap_node *par = n->parent;
+    assert(par && par->right == n);
+    treap_node *parpar = par->parent;
+
+    par->right = n->left;
+    if (n->left) {
+        n->left->parent = par;
+    }
+
+    n->left = par;
+    par->parent = n;
+
+    if (parpar) {
+        if (parpar->left == par) {
+            parpar->left = n;
+        } else {
+            parpar->right = n;
+        }
+    }
+    n->parent = parpar;
+
+#if 0
     treap_node *r = n->parent;
     treap_node *nleft = n->left;
+    assert(r && r->right == n);
     n->left = r;
     r->right = nleft;
+    if (nleft) {
+        nleft->parent = r;
+    }
     if (r->parent) {
         if (r->parent->left == r) {
             r->parent->left = n;
@@ -106,9 +137,7 @@ void treap_rotate_left(treap_node *n) {
     }
     n->parent = r->parent;
     r->parent = n;
-    if (nleft) {
-        nleft->parent = r;
-    }
+#endif
 }
 
 void treap_rotate_up(treap *t, treap_node *n) {
@@ -120,6 +149,7 @@ void treap_rotate_up(treap *t, treap_node *n) {
     }
     if (t->root == r) {
         t->root = n;
+        n->parent = NULL;
     }
 }
 
@@ -153,62 +183,89 @@ treap_node* treap_lower_bound(treap *t, int key) {
     return lb;
 }
 
-void treap_delete_leaf_node(treap *t, treap_node *n) {
-    assert(!n->left && !n->right);
-    // Is 'n' the root?
-    if (!n->parent) {
-        free(n);
-        t->root = NULL;
-    } else {
-        if (n->parent->left == n) {
-            n->parent->left = NULL;
+void treap_delete_leaf_or_single_child_node(treap *t, treap_node *n) {
+    fprintf(stderr, "key: %d; n->left: %p, n->right: %p\n", n->key, n->left, n->right);
+    assert(!(n->left && n->right));
+
+    if (n->left || n->right) {
+        treap_node *child = n->left ? n->left : n->right;
+        if (n->parent) {
+            if (n->parent->left == n) {
+                n->parent->left = child;
+            } else {
+                n->parent->right = child;
+            }
+            child->parent = n->parent;
         } else {
-            n->parent->right = NULL;
+            // n is the root.
+            t->root = child;
+            child->parent = NULL;
         }
-        free(n);
+    } else {
+        // No children.
+        // Is 'n' the root?
+        if (!n->parent) {
+            t->root = NULL;
+        } else {
+            if (n->parent->left == n) {
+                n->parent->left = NULL;
+            } else {
+                n->parent->right = NULL;
+            }
+        }
     }
+    free(n);
 }
 
 treap_node* treap_successor(treap_node *n) {
+    fprintf(stderr, "treap_successor(%d) == ", n->key);
     if (n->right) {
         n = n->right;
         while (n->left) {
             n = n->left;
         }
+        fprintf(stderr, "%d\n", n->key);
         return n;
     } else {
-        while (n->parent && n->parent->right == n) {
-            n = n->parent;
+        treap_node *par = n->parent;
+        while (par && par->right == n) {
+            n = par;
+            par = par->parent;
         }
-        if (!n->parent && n->parent->right == n) {
-            return NULL;
-        }
-        return n;
+        fprintf(stderr, "%d\n", par ? par->key : -1);
+        return par;
     }
 }
 
 treap_node* treap_predecessor(treap_node *n) {
+    fprintf(stderr, "treap_predecessor(%d) == ", n->key);
     if (n->left) {
         n = n->left;
         while (n->right) {
             n = n->right;
         }
+        fprintf(stderr, "{1} %d\n", n->key);
         return n;
     } else {
-        while (n->parent && n->parent->left == n) {
-            n = n->parent;
+        treap_node *par = n->parent;
+        while (par && par->left == n) {
+            fprintf(stderr, "{3} %d; ", par->key);
+            n = par;
+            par = par->parent;
         }
-        if (!n->parent && n->parent->left == n) {
-            return NULL;
-        }
-        return n;
+        fprintf(stderr, "{2} %d\n", par ? par->key : -1);
+        return par;
     }
 }
 
 void treap_delete(treap *t, int key) {
     treap_node *n = treap_find(t, key);
     if (!n) { return; }
+    treap_delete_node(t, n);
+}
 
+void treap_delete_node(treap *t, treap_node *n) {
+#if 0
     // Move element to the root.
     n->heapkey = -1;
     treap_node *r = n->parent;
@@ -217,19 +274,49 @@ void treap_delete(treap *t, int key) {
         r = n->parent;
     }
 
-    // n is now the root of the tree. Find either the predecessor or
-    // successor of n and put the 'key' and 'data' members here.
+    // n is now the root of the tree.
+#endif
+
+    // If n is a leaf node or a node with a single child, delete it
+    // directly.
+    if (!(n->left && n->right)) {
+        treap_delete_leaf_or_single_child_node(t, n);
+    } else {
+        // n has both children. Either the predecessor or successor
+        // node is one with just a single child.
+        treap_node *succ = treap_successor(n);
+        if (succ) {
+            assert(!(succ->left && succ->right));
+            n->key  = succ->key;
+            n->data = succ->data;
+            treap_delete_leaf_or_single_child_node(t, succ);
+        } else {
+            treap_node *pred = treap_predecessor(n);
+            assert(pred && !(pred->left && pred->right));
+            n->key  = pred->key;
+            n->data = pred->data;
+            treap_delete_leaf_or_single_child_node(t, pred);
+        }
+    }
+
+#if 0
+    // Find either the predecessor or successor of n and put the 'key'
+    // and 'data' members here.
     treap_node *predsucc = treap_successor(n);
     if (!predsucc) {
         predsucc = treap_predecessor(n);
     }
     if (!predsucc) {
-        treap_delete_leaf_node(t, n);
+        treap_delete_leaf_or_single_child_node(t, n);
     } else {
+        // predsucc is a node with at most 1 child.
+        assert(!(predsucc->left && predsucc->right));
+
         n->key = predsucc->key;
         n->data = predsucc->data;
-        treap_delete_leaf_node(t, predsucc);
+        treap_delete_leaf_or_single_child_node(t, predsucc);
     }
+#endif
 }
 
 void treap_print(treap_node *n) {
@@ -244,33 +331,44 @@ int main(int argc, char *argv[]) {
     treap t;
     treap_init(&t);
 
-    treap_insert(&t, 100, NULL);
-    treap_insert(&t, 50, NULL);
+    int i;
+    int n[ ] = { 100, 50, 200, 400, 250, 25, 55, 10 };
 
-    treap_print(t.root);
+    printf("-- Testing Treap Insertion --\n");
+    printf("-----------------------------\n");
+
+    for (i = 0; i < sizeof(n)/sizeof(int); ++i) {
+        treap_insert(&t, n[i], NULL);
+        treap_print(t.root);
+        printf("\n");
+    }
+
+    fflush(stdout);
     printf("\n");
+    printf("-- Testing Treap Lower Bound --\n");
+    printf("-------------------------------\n");
 
-    treap_insert(&t, 200, NULL);
+    treap_node *lb;
+    int q[ ] = { 50, 16, 82, 81, 251, 249, 501, 500, 200, 25, 56, 55, 33, 0, 1000 };
+    for (i = 0; i < sizeof(q)/sizeof(int); ++i) {
+        lb = treap_lower_bound(&t, q[i]);
+        printf("%d is the lower bound on %d\n", (lb ? lb->key : -1), q[i]);
+    }
 
-    treap_print(t.root);
+    fflush(stdout);
     printf("\n");
+    printf("-- Testing Treap Deletion --\n");
+    printf("----------------------------\n");
 
-    treap_insert(&t, 400, NULL);
+    for (i = 0; i < sizeof(n)/sizeof(int); ++i) {
+        printf("Before deleting '%d'\n", n[i]);
+        treap_print(t.root);
+        treap_delete(&t, n[i]);
 
-    treap_print(t.root);
-    printf("\n");
-
-    treap_insert(&t, 250, NULL);
-
-    treap_print(t.root);
-    printf("\n");
-
-    treap_insert(&t, 25, NULL);
-    treap_insert(&t, 55, NULL);
-    treap_insert(&t, 10, NULL);
-
-    treap_print(t.root);
-    printf("\n");
+        printf("\nAfter deleting '%d'\n", n[i]);
+        treap_print(t.root);
+        printf("\n");
+    }
 
     return 0;
 }

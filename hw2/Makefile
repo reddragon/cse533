@@ -38,7 +38,7 @@ algorithm.o: algorithm.c algorithm.h vector.h
 treap.o: treap.c
 	$(CC) $(CFLAGS) -c -o treap.o treap.c
 test:
-	$(CC) $(CFLAGS) -o treap.test treap.c -DTEST
+	$(CC) $(CFLAGS) -o treap.test treap.c -DTEST -g
 clean:
 	rm $(OBJ)
 
