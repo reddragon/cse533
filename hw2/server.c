@@ -216,7 +216,8 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   // TODO: Start a timer after sending the first packet. If the ACK
   // times out, we re-send the port number on both sockets so that the
-  // client can respond accordingly.
+  // client can respond accordingly. Use select(2) for the connection
+  // bit and the actual data sending if possible.
 
   // Once the 3-way handshake is complete, we set up a sliding window
   // with a static size, and send as many packets as will fit in that

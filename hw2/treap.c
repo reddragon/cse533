@@ -118,26 +118,6 @@ void treap_rotate_left(treap_node *n) {
         }
     }
     n->parent = parpar;
-
-#if 0
-    treap_node *r = n->parent;
-    treap_node *nleft = n->left;
-    assert(r && r->right == n);
-    n->left = r;
-    r->right = nleft;
-    if (nleft) {
-        nleft->parent = r;
-    }
-    if (r->parent) {
-        if (r->parent->left == r) {
-            r->parent->left = n;
-        } else {
-            r->parent->right = n;
-        }
-    }
-    n->parent = r->parent;
-    r->parent = n;
-#endif
 }
 
 void treap_rotate_up(treap *t, treap_node *n) {
@@ -264,19 +244,11 @@ void treap_delete(treap *t, int key) {
     treap_delete_node(t, n);
 }
 
+int treap_size(treap *t) {
+    return t->size;
+}
+
 void treap_delete_node(treap *t, treap_node *n) {
-#if 0
-    // Move element to the root.
-    n->heapkey = -1;
-    treap_node *r = n->parent;
-    while (r && n->heapkey < r->heapkey) {
-        treap_rotate_up(t, n);
-        r = n->parent;
-    }
-
-    // n is now the root of the tree.
-#endif
-
     // If n is a leaf node or a node with a single child, delete it
     // directly.
     if (!(n->left && n->right)) {
@@ -298,25 +270,7 @@ void treap_delete_node(treap *t, treap_node *n) {
             treap_delete_leaf_or_single_child_node(t, pred);
         }
     }
-
-#if 0
-    // Find either the predecessor or successor of n and put the 'key'
-    // and 'data' members here.
-    treap_node *predsucc = treap_successor(n);
-    if (!predsucc) {
-        predsucc = treap_predecessor(n);
-    }
-    if (!predsucc) {
-        treap_delete_leaf_or_single_child_node(t, n);
-    } else {
-        // predsucc is a node with at most 1 child.
-        assert(!(predsucc->left && predsucc->right));
-
-        n->key = predsucc->key;
-        n->data = predsucc->data;
-        treap_delete_leaf_or_single_child_node(t, predsucc);
-    }
-#endif
+    --t->size;
 }
 
 void treap_print(treap_node *n) {
