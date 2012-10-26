@@ -4,7 +4,11 @@
 #include "treap.h"
 
 //                          opaque, buffer, size
-typedef int (*read_more_cb)(void*,  void*,  int);
+typedef int  (*read_more_cb)(void*,  void*,  int);
+
+enum { TX_SUCCESS=0, TX_FAILURE=1 };
+//                     status (0->success; 1->failure)
+typedef void (*end_cb)(int);
 
 typedef struct rtt_info {
     // All values are in 'ms'.
@@ -52,15 +56,18 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
 
 // The sending window.
 typedef struct swindow {
-    treap swin;
+    treap swin;             // A dictionary holding the in-flight packets
+    int fd;                 // The FD of the connected client
     int oldest_unacked_seq; // The oldest un-acknowledged packet's sequence number
     int num_acks;           // The number of ACK responses for 'oldest_unacked_seq' that we have seen. This is ONLY for ACKs in sequence AFTER we reset 'oldest_unacked_seq'
+    int next_seq;           // The seq # of the next packet to be sent
     int swinsz;             // The current size of the sending window
     int rwinsz;             // The current size of the receiver window
     int rbuffsz;            // The size of the buffer at the receiver
     int sbuffsz;            // The size of the buffer at the sender
     int oas_num_time_outs;  // The # of times the packet with seq # 'oldest_unacked_seq' timed out.
     read_more_cb read_some; // Callback to read more data
+    end_cb on_end;          // Callback to indicate end of transmission
     void *opaque;           // Opaque data passed to the read_some callback
     rtt_info rtt;
     BOOL EOF;               // EOF if TRUE
@@ -106,17 +113,20 @@ typedef struct swindow {
 
 // Using select(2) is a *good* idea.
 
-void swindow_init(swindow *swin, int swinsz) {
+void swindow_init(swindow *swin, int fd, int swinsz, read_more_cb read_some, void *opaque, failed_cb on_timedout) {
     treap_init(&swin->swin);
-    swin->oldest_unacked_seq = 0;
+    swin->oldest_unacked_seq = 1;
+    swin->fd                 = fd;
     swin->num_acks           = 0;
+    swin->next_seq           = 1;
     swin->swinsz             = swinsz;
     swin->rwinsz             = 0;
     swin->rbuffsz            = 0;
     swin->sbuffsz            = 0;
     swin->oas_timed_out      = 0;
-    swin->read_some          = NULL;
-    swin->opaque             = 0;
+    swin->read_some          = read_some;
+    swin->opaque             = opaque;
+    swin->on_end             = on_end;
     rtt_info_init(&swin->rtt);
 }
 
@@ -145,7 +155,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
 
         if (swin->num_acks == 3) {
             // This is the 3rd ACK. Perform a fast re-transmit for
-            // packet with seq # 'oldest_unacked_seq'.
+            // packet with seq # 'oldest_unacked_seq'. (TODO)
         }
     }
 
@@ -195,22 +205,46 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
         }
         // TODO. Set the seq #
         pkt.datalen = r;
+        pkt.seq     = swin->next_seq++;
 
-        // TODO: Send this packet and add to treap.
+        tx_packet_info* txp = make_tx_packet(&pkt);
+
+        // Add this packet to the treap and send it off.
+        treap_insert(&swin->swin, pkt.seq, txp);
+        swindow_transmit_packet(swin, pkt.seq);
+    }
+
+    if (swin->EOF && treap_empty(&swin->swin)) {
+        // We are done!!
+        swin->on_end(TX_SUCCESS);
+        return;
     }
 
     // Set the rbuffsz when we get the first ACK. This happens in the
     // 3-way handshake function.
 }
 
-void swindow_timed_out() {
+// We assume that the packet with SEQ # (seq) is available in swin->swin.
+void swindow_transmit_packet(swindow *swin, int seq) {
+    tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
+    assert(txp);
+    // TODO: Set the SO_DONTROUTE flag on the socket to start off with if we need to use it.
+    Send(swin->fd, &txp->pkt, sizeof(txp->pkt), 0);
 }
 
-void swindow_set_window_size() {
-}
+void swindow_timed_out(swindow *swin) {
+    // Sending the packet with the seq # 'oldest_unacked_seq' timed out.
+    ++swin->oas_num_time_outs;
 
-void swindow_set_callback(swindow *swin, read_more_cb read_some, void *opaque) {
-    swin->read_some = read_some;
-    swin->opaque = opaque;
-}
+    if (swin->oas_num_time_outs > 12) {
+        // Bail out.
+        swin->on_end(TX_FAILURE);
+        return;
+    }
 
+    // Double the RTO value.
+    swin->rtt._8rto *= 2;
+
+    // Re-transmit the packet with seq # == oldest_unacked_seq.
+    swindow_transmit_packet(swin, swin->oldest_unacked_seq);
+}

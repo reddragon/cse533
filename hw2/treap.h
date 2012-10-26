@@ -34,5 +34,6 @@ int         treap_size(treap *t);
 void        treap_print(treap_node *n);
 int         treap_empty(treap *t);
 treap_node* treap_largest(treap *t);
+treap_node* treap_smallest(treap *t);
 
 #endif // TREAP_H
