@@ -155,7 +155,8 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
 
         if (swin->num_acks == 3) {
             // This is the 3rd ACK. Perform a fast re-transmit for
-            // packet with seq # 'oldest_unacked_seq'. (TODO)
+            // packet with seq # 'oldest_unacked_seq'.
+            swindow_transmit_packet(swin, swin->oldest_unacked_seq);
         }
     }
 
@@ -206,7 +207,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
             pkt.flags = FLAG_FIN;
             swin->EOF = TRUE;
         }
-        // TODO. Set the seq #
+        // Set the seq #
         pkt.datalen = r;
         pkt.seq     = swin->next_seq++;
 
