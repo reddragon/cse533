@@ -3,6 +3,8 @@
 #include <string.h>
 #include "treap.h"
 
+typedef int (*read_more_cb)(void*, void*, int);
+
 // The sending window.
 typedef struct swindow {
     treap swin;
@@ -13,6 +15,8 @@ typedef struct swindow {
     int rwinsz;             // The current size of the receiver window
     int rbuffsz;            // The size of the buffer are the receiver
     int oas_timed_out;      // 1 if ever a timeout for the 'oldest_unacked_seq' was reported.
+    read_more_cb read_some; // Callback to read more data
+    void *opaque;           // Opaque data passed to the read_some callback
 } swindow;
 
 // We can only send as many packets as MIN(swin, rwin).
@@ -54,7 +58,12 @@ typedef struct swindow {
 
 // Using select(2) is a *good* idea.
 
+void swindow_init(swindow *swin) {
+}
+
+// This functions also updates the receiving buffer and receiving window size.
 void swindow_received_ACK() {
+    int effwinsz;           // The effective window size
 }
 
 void swindow_timed_out() {
@@ -63,9 +72,10 @@ void swindow_timed_out() {
 void swindow_set_window_size() {
 }
 
-void swindow_set_window_size() {
+void swindow_set_callback(swindow *swin, read_more_cb read_some, void *opaque) {
+    swin->read_some = read_some;
+    swin->opaque = opaque;
 }
-
 
 typedef struct rtt_info {
     // All values are in 'ms'.
