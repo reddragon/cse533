@@ -193,7 +193,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
         --swin->swinsz;
         packet_t pkt;
         memset(&pkt, 0, sizeof(pkt));
-        int r = swin->read_some(swin->opaque, pkt.data, 512);
+        int r = swin->read_some(swin->opaque, pkt.data, sizeof(pkt.data));
         if (r < 0) {
             // ERROR.
             assert(false);

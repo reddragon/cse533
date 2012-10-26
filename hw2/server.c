@@ -201,7 +201,7 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   pkt.flags = 0;
   while (1) {
     memset(pkt.data, 0, sizeof(pkt.data));
-    int bread = fread(pkt.data, 1, 512, pf);
+    int bread = fread(pkt.data, 1, sizeof(pkt.data), pf);
     if (bread == 0) {
       pkt.flags = FLAG_FIN;
     }
@@ -277,7 +277,7 @@ void read_cb(void *opaque) {
     return;
   }
 
-  assert(pkt.datalen < 512);
+  assert(pkt.datalen < sizeof(pkt.data));
   pkt.data[pkt.datalen] = '\0';
   strcpy(file_name, pkt.data);
   printf("%s:%u requested file '%s'\n", sa_data_str(&cli_sa), ntohs(cli_si->sin_port), file_name);
