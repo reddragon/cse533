@@ -55,6 +55,7 @@ enum {
 typedef struct packet_t {
     uint32_t ack;
     uint32_t seq;
+    uint32_t rwinsz;
     uint16_t flags;
     uint16_t datalen;
     char data[512];
