@@ -196,7 +196,10 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
         int r = swin->read_some(swin->opaque, pkt.data, sizeof(pkt.data));
         if (r < 0) {
             // ERROR.
-            assert(false);
+            swin->EOF = TRUE;
+            treap_clear(&swin->swin, free);
+            swin->on_end(TX_FAILURE);
+            return;
         }
         if (r == 0) {
             // EOF.
