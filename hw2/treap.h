@@ -32,5 +32,7 @@ treap_node* treap_predecessor(treap_node *n);
 void        treap_delete(treap *t, int key);
 int         treap_size(treap *t);
 void        treap_print(treap_node *n);
+int         treap_empty(treap *t);
+treap_node* treap_largest(treap *t);
 
 #endif // TREAP_H

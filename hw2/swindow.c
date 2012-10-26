@@ -5,18 +5,42 @@
 
 typedef int (*read_more_cb)(void*, void*, int);
 
+typedef struct rtt_info {
+    // All values are in 'ms'.
+    int _8srtt;
+    int _8rttvar;
+    int _8rto;
+} rtt_info;
+
+void rtt_info_init(rtt_info *rtt) {
+    rtt->_8srtt = 0;
+    rtt->_8rttvar = 750 * 8;
+    rtt->_8rto = rtt->_8srtt + rtt->_8rttvar * 4;
+}
+
+
+// Periodically update the RTO values.
+void rtt_update(rtt_info *rtt, int mRTT) {
+    int _8mRTT = mRTT * 8;
+    int _8delta = _8mRTT - rtt->_8srtt;
+    rtt->_8srtt += (_8delta / 8);
+    rtt->_8rttvar = (3 * (rtt->_8rttvar) + _8delta) / 4;
+    rtt->_8rto = rtt->_8srtt + (4 * rtt->_8rttvar);
+}
+
 // The sending window.
 typedef struct swindow {
     treap swin;
     int oldest_unacked_seq; // The oldest un-acknowledged packet's sequence number
     int num_acks;           // The number of ACK responses for 'oldest_unacked_seq' that we have seen. This is ONLY for ACKs in sequence AFTER we reset 'oldest_unacked_seq'
-    int next_ack_seq;       // The net ACK will be tied to 'next_ack_seq'
     int swinsz;             // The maximum size of the sending window
     int rwinsz;             // The current size of the receiver window
     int rbuffsz;            // The size of the buffer are the receiver
     int oas_timed_out;      // 1 if ever a timeout for the 'oldest_unacked_seq' was reported.
     read_more_cb read_some; // Callback to read more data
     void *opaque;           // Opaque data passed to the read_some callback
+    rtt_info rtt;
+    // Something for a timeout to be used in select(2)
 } swindow;
 
 // We can only send as many packets as MIN(swin, rwin).
@@ -58,12 +82,65 @@ typedef struct swindow {
 
 // Using select(2) is a *good* idea.
 
-void swindow_init(swindow *swin) {
+void swindow_init(swindow *swin, int swinsz) {
+    treap_init(&swin->swin);
+    swin->oldest_unacked_seq = 0;
+    swin->num_acks           = 0;
+    swin->swinsz             = swinsz;
+    swin->rwinsz             = 0;
+    swin->rbuffsz            = 0;
+    swin->oas_timed_out      = 0;
+    swin->read_some          = NULL;
+    swin->opaque             = 0;
+    rtt_info_init(&swin->rtt);
 }
 
-// This functions also updates the receiving buffer and receiving window size.
-void swindow_received_ACK() {
+// This functions also updates the receiving buffer and receiving
+// window size.
+void swindow_received_ACK(swindow *swin, int ack) {
     int effwinsz;           // The effective window size
+    // effwinsz = intmin(
+
+    if (ack < swin->oldest_unacked_seq) {
+        // Discard ACK, since we don't care.
+        return;
+    }
+
+    int update_RTO = 1;
+    if (ack == swin->oldest_unacked_seq) {
+        ++swin->num_acks;
+        // Check if this ACK ever timed out.
+        if (swin->oas_timed_out) {
+            // Do NOT update RTO values.
+            update_RTO = 0;
+        }
+        if (swin->num_acks > 1) {
+            update_RTO = 0;
+        }
+
+        if (swin->num_acks == 3) {
+            // This is the 3rd ACK. Perform a fast re-transmit.
+        }
+    }
+
+    assert(ack < swin->oldest_unacked_seq + treap_size(&swin->swin));
+
+    if (ack > swin->oldest_unacked_seq) {
+        int seq = swin->oldest_unacked_seq;
+        for (; !treap_empty(&swin->swin) && seq < ack; ++seq) {
+            treap_delete(&swin->swin, seq);
+        }
+        swin->oldest_unacked_seq = ack;
+        swin->num_acks           = 0;
+        swin->oas_timed_out      = 0;
+    }
+
+    if (update_RTO) {
+        // rtt_update(&swin->rtt, BLAH);
+    }
+
+    // TODO: Invoke callback and send the packet on the network.
+
 }
 
 void swindow_timed_out() {
@@ -77,25 +154,3 @@ void swindow_set_callback(swindow *swin, read_more_cb read_some, void *opaque) {
     swin->opaque = opaque;
 }
 
-typedef struct rtt_info {
-    // All values are in 'ms'.
-    int _8srtt;
-    int _8rttvar;
-    int _8rto;
-} rtt_info;
-
-void rtt_info_init(rtt_info *rtt) {
-    rtt->_8srtt = 0;
-    rtt->_8rttvar = 750 * 8;
-    rtt->_8rto = rtt->_8srtt + rtt->_8rttvar * 4;
-}
-
-
-// Periodically update the RTO values.
-void rtt_update(rtt_info *rtt, int mRTT) {
-    int _8mRTT = mRTT * 8;
-    int _8delta = _8mRTT - rtt->_8srtt;
-    rtt->_8srtt += (_8delta / 8);
-    rtt->_8rttvar = (3 * (rtt->_8rttvar) + _8delta) / 4;
-    rtt->_8rto = rtt->_8srtt + (4 * rtt->_8rttvar);
-}
