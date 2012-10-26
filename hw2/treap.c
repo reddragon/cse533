@@ -253,6 +253,14 @@ treap_node* treap_largest(treap *t) {
     return n;
 }
 
+treap_node* treap_smallest(treap *t) {
+    treap_node *n = &t->root;
+    while (n && n->left) {
+        n = n->left;
+    }
+    return n;
+}
+
 void treap_delete_node(treap *t, treap_node *n) {
     // If n is a leaf node or a node with a single child, delete it
     // directly.

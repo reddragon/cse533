@@ -53,19 +53,20 @@ enum {
 };
 
 typedef struct packet_t {
-    uint32_t ack;
-    uint32_t seq;
-    uint32_t rwinsz;
-    uint16_t flags;
-    uint16_t datalen;
-    char data[512];
+    uint32_t ack;      // The seq # of the packet we are ACKing (only filled in by the client)
+    uint32_t seq;      // The seq # of the packet being set (only filled in by the server)
+    uint32_t rwinsz;   // The size of the receiving window (only filled in by the client)
+    uint16_t flags;    // FLAGS
+    uint16_t datalen;  // The length of the data being sent (only filled in by the server)
+    char data[512-16]; // The actual data. The client can send packets that don't have the data field
 } packet_t;
 
 uint32_t current_time_in_ms(void);
-void packet_hton(packet_t *out, const packet_t *in);
-char *strip(char *s);
-void set_non_blocking(int fd);
-void set_blocking(int fd);
+void     packet_hton(packet_t *out, const packet_t *in);
+void     packet_ntoh(packet_t *out, const packet_t *in);
+char*    strip(char *s);
+void     set_non_blocking(int fd);
+void     set_blocking(int fd);
 
 int read_cargs(const char *cargs_file, struct client_args *cargs);
 int read_sargs(const char *sargs_file, struct server_args *sargs);

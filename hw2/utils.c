@@ -22,6 +22,16 @@ void packet_hton(packet_t *out, const packet_t *in) {
     out->ack = htonl(in->ack);
     out->seq = htonl(in->seq);
     out->flags = htons(in->flags);
+    out->rwinsz = htons(in->rwinsz);
+    out->datalen = htonl(in->datalen);
+}
+
+void packet_ntoh(packet_t *out, const packet_t *in) {
+    *out = *in;
+    out->ack = htonl(in->ack);
+    out->seq = htonl(in->seq);
+    out->flags = htons(in->flags);
+    out->rwinsz = htons(in->rwinsz);
     out->datalen = htonl(in->datalen);
 }
 
