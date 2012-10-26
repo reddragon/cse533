@@ -144,7 +144,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   while (1) {
       fprintf(stdout, "Waiting on Recv...\n");
       int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
-      fprintf(stdout, "recv(2) returned with exit code: %d\n", r);
+      fprintf(stdout, "recv(2) returned with exit code: %d with seq number: %u\n", r, pkt.seq);
 
       if (r < 0 && errno == EINTR) {
           continue;

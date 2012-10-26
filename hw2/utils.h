@@ -19,7 +19,7 @@
 void* my_malloc(size_t size);
 
 
-struct client_args {
+typedef struct client_args {
   char ip_addr[20];
   UINT serv_portno;
   char file_name[100];
@@ -27,24 +27,24 @@ struct client_args {
   UINT rand_seed;
   double p; // Prob. of packet loss
   double mean; // Mean
-};
+} client_args;
 
-struct client_conn {
+typedef struct client_conn {
   struct sockaddr *serv_sa;
   struct sockaddr *cli_sa;
   BOOL is_local; // Is the server local?
-};
+} client_conn;
 
-struct server_conn {
+typedef struct server_conn {
   struct sockaddr *serv_sa;
   struct sockaddr *cli_sa;
   BOOL is_local; // Is the client local?
-};
+} server_conn;
 
-struct server_args {
+typedef struct server_args {
   UINT serv_portno;
   UINT sw_size;
-};
+} server_args;
 
 enum {
     FLAG_ACK = 1,

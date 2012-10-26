@@ -207,7 +207,7 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
     }
     pkt.datalen = bread;
     ++pkt.seq;
-    fprintf(stdout, "Sending %d bytes of file data\n", bread);
+    fprintf(stdout, "Sending %d bytes of file data for packet %u\n", bread, pkt.seq);
     Send(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE);
     if (bread == 0) {
       break;
