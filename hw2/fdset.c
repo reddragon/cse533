@@ -91,9 +91,10 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
             }
             continue;
         }
-        if (timeout && !timeout->tv_sec && !timeout->tv_usec) {
+        if (r == 0) {
             // Timeout case
             timeout_cb(NULL);
+            break;
         }
         int i;
         for (i = 0; i < vector_size(&fds->rev); ++i) {
@@ -125,3 +126,62 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
     } // while (1)
 
 } // fdset_poll()
+
+int fdset_poll2(fdset *fds) {
+    while (1) {
+        FD_ZERO(&fds->rfds);
+        FD_ZERO(&fds->exfds);
+        FD_ZERO(&fds->wfds);
+        fds->max_fd = -1;
+
+        if (vector_empty(&fds->rev) && vector_empty(&fds->exev)) {
+            // We have nothing left to select(2) on.
+            return 0;
+        }
+
+        fdset_populate(fds, &fds->rfds, &fds->rev);
+        fdset_populate(fds, &fds->exfds, &fds->exev);
+
+        int r = select(fds->max_fd+1, &fds->rfds, 0, &fds->exfds, &fds->timeout);
+        if (r < 0) {
+            if (errno != EINTR) {
+                perror("select");
+                return r;
+            }
+            continue;
+        }
+        if (r == 0) {
+            // Timeout case
+            fds->timeout_cb(NULL);
+            continue;
+        }
+        int i;
+        for (i = 0; i < vector_size(&fds->rev); ++i) {
+            select_event_t *pse = (select_event_t*)vector_at(&fds->rev, i);
+            if (FD_ISSET(pse->fd, &fds->rfds)) {
+                fprintf(stdout, "FD %d is read ready\n", pse->fd);
+                pse->callback(pse->opaque);
+            }
+        }
+        for (i = 0; i < vector_size(&fds->exev); ++i) {
+            select_event_t se = *(select_event_t*)vector_at(&fds->exev, i);
+            if (FD_ISSET(se.fd, &fds->exfds)) {
+                fprintf(stdout, "FD %d is in ERROR\n", se.fd);
+                // Also remove this fd from the list of ex/read events
+                // to monitor.
+                vector_erase(&fds->exev, i);
+                --i;
+                // Remove from read events list as well.
+                int rev_pos = algorithm_find(&fds->rev, &se.fd, find_by_fd);
+                if (rev_pos != -1) {
+                    vector_erase(&fds->rev, rev_pos);
+                }
+                se.callback(se.opaque);
+
+            } // if ()
+
+        } // for ()
+
+    } // while (1)
+
+} // fdset_poll2()

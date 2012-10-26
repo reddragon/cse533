@@ -16,6 +16,8 @@ typedef struct fdset {
     fd_set rfds, exfds, wfds;
     int max_fd;
     vector rev, exev, wev;
+    struct timeval timeout;
+    ev_callback_t timeout_cb;
 } fdset;
 
 void fdset_init(fdset *fds);

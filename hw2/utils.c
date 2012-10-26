@@ -1,6 +1,21 @@
 #include "utils.h"
 #include <ctype.h>
 
+void* my_malloc(size_t size) {
+    assert(size < 32000);
+    void *ptr = malloc(size);
+    assert(ptr);
+    return ptr;
+}
+
+uint32_t current_time_in_ms(void) {
+    uint32_t ts;
+    struct timeval	tv;
+
+    Gettimeofday(&tv, NULL);
+    ts = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+    return ts;
+}
 
 void packet_hton(packet_t *out, const packet_t *in) {
     *out = *in;
@@ -93,7 +108,7 @@ get_ntm_len(struct sockaddr *ntm) {
 }
 
 
-// Q. Are we assuming network byte order here?
+// We are we assuming network byte order here.
 char *
 sa_data_str(struct sockaddr *sa) {
   char *str = (char *) malloc(sizeof(char) * 20);

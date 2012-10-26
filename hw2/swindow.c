@@ -3,7 +3,8 @@
 #include <string.h>
 #include "treap.h"
 
-typedef int (*read_more_cb)(void*, void*, int);
+//                          opaque, buffer, size
+typedef int (*read_more_cb)(void*,  void*,  int);
 
 typedef struct rtt_info {
     // All values are in 'ms'.
@@ -19,7 +20,7 @@ void rtt_info_init(rtt_info *rtt) {
 }
 
 
-// Periodically update the RTO values.
+// Periodically update the RTO values. mRTT is in 'ms'.
 void rtt_update(rtt_info *rtt, int mRTT) {
     int _8mRTT = mRTT * 8;
     int _8delta = _8mRTT - rtt->_8srtt;
@@ -28,22 +29,45 @@ void rtt_update(rtt_info *rtt, int mRTT) {
     rtt->_8rto = rtt->_8srtt + (4 * rtt->_8rttvar);
 }
 
+// Fetch the RTO in 'ms'.
+double rtt_get_RTO(rtt_info *rtt) {
+    double rto = (double)rtt->_8rto / 8.0;
+    rto = fmin(3.0, fmax(rto, 1.0));
+    return rto;
+}
+
+// Struct for packet sent.
+typedef struct tx_packet_info {
+    uint32_t sent_at_ms;
+    packet_t pkt;
+} tx_packet_info;
+
+tx_packet_info* make_tx_packet(packet_t *pkt) {
+    tx_packet_info *txp = MALLOC(tx_packet_info);
+    // Set sent_at_ms
+    txp->sent_at_ms = current_time_in_ms();
+    memcpy(txp->pkt, pkt, sizeof(*pkt));
+    return txp;
+}
+
 // The sending window.
 typedef struct swindow {
     treap swin;
     int oldest_unacked_seq; // The oldest un-acknowledged packet's sequence number
     int num_acks;           // The number of ACK responses for 'oldest_unacked_seq' that we have seen. This is ONLY for ACKs in sequence AFTER we reset 'oldest_unacked_seq'
-    int swinsz;             // The maximum size of the sending window
+    int swinsz;             // The current size of the sending window
     int rwinsz;             // The current size of the receiver window
-    int rbuffsz;            // The size of the buffer are the receiver
-    int oas_timed_out;      // 1 if ever a timeout for the 'oldest_unacked_seq' was reported.
+    int rbuffsz;            // The size of the buffer at the receiver
+    int sbuffsz;            // The size of the buffer at the sender
+    int oas_num_time_outs;  // The # of times the packet with seq # 'oldest_unacked_seq' timed out.
     read_more_cb read_some; // Callback to read more data
     void *opaque;           // Opaque data passed to the read_some callback
     rtt_info rtt;
+    BOOL EOF;               // EOF if TRUE
     // Something for a timeout to be used in select(2)
 } swindow;
 
-// We can only send as many packets as MIN(swin, rwin).
+// We can only send as many packets as MIN(swinsz, rwinsz).
 
 // When we receive an ACK, we delete stuff in-order from the treap
 // (swin). The number of in-flight packets can be computed as
@@ -57,13 +81,13 @@ typedef struct swindow {
 // Once 'oldest_unacked_seq' is incremented, we reset 'num_acks' to 0.
 
 // Once 'num_acks' reaches 3, we re-send the packet with sequence
-// number 'oldest_unacked_seq', and double RTO.
+// number 'oldest_unacked_seq', and double RTO. (verify).
 
 // Once the timeout for the packet with sequence number
-// 'oldest_unacked_seq' is hit, we re-send that packet. We keep doing
-// this till the timeout is hit. If the timout is hit > 12 times, we
+// 'oldest_unacked_seq' is hit, we re-send that packet. We keep re-sending
+// this packet till the timeout is hit. If the timout is hit > 12 times, we
 // abandon the file transfer altogether. Increase RTO by 2x each time
-// and squeeze between [1..3].
+// and squeeze between [1..3] sec.
 
 // Update RTO based on RTT values
 
@@ -89,17 +113,18 @@ void swindow_init(swindow *swin, int swinsz) {
     swin->swinsz             = swinsz;
     swin->rwinsz             = 0;
     swin->rbuffsz            = 0;
+    swin->sbuffsz            = 0;
     swin->oas_timed_out      = 0;
     swin->read_some          = NULL;
     swin->opaque             = 0;
     rtt_info_init(&swin->rtt);
 }
 
-// This functions also updates the receiving buffer and receiving
+// This function also updates the receiving buffer and receiving
 // window size.
-void swindow_received_ACK(swindow *swin, int ack) {
-    int effwinsz;           // The effective window size
-    // effwinsz = intmin(
+void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
+    // 'ack' the the sequence number of the next *expected* sequence
+    // number.
 
     if (ack < swin->oldest_unacked_seq) {
         // Discard ACK, since we don't care.
@@ -119,15 +144,28 @@ void swindow_received_ACK(swindow *swin, int ack) {
         }
 
         if (swin->num_acks == 3) {
-            // This is the 3rd ACK. Perform a fast re-transmit.
+            // This is the 3rd ACK. Perform a fast re-transmit for
+            // packet with seq # 'oldest_unacked_seq'.
         }
     }
 
     assert(ack < swin->oldest_unacked_seq + treap_size(&swin->swin));
+    uint32_t curr_time_ms = current_time_in_ms();
 
     if (ack > swin->oldest_unacked_seq) {
         int seq = swin->oldest_unacked_seq;
+        int did_update_RTO = 0;
+
         for (; !treap_empty(&swin->swin) && seq < ack; ++seq) {
+            tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
+            if (txp) {
+                if (update_RTO && !did_update_RTO) {
+                    assert(curr_time_ms - txp->sent_at_ms);
+                    rtt_update(&swin->rtt, curr_time_ms - txp->sent_at_ms);
+                    did_update_RTO = 1;
+                }
+                free(txp);
+            }
             treap_delete(&swin->swin, seq);
         }
         swin->oldest_unacked_seq = ack;
@@ -135,12 +173,34 @@ void swindow_received_ACK(swindow *swin, int ack) {
         swin->oas_timed_out      = 0;
     }
 
-    if (update_RTO) {
-        // rtt_update(&swin->rtt, BLAH);
-    }
+    swin->rwinsz = rwinsz;
+
+    // The effective window size
+    swin->swinsz = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
 
     // TODO: Invoke callback and send the packet on the network.
+    while ((swin->EOF == FALSE) && (swin->swinsz > 0)) {
+        --swin->swinsz;
+        packet_t pkt;
+        memset(&pkt, 0, sizeof(pkt));
+        int r = swin->read_some(swin->opaque, pkt.data, 512);
+        if (r < 0) {
+            // ERROR.
+            assert(false);
+        }
+        if (r == 0) {
+            // EOF.
+            pkt.flags = FLAG_FIN;
+            swin->EOF = TRUE;
+        }
+        // TODO. Set the seq #
+        pkt.datalen = r;
 
+        // TODO: Send this packet and add to treap.
+    }
+
+    // Set the rbuffsz when we get the first ACK. This happens in the
+    // 3-way handshake function.
 }
 
 void swindow_timed_out() {

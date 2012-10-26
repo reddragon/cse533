@@ -10,11 +10,14 @@
 #define BOOL unsigned short
 #define FALSE 0
 #define TRUE 1
-#define MALLOC(X) (X *) malloc(sizeof(X) * 1)
+#define MALLOC(X) (X *) my_malloc(sizeof(X))
 
 #define CARGS_FILE "client.in"
 #define SARGS_FILE "server.in"
 #define MAXSOCKS 100
+
+void* my_malloc(size_t size);
+
 
 struct client_args {
   char ip_addr[20];
@@ -57,6 +60,7 @@ typedef struct packet_t {
     char data[512];
 } packet_t;
 
+uint32_t current_time_in_ms(void);
 void packet_hton(packet_t *out, const packet_t *in);
 char *strip(char *s);
 void set_non_blocking(int fd);

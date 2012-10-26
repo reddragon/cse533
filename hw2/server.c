@@ -85,11 +85,11 @@ const void* longest_match_reducer(const void *lhs, const void *rhs) {
   return lhs;
 }
 
+
+// TODO: Copy get_conn() to client.
+// cli_sa is what we got when we did the initial recvfrom(2) from the client.
 void
 get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
-  // TODO
-  // Check if this function is fine
-
   // The port number from which the client makes the connection.
   int cli_portno = ntohs(((struct sockaddr_in *)cli_sa)->sin_port);
 
@@ -103,6 +103,8 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   // Check if the server is on the same machine as the client.
   algorithm_reduce(ifaces, is_local_interface_reducer, &cli_ifi);
 
+  // cli_ifi.ifi_myflags is == 1 if the client & server share an IP
+  // address.
   if (cli_ifi.ifi_myflags) {
     // Client & server are on the same machine.
     conn->is_local = TRUE;
@@ -116,77 +118,20 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
 
   if (cli_ifi.ifi_brdaddr) {
     conn->is_local = TRUE;
-    conn->cli_sa  = inet_pton_sa("127.0.0.1", cli_portno);
+    conn->cli_sa  = cli_sa;
     char server_ip[40];
     strcpy(server_ip, Sock_ntop_host(cli_ifi.ifi_brdaddr, sizeof(SA)));
-    conn->serv_sa = inet_pton_sa(server_ip, 0); // Q. Is this correct?
+
+    // Server bind(2)s to port 0 (locally) and fetches and ephemeral port number.
+    conn->serv_sa = inet_pton_sa(server_ip, 0);
     return;
   }
 
-  // We could not find any local interfaces.
+  // We could not find any local interfaces. Just choose the 1st one
+  // at random.
+  assert(!vector_empty(ifaces));
   conn->cli_sa  = cli_sa;
   conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
-
-#if 0
-  struct ifi_info *ifi;
-  int i;
-  struct sockaddr* sa = NULL;
-
-  // The IP address of the client (i.e. our IP address).
-  char *cli_ip_addr = sa_data_str(cli_sa);
-
-  UINT longest_match_len = 0;
-  // Find if the server is local to the client
-  conn->is_local = FALSE;
-  for (i = 0; i < vector_size(ifaces); ++i) {
-    ifi = (struct ifi_info*)vector_at(ifaces, i);
-    char *if_addr_str = Sock_ntop(ifi->ifi_addr, sizeof(SA));
-
-    // printf("Address: %s NTM: %s NTM Len: %d\n", if_addr_str, sa_data_str(ifi->ifi_ntmaddr), get_ntm_len(ifi->ifi_ntmaddr));
-
-    // If we found the same IP being used by one of the interfaces,
-    // then we simply say that the server is local, marshal the
-    // client connection structure properly, and return.
-    if (!strcmp(if_addr_str, cli_ip_addr)) {
-      conn->is_local = TRUE;
-      conn->cli_sa = inet_pton_sa("127.0.0.1", cli_portno);
-      conn->serv_sa = inet_pton_sa("127.0.0.1", 0);
-      break;
-    }
-    
-    // Now check if (server's IP addr & server network mask) is the
-    // same as (client's IP addr & client network mask). If yes,
-    // store it. (Only if the prefix match is longer than any
-    // previous prefix match found, thus far.
-    struct sockaddr *cli_snaddr = get_subnet_addr(cli_sa, ifi->ifi_ntmaddr);
-    char *cli_snaddr_str = sa_data_str(cli_snaddr);
-    struct sockaddr *serv_snaddr = get_subnet_addr(ifi->ifi_addr, ifi->ifi_ntmaddr);
-    char *serv_snaddr_str = sa_data_str(serv_snaddr);
-    UINT ntm_len = get_ntm_len(ifi->ifi_ntmaddr);
-    
-    // printf("ntm: %s serv_snaddr: %s, cli_snaddr: %s\n", sa_data_str(ifi->ifi_ntmaddr), serv_snaddr_str, cli_snaddr_str);
-    if (!strcmp(serv_snaddr_str, cli_snaddr_str) && ntm_len > longest_match_len) {
-      longest_match_len = ntm_len;
-      conn->is_local = TRUE;
-      conn->cli_sa = inet_pton_sa("127.0.0.1", cli_portno);
-      conn->serv_sa = inet_pton_sa("127.0.0.1", 0);
-
-      // Q. Why do we break here?
-      break;
-    }
-  }
-
-  // Q. Isn't "sa" always NULL here??
-  if (sa == NULL) {
-    conn->is_local = FALSE;
-    // TODO
-    // The first address might be a loopback address. Can we choose it like that?
-
-    conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
-    conn->cli_sa = cli_sa;
-  }
-#endif
-
 }
 
 int threeWayHandshake(void) {
