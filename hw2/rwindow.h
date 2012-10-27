@@ -7,7 +7,8 @@ typedef struct rwindow {
   treap t_rwin;             
   int smallest_expected_seq;  // The oldest missing packet's sequence number
   int rwinsz;                 // The max size of the receiving window as per "clients.in"
-  int last_read_seq;
+  int last_read_seq;          // How far has the consumer thread has read?
+  pthread_mutex_t *mutex;     // The mutex for using the treap  
 } rwindow;
 
 void rwindow_init(rwindow *rwin, int rwinsz);
