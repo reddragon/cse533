@@ -5,7 +5,8 @@
 // Initialize the receiving window for the client
 void rwindow_init(rwindow *rwin, int rwinsz) {
   treap_init(&rwin->t_rwin);
-  rwin->smallest_expected_seq = 0; 
+  // TODO Fix. The smallest packet to expect should be 2.
+  rwin->smallest_expected_seq = 2; 
   rwin->rwinsz = rwinsz;
   rwin->last_read_seq = -1;
 }
@@ -45,9 +46,10 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
     // size that we piggyback on the ACK.
     // Insert the packet into the treap
     treap_insert(&rwin->t_rwin, pkt->seq, (void *)pkt);
-
-    while (!treap_find(&rwin->t_rwin, rwin->smallest_expected_seq)) {
-      rwin->smallest_expected_seq++;
+    
+    int *seq = &rwin->smallest_expected_seq;
+    while (treap_find(&rwin->t_rwin, *seq)) {
+      *seq = *seq + 1;
     }
   }
   // TODO Mutex unlock here
