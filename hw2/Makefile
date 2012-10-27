@@ -30,7 +30,7 @@ client: client.c utils.h $(ALLOBJDEPS)
 	$(CC) $(CFLAGS) client.c $(ALLOBJDEPS) -o client $(LIBS)
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c -o utils.o utils.c
-rwindow.o: rwindow.h rwindow.h
+rwindow.o: rwindow.h rwindow.c
 	$(CC) $(CFLAGS) -c -o rwindow.o rwindow.c
 fdset.o: fdset.c fdset.h
 	$(CC) $(CFLAGS) -c -o fdset.o fdset.c
