@@ -154,7 +154,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
       int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
       fprintf(stdout, "recv(2) returned with exit code: %d with seq number: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&pkt, &rwin);
-      fprintf(stdout, "ack_pkt will be sent with seq: %u, rwinsz: %d\n", ack_pkt->seq, ack_pkt->rwinsz);
+      fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
 
       if (r < 0 && errno == EINTR) {
           continue;
