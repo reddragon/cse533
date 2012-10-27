@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "utils.h"
+#include "rwindow.h"
 
 void
 get_conn(struct client_args *cargs, struct client_conn *conn) {
@@ -141,10 +142,19 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
 
   FILE *pf = fopen(file_name, "w");
   assert(pf);
+  
+  // The receiving window
+  rwindow rwin;
+
+  // Initialize the receiving window
+  rwindow_init(&rwin, cargs->sw_size);
+
   while (1) {
       fprintf(stdout, "Waiting on Recv...\n");
       int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
       fprintf(stdout, "recv(2) returned with exit code: %d with seq number: %u\n", r, pkt.seq);
+      packet_t *ack_pkt = rwindow_received_packet(&pkt, &rwin);
+      fprintf(stdout, "ack_pkt will be sent with seq: %u, rwinsz: %d\n", ack_pkt->seq, ack_pkt->rwinsz);
 
       if (r < 0 && errno == EINTR) {
           continue;

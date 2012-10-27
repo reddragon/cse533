@@ -3,6 +3,7 @@
 #include <assert.h>
 #include "treap.h"
 
+/*
 typedef struct treap_node {
     int key, heapkey;
     const void *data;
@@ -13,7 +14,7 @@ typedef struct treap {
     treap_node *root;
     int size;
 } treap;
-
+*/
 
 void treap_init(treap *t) {
     t->root = NULL;

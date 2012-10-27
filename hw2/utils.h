@@ -52,13 +52,18 @@ enum {
     FLAG_SYN = 4
 };
 
+// The full-length packet is 512 bytes by default
+#define PACKET_SZ 512
+// The header of the packet is 16 bytes by default. ACKs usually only have the header
+#define PACKET_HEADER_SZ 16
 typedef struct packet_t {
     uint32_t ack;      // The seq # of the packet we are ACKing (only filled in by the client)
     uint32_t seq;      // The seq # of the packet being set (only filled in by the server)
     uint32_t rwinsz;   // The size of the receiving window (only filled in by the client)
     uint16_t flags;    // FLAGS
     uint16_t datalen;  // The length of the data being sent (only filled in by the server)
-    char data[512-16]; // The actual data. The client can send packets that don't have the data field
+    // The actual data. The client can send packets that don't have the data field
+    char data[PACKET_SZ - PACKET_HEADER_SZ]; 
 } packet_t;
 
 uint32_t current_time_in_ms(void);
