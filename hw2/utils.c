@@ -34,7 +34,7 @@ int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval 
 
 void* my_malloc(size_t size) {
     assert(size < 32000);
-    void *ptr = malloc(size);
+    void *ptr = calloc(1, size);
     assert(ptr);
     return ptr;
 }

@@ -230,10 +230,8 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   rwindow_init(&rwin, cargs->sw_size);
   
   pthread_t tid;
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  if (pthread_create(&tid, &attr, (void *) (&consume_packets), (void *) (&rwin)) < 0) {
-    err_sys("Could not spawn the consumer thread to read packets");
+  if (pthread_create(&tid, NULL, (void *) (&consume_packets), (void *) (&rwin)) < 0) {
+      err_sys("Could not spawn the consumer thread to read packets");
   }
 
   while (1) {
