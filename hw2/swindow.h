@@ -103,12 +103,14 @@ typedef struct swindow {
 
 // Using select(2) is a *good* idea.
 
+void swindow_dump(swindow *swin);
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
                   int swinsz, read_more_cb read_some,
                   void *opaque, ack_cb advanced_ack_cb, end_cb on_end);
 // This function also updates the receiving buffer and receiving
 // window size.
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz);
+void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz);
 // We assume that the packet with SEQ # (seq) is available in swin->swin.
 void swindow_transmit_packet(swindow *swin, int seq);
 void swindow_timed_out(swindow *swin);
