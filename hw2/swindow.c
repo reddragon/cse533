@@ -7,8 +7,8 @@
 #include "utils.h"
 #include "swindow.h"
 
-#define fmax(X,Y) ((X)>(Y)?(X):(Y))
-#define fmin(X,Y) ((X)<(Y)?(X):(Y))
+#define imax(X,Y) ((X)>(Y)?(X):(Y))
+#define imin(X,Y) ((X)<(Y)?(X):(Y))
 
 void rtt_info_init(rtt_info_t *rtt) {
     rtt->_8srtt = 0;
@@ -26,10 +26,14 @@ void rtt_update(rtt_info_t *rtt, int mRTT) {
 }
 
 // Fetch the RTO in 'ms'.
-double rtt_get_RTO(rtt_info_t *rtt) {
-    double rto = (double)rtt->_8rto / 8.0;
-    rto = fmin(3.0, fmax(rto, 1.0));
+uint32_t rtt_get_RTO(rtt_info_t *rtt) {
+    uint32_t rto = rtt->_8rto / 8.0;
+    rto = imin(3000.0, imax(rto, 1000.0));
     return rto;
+}
+
+void rtt_scale_RTO(rtt_info_t *rtt, int factor) {
+    rtt->_8rto *= factor;
 }
 
 tx_packet_info* make_tx_packet(packet_t *pkt) {
@@ -42,7 +46,7 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
 
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
                   int swinsz, read_more_cb read_some,
-                  void *opaque, end_cb on_end) {
+                  void *opaque, ack_cb advanced_ack_cb, end_cb on_end) {
     treap_init(&swin->swin);
     swin->oldest_unacked_seq = -1;
     swin->fd                 = fd;
@@ -57,6 +61,7 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
     swin->oas_num_time_outs  = 0;
     swin->read_some          = read_some;
     swin->opaque             = opaque;
+    swin->advanced_ack_cb    = advanced_ack_cb;
     swin->on_end             = on_end;
     rtt_info_init(&swin->rtt);
 }
@@ -70,6 +75,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
 
     if (ack < swin->oldest_unacked_seq) {
         // Discard ACK, since we don't care.
+        fprintf(stderr, "Dsiscaring ACK: %d since it is < oldest unacked SEQ: %d\n", ack, swin->oldest_unacked_seq);
         return;
     }
 
@@ -132,7 +138,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
     // The effective window size
     swin->swinsz = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
 
-    // TODO: Invoke callback and send the packet on the network.
+    // Invoke callback and send the packet on the network.
     while ((swin->isEOF == FALSE) && (swin->swinsz > 0)) {
         --swin->swinsz;
         packet_t pkt;
