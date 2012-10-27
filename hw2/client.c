@@ -116,12 +116,12 @@ void consume_packets(rwindow *rwin) {
     } else if (pkt != NULL) {
       // We retried 100 times. Packet, Y U NO COME?
       fprintf(stderr, "Did not receive packet seq %d even after 100 retries\n", next_seq);
-      // close(pf);
+      fclose(pf);
       exit(1);
     }
     
   } while (!(pkt->flags & FLAG_FIN));
-  // close(pf);
+  fclose(pf);
 }
 
 void send_packet(int sockfd, packet_t *pkt, struct client_conn *conn) {
