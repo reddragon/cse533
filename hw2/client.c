@@ -65,6 +65,14 @@ void consume_packets(rwindow *rwin) {
   // fix this.
   int next_seq = 2;
   packet_t *pkt;
+  
+  char file_name[300];
+  // Open the file for writing
+  sprintf(file_name, "%s.out", "test");
+
+  FILE *pf = fopen(file_name, "w");
+  assert(pf);
+
   do {
     uint32_t sleep_time = 1000, retries = 0;
     pkt = NULL;
@@ -102,15 +110,18 @@ void consume_packets(rwindow *rwin) {
       // TODO Actual writing out of the packet to file
       fprintf(stderr, "==== Read packet %d ====\n", next_seq);
 
+      fwrite(pkt->data, pkt->datalen, 1, pf);
+
       next_seq++;
     } else if (pkt != NULL) {
       // We retried 100 times. Packet, Y U NO COME?
       fprintf(stderr, "Did not receive packet seq %d even after 100 retries\n", next_seq);
+      // close(pf);
       exit(1);
     }
     
   } while (!(pkt->flags & FLAG_FIN));
-  
+  // close(pf);
 }
 
 void send_packet(int sockfd, packet_t *pkt, struct client_conn *conn) {
@@ -209,14 +220,8 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   Send(sockfd, (void*)&pkt, sizeof(pkt), conn->is_local ? MSG_DONTROUTE : 0);
 
   // Receive data from the socket till a packet with the FLAG_FIN flag
-  // is received. Open the file for writing.
-
-  char file_name[300];
-  sprintf(file_name, "%s.out", "test");
-
-  FILE *pf = fopen(file_name, "w");
-  assert(pf);
-  
+  // is received.
+ 
   // The receiving window
   rwindow rwin;
 
