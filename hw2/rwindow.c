@@ -9,6 +9,8 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
   rwin->smallest_expected_seq = 2; 
   rwin->rwinsz = rwinsz;
   rwin->last_read_seq = -1;
+  rwin->mutex = MALLOC(pthread_mutex_t);
+  pthread_mutex_init(rwin->mutex, NULL);
 }
 
 // 1. If the packet has the flag FLAG_SYN, then handle it separately
@@ -36,7 +38,7 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
   //   In this case, we would have definitely read this packet from
   //   the sliding window, since (1) is not true.
   
-  // TODO: Mutex lock here
+  pthread_mutex_lock(rwin->mutex);
   // If neither (1), nor (2) is true. Which means, we have
   // a new packet in our hands.
   if (!((treap_find(&rwin->t_rwin, pkt->seq)) || 
@@ -52,7 +54,7 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
       *seq = *seq + 1;
     }
   }
-  // TODO Mutex unlock here
+  pthread_mutex_unlock(rwin->mutex);
   
   // Marshalling the acknowledgment packet
   ack_pkt->seq = 0;
@@ -65,16 +67,19 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
 // Check if the next packet that we expect is here
 packet_t *read_packet(rwindow *rwin) {
   int next_seq = rwin->last_read_seq + 1;
-  packet_t *pkt = treap_find(&rwin->t_rwin, next_seq);
-  if (pkt == NULL) {
+  
+  pthread_mutex_lock(rwin->mutex);
+  treap_node *tn = treap_find(&(rwin->t_rwin), next_seq);
+  if (tn == NULL) {
+    pthread_mutex_unlock(rwin->mutex);
     return NULL;
   }
   
-  // TODO: lock mutex here
   treap_delete(&rwin->t_rwin, next_seq);
+  pthread_mutex_unlock(rwin->mutex);
+  
   rwin->last_read_seq = rwin->last_read_seq + 1;
-  // TODO: unlock mutex here
-  return pkt;
+  return (packet_t *)(tn->data);
 }
 
 

@@ -5,6 +5,7 @@ LIBS = /home/courses/cse533/Stevens/unpv13e_solaris2.10/libunp.a -lm
 OBJ = client server vector.o utils.o fdset.o algorithm.o swindow.o rwindow.o
 ALLOBJDEPS = vector.o utils.o fdset.o algorithm.o treap.o swindow.o rwindow.o
 
+
 PLATFORM=${shell uname}
 
 # On Linux, we assume that the folder unpv13e_linux is available in
@@ -12,7 +13,7 @@ PLATFORM=${shell uname}
 ifeq ($(PLATFORM), Linux)
 	LINKFLAGS = -lpthread
 	INCFLAGS  = -I../unpv13e_linux/lib
-	LIBS      = ../unpv13e_linux/libunp.a
+	LIBS      = ../unpv13e_linux/libunp.a -lpthread
 endif
 
 CFLAGS += $(INCFLAGS)
