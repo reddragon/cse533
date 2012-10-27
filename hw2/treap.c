@@ -127,6 +127,7 @@ void treap_rotate_up(treap *t, treap_node *n) {
 }
 
 const void* treap_get_value(treap *t, int key) {
+    fprintf(stderr, "treap_get_value(%d)\n", key);
     treap_node *n = treap_find(t, key);
     if (n) {
         return n->data;
@@ -232,6 +233,7 @@ treap_node* treap_predecessor(treap_node *n) {
 }
 
 void treap_delete(treap *t, int key) {
+    fprintf(stderr, "treap_delete(%d)\n", key);
     treap_node *n = treap_find(t, key);
     if (!n) { return; }
     treap_delete_node(t, n);

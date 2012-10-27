@@ -44,6 +44,18 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
     return txp;
 }
 
+void swindow_dump(swindow *swin) {
+    fprintf(stderr, "Sending Window { ACK: %d, NACKS: %d, NEXTSEQ: %d, SWIN: %d RWIN: %d, NTIMEOUTS: %d, TREAPSZ: %d, isEOF: %s }\n",
+            swin->oldest_unacked_seq,
+            swin->num_acks,
+            swin->next_seq,
+            swin->swinsz,
+            swin->rwinsz,
+            swin->oas_num_time_outs,
+            treap_size(&swin->swin),
+            swin->isEOF ? "TRUE" : "FALSE");
+}
+
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
                   int swinsz, read_more_cb read_some,
                   void *opaque, ack_cb advanced_ack_cb, end_cb on_end) {
@@ -66,13 +78,19 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
     rtt_info_init(&swin->rtt);
 }
 
+void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
+    fprintf(stderr, "swindow_received_ACK(ACK: %d, RWINSZ: %d)\n[1] ", ack, rwinsz);
+    swindow_dump(swin);
+    swindow_received_ACK_real(swin, ack, rwinsz);
+    fprintf(stderr, "[2] ");
+    swindow_dump(swin);
+}
+
 // This function also updates the receiving buffer and receiving
 // window size.
-void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
+void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     // 'ack' the the sequence number of the next *expected* sequence
     // number.
-    fprintf(stderr, "swindow_received_ACK(ACK: %d, RWINSZ: %d)\n", ack, rwinsz);
-
     if (ack < swin->oldest_unacked_seq) {
         // Discard ACK, since we don't care.
         fprintf(stderr, "Dsiscaring ACK: %d since it is < oldest unacked SEQ: %d\n", ack, swin->oldest_unacked_seq);
@@ -185,6 +203,8 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
 // We assume that the packet with SEQ # (seq) is available in swin->swin.
 void swindow_transmit_packet(swindow *swin, int seq) {
     fprintf(stderr, "swindow_transmit_packet(SEQ: %d)\n", seq);
+    swindow_dump(swin);
+
     tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
     assert(txp);
     // TODO: Set the SO_DONTROUTE flag on the socket to start off with if we need to use it.
@@ -198,6 +218,9 @@ void swindow_transmit_packet(swindow *swin, int seq) {
 }
 
 void swindow_timed_out(swindow *swin) {
+    fprintf(stderr, "swindow_timed_out()\n");
+    swindow_dump(swin);
+
     // Sending the packet with the seq # 'oldest_unacked_seq' timed out.
     ++swin->oas_num_time_outs;
 
