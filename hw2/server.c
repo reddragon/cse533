@@ -3,6 +3,7 @@
 #include "vector.h"
 #include "fdset.h"
 #include "algorithm.h"
+#include "swindow.h"
 
 typedef struct inflight_request {
   int fd; // The fd of the socket on which the request arrived.
@@ -21,6 +22,17 @@ vector inflight_requests;
 
 // Stores all the information for interfaces in this machine.
 vector interfaces;
+
+// The arguments as read from the file server.in
+struct server_args sargs;
+
+// The sliding window for this server child.
+swindow swin;
+
+BOOL first_call_to_read_some = TRUE;
+
+// The ephemeral port number on the server.
+int sport = -1;
 
 vector* get_all_interfaces(void) {
   if (!vector_empty(&interfaces)) {
@@ -134,15 +146,34 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
 }
 
-int threeWayHandshake(void) {
+int data_producer(void *opaque, void *vbuff, int buffsz) {
+  int r = 0;
+  FILE *pf = (FILE*)opaque;
+  char *buff = (char*)vbuff;
+
+  if (first_call_to_read_some) {
+    r = sprintf(buff, "%d", sport);
+    first_call_to_read_some = FALSE;
+    return r;
+  }
+
+  swin.fd2 = -1;
+  swin.csa = NULL;
+
+  r = fread(buff, 1, buffsz, pf);
+  return r;
 }
 
-int waitForACK(int sockfd) {
+int start_sending(int udpfd, int connfd, struct sockaddr *csa) {
+
+}
+
+void on_end_cb(int status) {
 }
 
 // Most of the heavy lifting happens here
 void
-ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
+start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   struct server_conn conn;
   get_conn(cli_sa, &conn);
   printf("Client is %s\nIPServer: %s\nIPClient: %s\n", 
@@ -150,6 +181,9 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
     sa_data_str(conn.serv_sa),
     sa_data_str(conn.cli_sa));
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+
+  // TODO: Set SO_DONTROUTE if required.
+
   Bind(sockfd, conn.serv_sa, sizeof(SA));
   struct sockaddr_in sin;
   UINT addrlen = sizeof(SA);
@@ -175,6 +209,7 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   // fast-retransmit and retransmit ONLY that packet and continue
   // processing.
 
+#if 0
   packet_t pkt;
   pkt.ack = 0;
   pkt.seq = 0;
@@ -184,20 +219,30 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   // Send the new port number on the existing socket.
   Sendto(old_sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
+#endif
+
+  sport = ntohs(sin.sin_port);
+  FILE *pf = fopen(file_name, "r");
+  assert(pf);
+
+  swindow_init(&swin, sockfd, old_sockfd, conn.cli_sa,
+               sargs.sw_size, data_producer,
+               pf, on_end_cb);
 
   // Connect this socket to the client on the original port that the
   // client sent data from.
   printf("Client has connected from port: %d\n", ntohs(((struct sockaddr_in*)(conn.cli_sa))->sin_port));
   Connect(sockfd, conn.cli_sa, sizeof(SA));
 
+  // Start sending the packets.
+  swindow_received_ACK(&swin, 0, 1);
+
+#if 0
   // Once the client sends back an ACK on the new socket we connected
   // from, we can proceed with the file transfer. Wait for the ACK.
   int r = Recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
 
   // Send data till we have more data to write.
-  FILE *pf = fopen(file_name, "r");
-  assert(pf);
-
   pkt.flags = 0;
   while (1) {
     memset(pkt.data, 0, sizeof(pkt.data));
@@ -216,6 +261,8 @@ ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   fclose(pf);
   close(sockfd);
+#endif
+
 }
 
 
@@ -324,7 +371,7 @@ void read_cb(void *opaque) {
     }
 
     // TODO: Add to list of in-flight requests.
-    ftp(fd, &cli_sa, file_name);
+    start_ftp(fd, &cli_sa, file_name);
     printf("Child process exiting\n");
     exit(0);
   } // if (pid == 0)
@@ -341,9 +388,9 @@ void timeout_cb(void *opaque) {
 
 int main(int argc, char **argv) {
   const char *sargs_file = SARGS_FILE;
-  struct server_args sargs;
   int i, r;
 
+  utils_init();
   vector_init(&socklist, sizeof(int));
   vector_init(&interfaces, sizeof(struct ifi_info));
   read_sargs(sargs_file, &sargs);

@@ -7,6 +7,9 @@
 #include "utils.h"
 #include "swindow.h"
 
+#define fmax(X,Y) ((X)>(Y)?(X):(Y))
+#define fmin(X,Y) ((X)<(Y)?(X):(Y))
+
 void rtt_info_init(rtt_info_t *rtt) {
     rtt->_8srtt = 0;
     rtt->_8rttvar = 750 * 8;
@@ -37,12 +40,16 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
     return txp;
 }
 
-void swindow_init(swindow *swin, int fd, int swinsz, read_more_cb read_some, void *opaque, end_cb on_end) {
+void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
+                  int swinsz, read_more_cb read_some,
+                  void *opaque, end_cb on_end) {
     treap_init(&swin->swin);
-    swin->oldest_unacked_seq = 1;
+    swin->oldest_unacked_seq = -1;
     swin->fd                 = fd;
+    swin->fd2                = fd2;
+    swin->csa                = csa;
     swin->num_acks           = 0;
-    swin->next_seq           = 1;
+    swin->next_seq           = 0;
     swin->swinsz             = swinsz;
     swin->rwinsz             = 0;
     swin->rbuffsz            = 0;
@@ -65,26 +72,37 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
         return;
     }
 
-    int update_RTO = 1;
+    if (ack == 1) {
+        // Set rbuffsz.
+        swin->rbuffsz = rwinsz;
+    }
+
+    BOOL update_RTO = TRUE;
     if (ack == swin->oldest_unacked_seq) {
         ++swin->num_acks;
         // Check if this ACK ever timed out.
         if (swin->oas_num_time_outs) {
             // Do NOT update RTO values.
-            update_RTO = 0;
+            update_RTO = FALSE;
         }
         if (swin->num_acks > 1) {
-            update_RTO = 0;
+            update_RTO = FALSE;
         }
 
-        if (swin->num_acks == 3) {
-            // This is the 3rd ACK. Perform a fast re-transmit for
+        if (swin->num_acks == 4) {
+            // This is the 4th ACK. Perform a fast re-transmit for
             // packet with seq # 'oldest_unacked_seq'.
             swindow_transmit_packet(swin, swin->oldest_unacked_seq);
         }
     }
 
-    assert(ack < swin->oldest_unacked_seq + treap_size(&swin->swin));
+    if (ack != swin->oldest_unacked_seq + 1) {
+        update_RTO = FALSE;
+    }
+
+    if (ack > 0) {
+        assert(ack < swin->oldest_unacked_seq + treap_size(&swin->swin));
+    }
     uint32_t curr_time_ms = current_time_in_ms();
 
     if (ack > swin->oldest_unacked_seq) {
@@ -135,6 +153,11 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
         pkt.datalen = r;
         pkt.seq     = swin->next_seq++;
 
+        if (pkt.seq == 0) {
+            // This is the 1st packet.
+            pkt.flags |= FLAG_SYN;
+        }
+
         tx_packet_info* txp = make_tx_packet(&pkt);
 
         // Add this packet to the treap and send it off.
@@ -158,6 +181,11 @@ void swindow_transmit_packet(swindow *swin, int seq) {
     assert(txp);
     // TODO: Set the SO_DONTROUTE flag on the socket to start off with if we need to use it.
     Send(swin->fd, &txp->pkt, sizeof(txp->pkt), 0);
+
+    if (swin->fd2 != -1) {
+        // Send the new port number on the existing socket.
+        Sendto(swin->fd2, &txp->pkt, sizeof(txp->pkt), 0, swin->csa, sizeof(SA));
+    }
 }
 
 void swindow_timed_out(swindow *swin) {

@@ -16,6 +16,7 @@
 #define SARGS_FILE "server.in"
 #define MAXSOCKS 100
 
+void utils_init(void);
 void* my_malloc(size_t size);
 
 

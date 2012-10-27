@@ -41,6 +41,8 @@ tx_packet_info* make_tx_packet(packet_t *pkt);
 typedef struct swindow {
     treap swin;             // A dictionary holding the in-flight packets
     int fd;                 // The FD of the connected client
+    int fd2;                // The FD of the original UDP socket to which the client connected. We use this to send the initial ACK
+    struct sockaddr *csa;   // The struct sockaddr of the client. We use this to sendto(2) the port number on fd2
     int oldest_unacked_seq; // The oldest un-acknowledged packet's sequence number
     int num_acks;           // The number of ACK responses for 'oldest_unacked_seq' that we have seen. This is ONLY for ACKs in sequence AFTER we reset 'oldest_unacked_seq'
     int next_seq;           // The seq # of the next packet to be sent
@@ -96,7 +98,9 @@ typedef struct swindow {
 
 // Using select(2) is a *good* idea.
 
-void swindow_init(swindow *swin, int fd, int swinsz, read_more_cb read_some, void *opaque, end_cb on_end);
+void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
+                  int swinsz, read_more_cb read_some,
+                  void *opaque, end_cb on_end);
 // This function also updates the receiving buffer and receiving
 // window size.
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz);
