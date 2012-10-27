@@ -3,11 +3,15 @@
 #include <error.h>
 #include <stdio.h>
 
-void fdset_init(fdset *fds) {
+void fdset_init(fdset *fds, struct timeval timeout, ev_callback_t timeout_cb) {
     FD_ZERO(&fds->rfds);
     FD_ZERO(&fds->exfds);
     FD_ZERO(&fds->wfds);
-    fds->max_fd = -1;
+
+    fds->max_fd     = -1;
+    fds->timeout    = timeout;
+    fds->timeout_cb = timeout_cb;
+
     vector_init(&fds->rev, sizeof(select_event_t));
     vector_init(&fds->exev, sizeof(select_event_t));
     vector_init(&fds->wev, sizeof(select_event_t));

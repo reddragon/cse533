@@ -34,6 +34,9 @@ BOOL first_call_to_read_some = TRUE;
 // The ephemeral port number on the server.
 int sport = -1;
 
+// FDs belinging to the server-child.
+fdset scfds;
+
 vector* get_all_interfaces(void) {
   if (!vector_empty(&interfaces)) {
     return &interfaces;
@@ -165,10 +168,22 @@ int data_producer(void *opaque, void *vbuff, int buffsz) {
 }
 
 int start_sending(int udpfd, int connfd, struct sockaddr *csa) {
-
 }
 
 void on_end_cb(int status) {
+}
+
+void on_sock_read_ready(void *opaque) {
+  packet_t pkt;
+  int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
+  assert(r >= 0);
+  swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
+}
+
+void on_sock_error(void *opaque) {
+}
+
+void on_select_timeout(void *opaque) {
 }
 
 // Most of the heavy lifting happens here
@@ -234,8 +249,19 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   printf("Client has connected from port: %d\n", ntohs(((struct sockaddr_in*)(conn.cli_sa))->sin_port));
   Connect(sockfd, conn.cli_sa, sizeof(SA));
 
+  struct timeval timeout;
+  timeout.tv_sec = 20;
+  timeout.tv_usec = 0;
+
+  // Set up the callbacks.
+  fdset_init(&scfds, timeout, on_select_timeout);
+  fdset_add(&scfds, &scfds.rev,  sockfd, NULL, on_sock_read_ready);
+  fdset_add(&scfds, &scfds.exev, sockfd, NULL, on_sock_error);
+
   // Start sending the packets.
   swindow_received_ACK(&swin, 0, 1);
+
+  int r = fdset_poll2(&scfds);
 
 #if 0
   // Once the client sends back an ACK on the new socket we connected
@@ -299,7 +325,7 @@ bind_udp(struct server_args *sargs, vector *v) {
   }
 }
 
-void read_cb(void *opaque) {
+void main_server_read_cb(void *opaque) {
   int fd = *(int*)opaque;
   printf("There is a disturbance in the force at fd '%d'\n", fd);
   char file_name[256];
@@ -377,12 +403,12 @@ void read_cb(void *opaque) {
   } // if (pid == 0)
 }
 
-void ex_cb(void *opaque) {
+void main_server_ex_cb(void *opaque) {
   int fd = *(int*)opaque;
   printf("Error detected on fd '%d'\n", fd);
 }
 
-void timeout_cb(void *opaque) {
+void main_server_timeout_cb(void *opaque) {
   printf("Timeout in select(2)\n");
 }
 
@@ -401,17 +427,17 @@ int main(int argc, char **argv) {
   timeout.tv_sec = 10;
   timeout.tv_usec = 0;
 
-  fdset_init(&fds);
+  fdset_init(&fds, timeout, main_server_timeout_cb);
 
   // Add every socket in socklist to fds->rev & fds->exev
   for (i = 0; i < vector_size(&socklist); ++i) {
     int *pfd = (int*)vector_at(&socklist, i);
-    fdset_add(&fds, &fds.rev,  *pfd, pfd, read_cb);
-    fdset_add(&fds, &fds.exev, *pfd, pfd, ex_cb  );
+    fdset_add(&fds, &fds.rev,  *pfd, pfd, main_server_read_cb);
+    fdset_add(&fds, &fds.exev, *pfd, pfd, main_server_ex_cb  );
     printf("Added FD %d to read/ex-set\n", *pfd);
   }
 
-  r = fdset_poll(&fds, &timeout, timeout_cb);
+  r = fdset_poll(&fds, &timeout, main_server_timeout_cb);
 
   // Handle EINTR.
   if (r < 0) {
