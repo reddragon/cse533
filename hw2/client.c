@@ -155,6 +155,9 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
       fprintf(stdout, "recv(2) returned with exit code: %d with seq number: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&pkt, &rwin);
       fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
+      // TODO Disable this is if needed. The server doesn't accept ACKs so far.
+      // This is only an ACK packet. Hence, PACKET_HEADER_SZ
+      Send(sockfd, (void *)&pkt, PACKET_HEADER_SZ, conn->is_local ? MSG_DONTROUTE : 0);
 
       if (r < 0 && errno == EINTR) {
           continue;
