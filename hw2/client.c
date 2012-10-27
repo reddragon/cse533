@@ -110,6 +110,7 @@ void consume_packets(rwindow *rwin) {
       // TODO Actual writing out of the packet to file
       fprintf(stderr, "==== Read packet %d ====\n", next_seq);
 
+      // TODO: Check return value of fwrite(3)
       fwrite(pkt->data, pkt->datalen, 1, pf);
 
       next_seq++;
