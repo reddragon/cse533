@@ -304,7 +304,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   assert(pf);
 
   swindow_init(&swin, sockfd, old_sockfd, conn.cli_sa,
-               sargs.sw_size, data_producer,
+               sargs.sw_size, 1, data_producer,
                pf, on_advanced_oldest_unACKed_seq, on_end_cb);
 
   // Connect this socket to the client on the original port that the

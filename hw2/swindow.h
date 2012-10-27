@@ -105,7 +105,7 @@ typedef struct swindow {
 
 void swindow_dump(swindow *swin);
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
-                  int swinsz, read_more_cb read_some,
+                  int sbuffsz, int swinsz, read_more_cb read_some,
                   void *opaque, ack_cb advanced_ack_cb, end_cb on_end);
 // This function also updates the receiving buffer and receiving
 // window size.
