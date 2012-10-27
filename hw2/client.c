@@ -60,6 +60,59 @@ get_conn(struct client_args *cargs, struct client_conn *conn) {
   }
 }
 
+void consume_packets(rwindow *rwin) {
+  // TODO First packet number that we receive is 2. We should
+  // fix this.
+  int next_seq = 2;
+  packet_t *pkt;
+  do {
+    uint32_t sleep_time = 1000, retries = 0;
+    pkt = NULL;
+    do {
+      pthread_mutex_lock(rwin->mutex);
+      treap_node *tn = treap_find(&rwin->t_rwin, next_seq);
+      pthread_mutex_unlock(rwin->mutex);
+      
+      // We found the node with the right seq number
+      if (tn != NULL) {
+        pkt = (packet_t *) (tn->data);
+        break;
+      }
+      
+      // If the packet that we are expected isn't in the treap,
+      // wait for some time.
+      usleep(sleep_time);
+      
+      // If the sleep_time is already more than a second, don't
+      // double it.
+      sleep_time = (sleep_time > 1000000) 
+                    ? sleep_time : sleep_time << 1;
+      
+      // We will only wait for a packet for at max 100 retries.
+      retries++;
+    } while (retries < 100);
+    
+    if (pkt != NULL) {
+      // Received the packet.
+
+      pthread_mutex_lock(rwin->mutex);
+      treap_delete(&rwin->t_rwin, next_seq);
+      pthread_mutex_unlock(rwin->mutex);
+
+      // TODO Actual writing out of the packet to file
+      fprintf(stderr, "Read packet %d\n", next_seq);
+
+      next_seq++;
+    } else if (pkt != NULL) {
+      // We retried 100 times. Packet, Y U NO COME?
+      fprintf(stderr, "Did not receive packet seq %d even after 100 retries\n", next_seq);
+      exit(1);
+    }
+    
+  } while (!(pkt->flags & FLAG_FIN));
+  
+}
+
 // Connect to the server, and send the first datagram
 void
 start_tx(struct client_args *cargs, struct client_conn *conn) {
@@ -148,6 +201,13 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
 
   // Initialize the receiving window
   rwindow_init(&rwin, cargs->sw_size);
+  
+  pthread_t tid;
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  if (pthread_create(&tid, &attr, (void *) (&consume_packets), (void *) (&rwin)) < 0) {
+    err_sys("Could not spawn the consumer thread to read packets");
+  }
 
   while (1) {
       fprintf(stdout, "Waiting on Recv...\n");
@@ -170,12 +230,16 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
           fprintf(stdout, "End of file while recv(2)ing file\n");
           break;
       }
-      fwrite(pkt.data, pkt.datalen, 1, pf);
+      // Writing out the packet data must be done in the consumer thread (consume_data())
+      // fwrite(pkt.data, pkt.datalen, 1, pf);
       if (pkt.flags & FLAG_FIN) {
+          // TODO Here goes the special logic for dealing with FIN
           break;
       }
   }
-  fclose(pf);
+  // We should exit only when the consumer thread has finished its job
+  pthread_join(tid, NULL);
+  // fclose(pf);
 }
 
 int main(int argc, char **argv) {

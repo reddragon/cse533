@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
 INCFLAGS = -I/home/courses/cse533/Stevens/unpv13e_solaris2.10/lib
 LIBS = /home/courses/cse533/Stevens/unpv13e_solaris2.10/libunp.a
-OBJ = client server vector.o utils.o fdset.o algorithm.o
+OBJ = client server vector.o utils.o fdset.o algorithm.o rwindow.o
 
 PLATFORM=${shell uname}
 
@@ -11,7 +11,7 @@ PLATFORM=${shell uname}
 ifeq ($(PLATFORM), Linux)
 	LINKFLAGS = -lpthread
 	INCFLAGS  = -I../unpv13e_linux/lib
-	LIBS      = ../unpv13e_linux/libunp.a
+	LIBS      = ../unpv13e_linux/libunp.a -lpthread
 endif
 
 CFLAGS += $(INCFLAGS)
