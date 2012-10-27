@@ -113,6 +113,25 @@ void consume_packets(rwindow *rwin) {
   
 }
 
+void send_packet(int sockfd, packet_t *pkt, struct client_conn *conn) {
+int packet_len = 0;
+#ifdef DEBUG
+  if (pkt->datalen == 0) {
+    int num_bytes = sprintf(pkt->data, "%d : %d", pkt->ack, pkt->rwinsz);
+    packet_len = PACKET_HEADER_SZ + num_bytes;
+  } else {
+    packet_len = PACKET_SZ;
+  }
+#else
+  if (pkt->datalen == 0) {
+    packet_len = PACKET_HEADER_SZ;  
+    } else {
+    packet_len = PACKET_SZ;
+  }
+#endif
+  Send(sockfd, (void *)pkt, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+}
+
 // Connect to the server, and send the first datagram
 void
 start_tx(struct client_args *cargs, struct client_conn *conn) {
@@ -223,7 +242,9 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
       fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
       // TODO Disable this is if needed. The server doesn't accept ACKs so far.
       // This is only an ACK packet. Hence, PACKET_HEADER_SZ
-      Send(sockfd, (void *)&pkt, PACKET_HEADER_SZ, conn->is_local ? MSG_DONTROUTE : 0);
+      fprintf(stderr,  "Sending ack packet\n");
+      send_packet(sockfd, ack_pkt, conn);
+      // Send(sockfd, (void *)&ack_pkt, PACKET_HEADER_SZ, conn->is_local ? MSG_DONTROUTE : 0);
 
       if (r < 0 && errno == EINTR) {
           continue;

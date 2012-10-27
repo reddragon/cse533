@@ -178,7 +178,7 @@ void on_sock_read_ready(void *opaque) {
   fprintf(stderr, "Trying read from FD: %d\n", swin.fd);
   // sleep(1);
   // int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
-  int r = recvfrom(swin.fd, &pkt, sizeof(pkt), 0, NULL, NULL);
+  int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
   // assert(r >= 0);
   if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
     perror("recvfrom");

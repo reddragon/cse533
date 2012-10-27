@@ -27,9 +27,6 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
   // Discard packet if we do not have space on the receiving
   // window.
 
-  // We will only use the header for the ACK packet
-  packet_t *ack_pkt = (packet_t *) malloc(PACKET_HEADER_SZ);
-  
   // Check if this is a duplicate packet, which was already
   // received. We can find this out in two ways:
   // 1. Either the packet already exists in the treap. In this
@@ -56,11 +53,16 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
   }
   pthread_mutex_unlock(rwin->mutex);
   
+  // We will not be frugal here
+  packet_t *ack_pkt = MALLOC(packet_t);
+  
   // Marshalling the acknowledgment packet
   ack_pkt->seq = 0;
   ack_pkt->ack = rwin->smallest_expected_seq;
   ack_pkt->flags = FLAG_ACK;
   ack_pkt->rwinsz = rwin->rwinsz - treap_size(&rwin->t_rwin);
+  // TODO This is only for the debug mode
+  ack_pkt->datalen = 0;
   return ack_pkt;
 }
 
