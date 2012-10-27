@@ -126,9 +126,11 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   // Send an ACK to the server.
   pkt.flags = FLAG_ACK;
   pkt.ack   = 1;
+  pkt.rwinsz = 10;
   ++pkt.seq;
   pkt.datalen = 0;
   memset(pkt.data, 0, sizeof(pkt.data));
+  sprintf(pkt.data, "ACK:1");
 
   // TODO: Call packet_hton() and pass an output buffer.
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
@@ -152,7 +154,11 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   while (1) {
       fprintf(stdout, "Waiting on Recv...\n");
       int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
-      fprintf(stdout, "recv(2) returned with exit code: %d with seq number: %u\n", r, pkt.seq);
+      if (r < 0) {
+          perror("recv");
+          exit(1);
+      }
+      fprintf(stdout, "recv(2) returned with exit code: %d and  with seq number: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&pkt, &rwin);
       fprintf(stdout, "ack_pkt will be sent with seq: %u, rwinsz: %d\n", ack_pkt->seq, ack_pkt->rwinsz);
 

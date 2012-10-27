@@ -66,6 +66,7 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
     // 'ack' the the sequence number of the next *expected* sequence
     // number.
+    fprintf(stderr, "swindow_received_ACK(ACK: %d, RWINSZ: %d)\n", ack, rwinsz);
 
     if (ack < swin->oldest_unacked_seq) {
         // Discard ACK, since we don't care.
@@ -101,7 +102,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
     }
 
     if (ack > 0) {
-        assert(ack < swin->oldest_unacked_seq + treap_size(&swin->swin));
+        assert_lt(ack, swin->oldest_unacked_seq + treap_size(&swin->swin) + 1);
     }
     uint32_t curr_time_ms = current_time_in_ms();
 
@@ -113,7 +114,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
             tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
             if (txp) {
                 if (update_RTO && !did_update_RTO) {
-                    assert(curr_time_ms - txp->sent_at_ms);
+                    assert_ge(curr_time_ms - txp->sent_at_ms, 0);
                     rtt_update(&swin->rtt, curr_time_ms - txp->sent_at_ms);
                     did_update_RTO = 1;
                 }
@@ -177,6 +178,7 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
 
 // We assume that the packet with SEQ # (seq) is available in swin->swin.
 void swindow_transmit_packet(swindow *swin, int seq) {
+    fprintf(stderr, "swindow_transmit_packet(SEQ: %d)\n", seq);
     tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
     assert(txp);
     // TODO: Set the SO_DONTROUTE flag on the socket to start off with if we need to use it.
@@ -186,6 +188,7 @@ void swindow_transmit_packet(swindow *swin, int seq) {
         // Send the new port number on the existing socket.
         Sendto(swin->fd2, &txp->pkt, sizeof(txp->pkt), 0, swin->csa, sizeof(SA));
     }
+
 }
 
 void swindow_timed_out(swindow *swin) {

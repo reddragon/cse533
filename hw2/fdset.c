@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <error.h>
 #include <stdio.h>
+#include "algorithm.h"
 
 void fdset_init(fdset *fds, struct timeval timeout, ev_callback_t timeout_cb) {
     FD_ZERO(&fds->rfds);

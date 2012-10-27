@@ -19,6 +19,9 @@
 void utils_init(void);
 void* my_malloc(size_t size);
 
+#define assert_lt(L,R) if((L)>=(R)) { fprintf(stderr, "%d < %d FAILED\n", (L), (R)); assert((L)<(R)); }
+#define assert_gt(L,R) if((L)<=(R)) { fprintf(stderr, "%d > %d FAILED\n", (L), (R)); assert((L)>(R)); }
+#define assert_ge(L,R) if((L)<(R)) { fprintf(stderr, "%d >= %d FAILED\n", (L), (R)); assert((L)>=(R)); }
 
 typedef struct client_args {
   char ip_addr[20];

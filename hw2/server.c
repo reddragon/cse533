@@ -175,8 +175,16 @@ void on_end_cb(int status) {
 
 void on_sock_read_ready(void *opaque) {
   packet_t pkt;
-  int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
-  assert(r >= 0);
+  fprintf(stderr, "Trying read from FD: %d\n", swin.fd);
+  // sleep(1);
+  // int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
+  int r = recvfrom(swin.fd, &pkt, sizeof(pkt), 0, NULL, NULL);
+  // assert(r >= 0);
+  if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
+    perror("recvfrom");
+    return;
+  }
+  fprintf(stderr, "Successfully read %d bytes\n", r);
   swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
 }
 
@@ -197,6 +205,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
     sa_data_str(conn.cli_sa));
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
+  set_non_blocking(sockfd);
   // TODO: Set SO_DONTROUTE if required.
 
   Bind(sockfd, conn.serv_sa, sizeof(SA));
@@ -261,12 +270,14 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   // Start sending the packets.
   swindow_received_ACK(&swin, 0, 1);
 
-  int r = fdset_poll2(&scfds);
+  int r;
+
+  r = fdset_poll2(&scfds);
 
 #if 0
   // Once the client sends back an ACK on the new socket we connected
   // from, we can proceed with the file transfer. Wait for the ACK.
-  int r = Recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
+  r = Recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
 
   // Send data till we have more data to write.
   pkt.flags = 0;
@@ -392,7 +403,7 @@ void main_server_read_cb(void *opaque) {
     for (j = 0; j < vector_size(&socklist); j++) {
       int sockfd = *(int*)vector_at(&socklist, j);
       if (sockfd != fd) {
-        close(sockfd);
+        // close(sockfd);
       }
     }
 
