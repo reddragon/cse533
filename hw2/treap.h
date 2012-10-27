@@ -20,6 +20,7 @@ void        treap_rotate_up(treap *t, treap_node *n);
 void        treap_rotate_right(treap_node *n);
 treap_node* treap_find(treap *t, int key);
 void        treap_init(treap *t);
+void        treap_clear(treap *t, void (*deletr)(void*));
 void        treap_insert(treap *t, int key, const void *data);
 treap_node* treap_lower_bound(treap *t, int key);
 void        treap_delete_leaf_node(treap *t, treap_node *n);

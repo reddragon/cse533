@@ -3,22 +3,21 @@
 #include <assert.h>
 #include "treap.h"
 
-/*
-typedef struct treap_node {
-    int key, heapkey;
-    const void *data;
-    struct treap_node *left, *right, *parent;
-} treap_node;
-
-typedef struct treap {
-    treap_node *root;
-    int size;
-} treap;
-*/
+// Moved the treap_node and treap definitions to treap.h
 
 void treap_init(treap *t) {
     t->root = NULL;
     t->size = 0;
+}
+
+void treap_clear(treap *t, void (*deletr)(void*)) {
+    treap_node *n = treap_smallest(t);
+    while (n) {
+        treap_node *nn = treap_successor(n);
+        deletr((void*)n->data);
+        treap_delete_node(t, n);
+        n = nn;
+    }
 }
 
 void treap_insert(treap *t, int key, const void *data) {
@@ -247,7 +246,7 @@ int treap_empty(treap *t) {
 }
 
 treap_node* treap_largest(treap *t) {
-    treap_node *n = &t->root;
+    treap_node *n = t->root;
     while (n && n->right) {
         n = n->right;
     }
@@ -255,7 +254,7 @@ treap_node* treap_largest(treap *t) {
 }
 
 treap_node* treap_smallest(treap *t) {
-    treap_node *n = &t->root;
+    treap_node *n = t->root;
     while (n && n->left) {
         n = n->left;
     }
