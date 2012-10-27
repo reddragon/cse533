@@ -16,6 +16,9 @@ enum { TX_SUCCESS=0, TX_FAILURE=1 };
 //                     status (0->success; 1->failure)
 typedef void (*end_cb)(int);
 
+typedef void (*ack_cb)(void*);
+
+
 typedef struct rtt_info_t {
     // All values are in 'ms'.
     int _8srtt;
@@ -27,7 +30,8 @@ void rtt_info_init(rtt_info_t *rtt);
 // Periodically update the RTO values. mRTT is in 'ms'.
 void rtt_update(rtt_info_t *rtt, int mRTT);
 // Fetch the RTO in 'ms'.
-double rtt_get_RTO(rtt_info_t *rtt);
+uint32_t rtt_get_RTO(rtt_info_t *rtt);
+void rtt_scale_RTO(rtt_info_t *rtt, int factor);
 
 // Struct for packet sent.
 typedef struct tx_packet_info {
@@ -53,6 +57,7 @@ typedef struct swindow {
     int oas_num_time_outs;  // The # of times the packet with seq # 'oldest_unacked_seq' timed out.
     read_more_cb read_some; // Callback to read more data
     end_cb on_end;          // Callback to indicate end of transmission
+    ack_cb advanced_ack_cb; // Callback to indicate that the oldest_unacked_seq was updated
     void *opaque;           // Opaque data passed to the read_some callback
     rtt_info_t rtt;
     BOOL isEOF;             // End-Of-File if TRUE
@@ -100,7 +105,7 @@ typedef struct swindow {
 
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
                   int swinsz, read_more_cb read_some,
-                  void *opaque, end_cb on_end);
+                  void *opaque, ack_cb advanced_ack_cb, end_cb on_end);
 // This function also updates the receiving buffer and receiving
 // window size.
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz);

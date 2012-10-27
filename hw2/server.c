@@ -37,6 +37,17 @@ int sport = -1;
 // FDs belinging to the server-child.
 fdset scfds;
 
+// When was the last call to select(2) made?
+uint32_t last_call_to_select = 0;
+
+// The last (dynamic) value of timeout (in ms) used in the select(2)
+// system call. Whenever we invoke the data_producer() function, we
+// determine the current time, and subtract it from the
+// 'last_call_to_select'. This gives us the amount of time that
+// select(2) slept. We subtract this from 'last_select_timeout_ms' to
+// determine the new timeout for select.
+uint32_t last_select_timeout_ms = 0;
+
 vector* get_all_interfaces(void) {
   if (!vector_empty(&interfaces)) {
     return &interfaces;
@@ -167,15 +178,33 @@ int data_producer(void *opaque, void *vbuff, int buffsz) {
   return r;
 }
 
-int start_sending(int udpfd, int connfd, struct sockaddr *csa) {
+void on_end_cb(int status) {
+  fprintf(stderr, "on_end_cb(%s)\n", (status == TX_SUCCESS ? "SUCCESS" : "FAILURE"));
+  if (status == TX_FAILURE) {
+    exit(1);
+  } else {
+    exit(0);
+  }
 }
 
-void on_end_cb(int status) {
+void set_new_select_timeout(uint32_t ms) {
+  struct timeval tv;
+  tv.tv_sec = ms / 1000;
+  tv.tv_usec = (ms % 1000) * 1000;
+  scfds.timeout = tv;
+}
+
+void on_advanced_oldest_unACKed_seq(void *opaque) {
+  // We reset the timeout value when the oldest unACKed sequence # is
+  // advanced.
+  uint32_t rto = rtt_get_RTO(&swin.rtt);
+  fprintf(stderr, "on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
+  set_new_select_timeout(rto);
 }
 
 void on_sock_read_ready(void *opaque) {
   packet_t pkt;
-  fprintf(stderr, "Trying read from FD: %d\n", swin.fd);
+  fprintf(stderr, "on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
   // sleep(1);
   // int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
   int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
@@ -185,6 +214,19 @@ void on_sock_read_ready(void *opaque) {
     return;
   }
   fprintf(stderr, "Successfully read %d bytes\n", r);
+
+  // TODO: Decrease timeout value by the amount of time spent in the
+  // select(2) system call.
+  uint32_t current_time = current_time_in_ms();
+  uint32_t select_slept_for = current_time - last_call_to_select;
+  last_call_to_select = current_time;
+  last_select_timeout_ms -= select_slept_for;
+  if (last_select_timeout_ms > 500000) {
+    // Some unholy value (500sec).
+    last_select_timeout_ms = 0;
+  }
+
+  set_new_select_timeout(last_select_timeout_ms);
   swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
 }
 
@@ -192,6 +234,18 @@ void on_sock_error(void *opaque) {
 }
 
 void on_select_timeout(void *opaque) {
+  last_call_to_select = current_time_in_ms();
+
+  // Double the timeout.
+  rtt_scale_RTO(&swin.rtt, 2);
+
+  // TODO: Handle the case when we are in the window probe mode
+  // (detected by the value of swin.rwinsz).
+  uint32_t rto = (uint32_t)rtt_get_RTO(&swin.rtt);
+  fprintf(stderr, "on_select_timeout::Updating timeout to %d ms\n", rto);
+
+  set_new_select_timeout(rto);
+  swindow_timed_out(&swin);
 }
 
 // Most of the heavy lifting happens here
@@ -251,7 +305,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   swindow_init(&swin, sockfd, old_sockfd, conn.cli_sa,
                sargs.sw_size, data_producer,
-               pf, on_end_cb);
+               pf, on_advanced_oldest_unACKed_seq, on_end_cb);
 
   // Connect this socket to the client on the original port that the
   // client sent data from.
@@ -272,6 +326,8 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   int r;
 
+  last_call_to_select    = current_time_in_ms();
+  last_select_timeout_ms = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
   r = fdset_poll2(&scfds);
 
 #if 0
