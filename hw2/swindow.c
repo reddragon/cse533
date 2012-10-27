@@ -57,7 +57,7 @@ void swindow_dump(swindow *swin) {
 }
 
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
-                  int swinsz, read_more_cb read_some,
+                  int sbuffsz, int swinsz, read_more_cb read_some,
                   void *opaque, ack_cb advanced_ack_cb, end_cb on_end) {
     treap_init(&swin->swin);
     swin->oldest_unacked_seq = -1;
@@ -69,7 +69,7 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
     swin->swinsz             = swinsz;
     swin->rwinsz             = 0;
     swin->rbuffsz            = 0;
-    swin->sbuffsz            = 0;
+    swin->sbuffsz            = sbuffsz;
     swin->oas_num_time_outs  = 0;
     swin->read_some          = read_some;
     swin->opaque             = opaque;
@@ -154,7 +154,11 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     swin->rwinsz = rwinsz;
 
     // The effective window size
-    swin->swinsz = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
+    const int sz1 = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
+    const int sz2 = swin->sbuffsz - treap_size(&swin->swin);
+    assert_ge(sz1, 0);
+    assert_ge(sz2, 0);
+    swin->swinsz = imin(sz1, sz2);
 
     // Invoke callback and send the packet on the network.
     while ((swin->isEOF == FALSE) && (swin->swinsz > 0)) {
