@@ -100,7 +100,7 @@ void consume_packets(rwindow *rwin) {
       pthread_mutex_unlock(rwin->mutex);
 
       // TODO Actual writing out of the packet to file
-      fprintf(stderr, "Read packet %d\n", next_seq);
+      fprintf(stderr, "==== Read packet %d ====\n", next_seq);
 
       next_seq++;
     } else if (pkt != NULL) {
@@ -117,7 +117,7 @@ void send_packet(int sockfd, packet_t *pkt, struct client_conn *conn) {
 int packet_len = 0;
 #ifdef DEBUG
   if (pkt->datalen == 0) {
-    int num_bytes = sprintf(pkt->data, "%d : %d", pkt->ack, pkt->rwinsz);
+    int num_bytes = sprintf(pkt->data, "== ack %d : rwinsz %d ==", pkt->ack, pkt->rwinsz);
     packet_len = PACKET_HEADER_SZ + num_bytes;
   } else {
     packet_len = PACKET_SZ;
