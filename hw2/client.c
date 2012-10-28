@@ -246,20 +246,15 @@ send_file(void *opaque) {
       fprintf(stdout, "recv(2) read %d bytes. Packet seq#: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
       fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
-      // TODO Disable this is if needed. The server doesn't accept ACKs so far.
-      // This is only an ACK packet. Hence, PACKET_HEADER_SZ
-      fprintf(stderr,  "Sending ack packet\n");
       send_packet(ack_pkt);
-      free(ack_pkt);
-      ack_pkt = NULL;
-      // Send(sockfd, (void *)&ack_pkt, PACKET_HEADER_SZ, conn->is_local ? MSG_DONTROUTE : 0);
-
-      // Writing out the packet data must be done in the consumer thread (consume_data())
-      // fwrite(pkt.data, pkt.datalen, 1, pf);
+      
       if (pkt.flags & FLAG_FIN) {
           // TODO Here goes the special logic for dealing with FIN
           break;
       }
+
+      free(ack_pkt);
+      ack_pkt = NULL;
   }
   // We should exit only when the consumer thread has finished its job
   pthread_join(tid, NULL);
