@@ -22,10 +22,10 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
 // it, and return an appropriate ACK
 
 // Returns a well-formed acknowledgement packet 
-packet_t *rwindow_received_packet(packet_t *opkt, rwindow *rwin) { 
+packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) { 
   // TODO
-  // Discard packet if we do not have space on the receiving
-  // window.
+  // Do not discard packet if we do not have space on the receiving
+  // window. Reply with the next expected seq.
 
   // Check if this is a duplicate packet, which was already
   // received. We can find this out in two ways:

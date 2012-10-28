@@ -2,8 +2,13 @@
 #include "utils.h"
 #include "rwindow.h"
 
+client_args *cargs;
+client_conn *conn;
+rwindow *rwin;
+packet_t *file_name_pkt;
+
 void
-get_conn(struct client_args *cargs, struct client_conn *conn) {
+get_conn() {
   // TODO
   // Check if this function is fine
   struct ifi_info *ifi_head = Get_ifi_info_plus(AF_INET, 0), *ifi;
@@ -132,7 +137,7 @@ void consume_packets(rwindow *rwin) {
   fclose(pf);
 }
 
-void send_packet(int sockfd, packet_t *pkt, struct client_conn *conn) {
+void send_packet(int sockfd, packet_t *pkt) {
 int packet_len = 0;
 #ifdef DEBUG
   if (pkt->datalen == 0) {
@@ -151,9 +156,24 @@ int packet_len = 0;
   Send(sockfd, (void *)pkt, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
 }
 
+void
+handle_tx_error() {
+  // TODO Finish this
+}
+
+void
+send_filename_pkt() {
+  // TODO Finish this
+}
+
+void
+finish_tx() {
+  // TODO Finish this
+}
+
 // Connect to the server, and send the first datagram
 void
-start_tx(struct client_args *cargs, struct client_conn *conn) {
+initiate_tx() {
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
   // Bind to port 0
@@ -185,17 +205,28 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   strcpy(pkt.data, cargs->file_name);
 
   // TODO: Start a timer here to re-send the file name till we receive an ACK.
-
-  printf("Sending %d bytes of data to the server\n", sizeof(pkt));
-  Sendto(sockfd, (void*)&pkt, sizeof(pkt), conn->is_local ? MSG_DONTROUTE : 0,
-         conn->serv_sa, sizeof(SA));
-
+  
+  int syn_retries = 0;
   int portno;
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
   socklen_t sa_sz = sizeof(sa);
 
-  Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+  do {
+    fprintf(stderr, "Trying to send the SYN packet to the Server with the file name\n");
+    
+    // Send the packet to the server
+    send_packet(sockfd, pkt, conn);
+    
+    // Now, try to use select to talk to the server
+    fdset readfds;
+    FD_ZERO(&readfds);
+    
+
+    syn_retries++;
+  } while (syn_retries < 12);
+
+    Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
 
   pkt.data[pkt.datalen] = '\0';
   sscanf(pkt.data, "%d", &portno);
@@ -252,7 +283,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
           exit(1);
       }
       fprintf(stdout, "recv(2) returned with exit code: %d and  with seq number: %u\n", r, pkt.seq);
-      packet_t *ack_pkt = rwindow_received_packet(&pkt, &rwin);
+      packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
       fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
       // TODO Disable this is if needed. The server doesn't accept ACKs so far.
       // This is only an ACK packet. Hence, PACKET_HEADER_SZ
@@ -286,19 +317,19 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
 int main(int argc, char **argv) {
   assert(argc == 1);
   const char *cargs_file = CARGS_FILE;
-  struct client_args *cargs = (struct client_args *)
-    malloc(sizeof(struct client_args));
+  cargs = MALLOC(client_args);
   if (read_cargs((const char *)cargs_file, cargs)) {
     exit(1);
   }
   
-  struct client_conn conn;
-  get_conn(cargs, &conn);
+  conn = MALLOC(client_conn);
+  file_name_pkt = MALLOC(packet_t);
+  get_conn();
   printf("Server is %s\nIPServer: %s\nIPClient: %s\n", 
-          (conn.is_local ? "Local" : "Not Local"),
-          sa_data_str(conn.serv_sa),
-          sa_data_str(conn.cli_sa));
+          (conn->is_local ? "Local" : "Not Local"),
+          sa_data_str(conn->serv_sa),
+          sa_data_str(conn->cli_sa));
   // printf("IPServer: %s\n", Sock_ntop(sa, sizeof(SA)));
-  start_tx(cargs, &conn);
+  start_tx();
   return 0;
 }
