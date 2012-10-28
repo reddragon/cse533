@@ -1,7 +1,8 @@
 CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
 INCFLAGS = -I/home/courses/cse533/Stevens/unpv13e_solaris2.10/lib
-LIBS = /home/courses/cse533/Stevens/unpv13e_solaris2.10/libunp.a -lm
+LIBS = /home/courses/cse533/Stevens/unpv13e_solaris2.10/libunp.a \
+	-lm -lresolv -lsocket -lnsl -lpthread
 OBJ = client server vector.o utils.o fdset.o algorithm.o swindow.o \
 	rwindow.o perhaps.o
 ALLOBJDEPS = vector.o utils.o fdset.o algorithm.o treap.o swindow.o \
