@@ -14,7 +14,7 @@ PLATFORM=${shell uname}
 ifeq ($(PLATFORM), Linux)
 	LINKFLAGS = -lpthread
 	INCFLAGS  = -I../unpv13e_linux/lib
-	LIBS      = ../unpv13e_linux/libunp.a -lpthread
+	LIBS      = ../unpv13e_linux/libunp.a -lpthread -lm
 endif
 
 CFLAGS += $(INCFLAGS)

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <math.h>
 #include "utils.h"
 #include "rwindow.h"
 #include "fdset.h"
@@ -86,13 +87,57 @@ void *consume_packets(rwindow *rwin) {
   int next_seq = 1;
   packet_t *pkt;
   
+  srand48(cargs->rand_seed);
+
   char file_name[300];
   // Open the file for writing
   sprintf(file_name, "%s.out", "test");
 
   FILE *pf = fopen(file_name, "w");
   assert(pf);
+  
+  uint32_t sleep_time = 1000;
+  BOOL last_pkt_found = FALSE;
+  
+  do {
+    pthread_mutex_lock(rwin->mutex);
+    treap_node *tn = treap_find(&rwin->t_rwin, next_seq);
+    while (tn != NULL) {
+      pkt = (packet_t *) tn->data;
+      treap_delete(&rwin->t_rwin, next_seq);
+#if DEBUG
+      int treap_sz = treap_size(&rwin->t_rwin);
+      fprintf(stderr, "==== Read packet %d with datalen %d and flags %x, treap_sz: %d ====\n", next_seq, pkt->datalen, pkt->flags, treap_sz);
+#endif
+      int ret = fwrite(pkt->data, pkt->datalen, 1, pf);
+      // if (ret < 0) {
+#ifdef DEBUG
+      fprintf(stderr, "fwrite returned with ret = %d\n", ret);
+#endif
 
+      if (pkt->flags & FLAG_FIN) {
+        last_pkt_found = TRUE;
+        break;
+      }
+      
+      next_seq++;
+      tn = treap_find(&rwin->t_rwin, next_seq);
+    }
+    pthread_mutex_unlock(rwin->mutex);
+
+    if (last_pkt_found) {
+      break;
+    }
+    
+    double rd = drand48();
+    double dsleep_time = -1.0 * cargs->mean * log(rd);
+#ifdef DEBUG
+  fprintf(stderr, "dsleep_time: %lf\n", dsleep_time);
+#endif
+    usleep(dsleep_time);
+  } while (1);
+
+#if 0
   do {
     uint32_t sleep_time = 1000, retries = 0;
     pkt = NULL;
@@ -150,6 +195,7 @@ void *consume_packets(rwindow *rwin) {
     }
     
   } while (!(pkt->flags & FLAG_FIN));
+#endif
   fclose(pf);
   return NULL;
 }
