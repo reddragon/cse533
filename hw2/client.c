@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include "utils.h"
 #include "rwindow.h"
+#include "fdset.h"
 
-client_args *cargs;
-client_conn *conn;
-rwindow *rwin;
-packet_t *file_name_pkt;
+client_args *cargs;       // The client args
+client_conn *conn;        // The client connection struct
+rwindow *rwin;            // The receiving window
+packet_t *file_name_pkt;  // The file name packet
+int sockfd;               // The socket used for communication 
+int cliport;              // The client ephemeral port
 
 void
 get_conn() {
@@ -137,8 +140,8 @@ void consume_packets(rwindow *rwin) {
   fclose(pf);
 }
 
-void send_packet(int sockfd, packet_t *pkt) {
-int packet_len = 0;
+void send_packet(packet_t *pkt) {
+  int packet_len = 0;
 #ifdef DEBUG
   if (pkt->datalen == 0) {
     int num_bytes = sprintf(pkt->data, "== ack %d : rwinsz %d ==", pkt->ack, pkt->rwinsz);
@@ -158,75 +161,28 @@ int packet_len = 0;
 
 void
 handle_tx_error() {
-  // TODO Finish this
+  err_sys("Error while receiving acknowledgement from server");
 }
 
 void
 send_filename_pkt() {
-  // TODO Finish this
+  send_packet(file_name_pkt);
+}
+
+void 
+ack_timeout() {
+  fprintf(stderr, "Timed out while waiting for first ack from server\n");
 }
 
 void
-finish_tx() {
-  // TODO Finish this
-}
-
-// Connect to the server, and send the first datagram
-void
-initiate_tx() {
-  int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
-
-  // Bind to port 0
-  Bind(sockfd, conn->cli_sa, sizeof(SA));
-
-  struct sockaddr_in sin;
-  UINT addrlen = sizeof(SA);
-
-  // Fetch port number at which kernel bound this socket.
-  Getsockname(sockfd, (SA *)&sin, &addrlen);
-  int cliport = ntohs(sin.sin_port);
-  printf("Client's ephemeral Port Number: %d\n", cliport);
-
-  // Connect to the server.
-  Connect(sockfd, conn->serv_sa, sizeof(SA));
-
-  // TODO
-  // Do we need getpeername here?
-  
-  // Sending the file name to the server
-  // Q. Do we need to pass the conn->serv_sa here?
-
-  packet_t pkt;
-  memset(&pkt, 0, sizeof(pkt));
-  pkt.ack = 0;
-  pkt.seq = 0;
-  pkt.flags = FLAG_SYN;
-  pkt.datalen = strlen(cargs->file_name);
-  strcpy(pkt.data, cargs->file_name);
-
-  // TODO: Start a timer here to re-send the file name till we receive an ACK.
-  
-  int syn_retries = 0;
+send_file() {
   int portno;
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
   socklen_t sa_sz = sizeof(sa);
-
-  do {
-    fprintf(stderr, "Trying to send the SYN packet to the Server with the file name\n");
-    
-    // Send the packet to the server
-    send_packet(sockfd, pkt, conn);
-    
-    // Now, try to use select to talk to the server
-    fdset readfds;
-    FD_ZERO(&readfds);
-    
-
-    syn_retries++;
-  } while (syn_retries < 12);
-
-    Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+  
+  packet_t pkt;
+  Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
 
   pkt.data[pkt.datalen] = '\0';
   sscanf(pkt.data, "%d", &portno);
@@ -288,7 +244,7 @@ initiate_tx() {
       // TODO Disable this is if needed. The server doesn't accept ACKs so far.
       // This is only an ACK packet. Hence, PACKET_HEADER_SZ
       fprintf(stderr,  "Sending ack packet\n");
-      send_packet(sockfd, ack_pkt, conn);
+      send_packet(ack_pkt);
       // Send(sockfd, (void *)&ack_pkt, PACKET_HEADER_SZ, conn->is_local ? MSG_DONTROUTE : 0);
 
       if (r < 0 && errno == EINTR) {
@@ -311,7 +267,75 @@ initiate_tx() {
   }
   // We should exit only when the consumer thread has finished its job
   pthread_join(tid, NULL);
-  // fclose(pf);
+  // We don't want to return to the main thread
+  exit(0);
+}
+
+// Connect to the server, and send the first datagram
+void
+initiate_tx() {
+  sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+
+  // Bind to port 0
+  Bind(sockfd, conn->cli_sa, sizeof(SA));
+
+  struct sockaddr_in sin;
+  UINT addrlen = sizeof(SA);
+
+  // Fetch port number at which kernel bound this socket.
+  Getsockname(sockfd, (SA *)&sin, &addrlen);
+  cliport = ntohs(sin.sin_port);
+  printf("Client's ephemeral Port Number: %d\n", cliport);
+
+  // Connect to the server.
+  Connect(sockfd, conn->serv_sa, sizeof(SA));
+
+  // TODO
+  // Do we need getpeername here?
+  
+  // Sending the file name to the server
+  // Q. Do we need to pass the conn->serv_sa here?
+
+  // TODO: Start a timer here to re-send the file name till we receive an ACK.
+  
+  int syn_retries = 0;
+  /*
+  int portno;
+  struct sockaddr sa;
+  struct sockaddr_in *si = (struct sockaddr_in *) &sa;
+  socklen_t sa_sz = sizeof(sa);
+  */
+  
+  fdset fds;
+  struct timeval timeout;
+  timeout.tv_sec = 6;
+  timeout.tv_usec = 0;
+
+  do {
+    timeout.tv_sec = 6;
+    timeout.tv_usec = 0;
+
+    fdset_init(&fds, timeout, ack_timeout);
+
+    fdset_add(&fds, &fds.rev, sockfd, &sockfd, send_file);
+    fdset_add(&fds, &fds.exev, sockfd, &sockfd, handle_tx_error);
+    
+    fprintf(stderr, "Trying to send the SYN packet to the Server with the file name\n");
+
+    // Send the packet to the server
+    send_filename_pkt();
+    
+    int r = fdset_poll(&fds, &timeout, ack_timeout);
+    // Handle EINTR.
+    if (r < 0) {
+      perror("select");
+      assert(errno != EINTR);
+      exit(1);
+    }
+
+    syn_retries++;
+  } while (syn_retries < 12);
+  fprintf(stderr, "Too many retries.\n");
 }
 
 int main(int argc, char **argv) {
@@ -324,12 +348,19 @@ int main(int argc, char **argv) {
   
   conn = MALLOC(client_conn);
   file_name_pkt = MALLOC(packet_t);
+  memset(file_name_pkt, 0, sizeof(packet_t));
+  file_name_pkt->ack = 0;
+  file_name_pkt->seq = 0;
+  file_name_pkt->flags = FLAG_SYN;
+  file_name_pkt->datalen = strlen(cargs->file_name);
+  strcpy(file_name_pkt->data, cargs->file_name);
+
   get_conn();
   printf("Server is %s\nIPServer: %s\nIPClient: %s\n", 
           (conn->is_local ? "Local" : "Not Local"),
           sa_data_str(conn->serv_sa),
           sa_data_str(conn->cli_sa));
   // printf("IPServer: %s\n", Sock_ntop(sa, sizeof(SA)));
-  start_tx();
+  initiate_tx();
   return 0;
 }
