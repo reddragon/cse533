@@ -13,6 +13,24 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
   pthread_mutex_init(rwin->mutex, NULL);
 }
 
+// Calculates the advertized window size of the receiving
+// window. This is calculated like number of slots available
+// from the 'smallest expected sequence' number onwards.
+
+// NOTE: Call to this function should be protected by a
+// lock on the rwindow mutex, and the smallest_expected_seq
+// should have the right value.
+int calc_adv_rwinsz(rwindow *rwin) {
+  treap_node *tn = treap_smallest(&rwin->t_rwin); 
+  if (tn == NULL) {
+    // There is no element in the treap
+    return 0;
+  }
+  return rwin->rwinsz - (rwin->smallest_expected_seq - tn->key);
+}
+
+
+
 // 1. If the packet has the flag FLAG_SYN, then handle it separately
 // and the first sequence number for the actual data is 1.
 
@@ -33,9 +51,10 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   ack_pkt = MALLOC(packet_t);
 
   pthread_mutex_lock(rwin->mutex);
+  int adv_rwinsz = calc_adv_rwinsz(rwin);
   treap_sz = treap_size(&rwin->t_rwin);
 
-  if (rwin->rwinsz == treap_sz) {
+  if (adv_rwinsz == 0) {
     pthread_mutex_unlock(rwin->mutex);
 
     // This is basically saying to the server:
@@ -89,7 +108,7 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   ack_pkt->seq = 0;
   ack_pkt->ack = rwin->smallest_expected_seq;
   ack_pkt->flags = FLAG_ACK;
-  ack_pkt->rwinsz = rwin->rwinsz - treap_sz;
+  ack_pkt->rwinsz = calc_adv_rwinsz(rwin);
   // This is only for the debug mode
   ack_pkt->datalen = 0;
   return ack_pkt;

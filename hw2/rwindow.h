@@ -14,4 +14,5 @@ typedef struct rwindow {
 void rwindow_init(rwindow *rwin, int rwinsz);
 packet_t *rwindow_received_packet(rwindow *rwin, packet_t *pkt); 
 packet_t *read_packet(rwindow *rwin);
+int calc_adv_rwinsz(rwindow *rwin);
 #endif
