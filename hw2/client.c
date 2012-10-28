@@ -108,10 +108,13 @@ void consume_packets(rwindow *rwin) {
       pthread_mutex_unlock(rwin->mutex);
 
       // TODO Actual writing out of the packet to file
-      fprintf(stderr, "==== Read packet %d ====\n", next_seq);
+      fprintf(stderr, "==== Read packet %d with datalen %d ====\n", next_seq, pkt->datalen);
 
       // TODO: Check return value of fwrite(3)
-      fwrite(pkt->data, pkt->datalen, 1, pf);
+      int ret = fwrite(pkt->data, pkt->datalen, 1, pf);
+      // if (ret < 0) {
+      fprintf(stderr, "fwrite returned with ret = %d\n", ret);
+      //}
 
       next_seq++;
     } else if (pkt != NULL) {

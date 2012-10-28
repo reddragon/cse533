@@ -68,9 +68,9 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
 
 // Check if the next packet that we expect is here
 packet_t *read_packet(rwindow *rwin) {
+  pthread_mutex_lock(rwin->mutex);
   int next_seq = rwin->last_read_seq + 1;
   
-  pthread_mutex_lock(rwin->mutex);
   treap_node *tn = treap_find(&(rwin->t_rwin), next_seq);
   if (tn == NULL) {
     pthread_mutex_unlock(rwin->mutex);
