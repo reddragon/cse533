@@ -239,7 +239,7 @@ void send_file(void *opaque) {
 
   // TODO: Call packet_hton() and pass an output buffer.
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
-  Send(sockfd, (void*)&pkt, sizeof(pkt), conn->is_local ? MSG_DONTROUTE : 0);
+  send_packet(pkt);
 
   // Receive data from the socket till a packet with the FLAG_FIN flag
   // is received.
