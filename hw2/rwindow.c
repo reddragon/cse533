@@ -25,7 +25,15 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
 packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) { 
   // TODO
   // Do not discard packet if we do not have space on the receiving
-  // window. Reply with the next expected seq.
+  // window.
+  
+  int treap_sz;
+  packet_t *pkt, *ack_pkt;
+  // We wont be frugal here
+  ack_pkt = MALLOC(packet_t);
+
+  pthread_mutex_lock(rwin->mutex);
+  treap_sz = treap_size(&rwin->t_rwin);
 
   if (rwin->rwinsz == treap_sz) {
     pthread_mutex_unlock(rwin->mutex);
