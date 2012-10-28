@@ -7,7 +7,10 @@
 void algorithm_reduce(vector *v, proc_2_arg reducer, void *val) {
     int i;
     for (i = 0; i < vector_size(v); ++i) {
-        memcpy(val, reducer(val, vector_at(v, i)), vector_object_size(v));
+        void *nval = reducer(val, vector_at(v, i));
+        if (nval != val) {
+            memcpy(val, nval, vector_object_size(v));
+        }
     }
 }
 
