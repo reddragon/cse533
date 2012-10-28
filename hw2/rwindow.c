@@ -22,18 +22,10 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
 // it, and return an appropriate ACK
 
 // Returns a well-formed acknowledgement packet 
-packet_t *rwindow_received_packet(packet_t *opkt, rwindow *rwin) { 
+packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) { 
   // TODO
   // Do not discard packet if we do not have space on the receiving
-  // window.
-  
-  int treap_sz;
-  packet_t *pkt, *ack_pkt;
-  // We wont be frugal here
-  ack_pkt = MALLOC(packet_t);
-
-  pthread_mutex_lock(rwin->mutex);
-  treap_sz = treap_size(&rwin->t_rwin);
+  // window. Reply with the next expected seq.
 
   if (rwin->rwinsz == treap_sz) {
     pthread_mutex_unlock(rwin->mutex);
