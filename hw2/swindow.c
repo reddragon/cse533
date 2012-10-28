@@ -61,7 +61,7 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
     swin->fd                 = fd;
     swin->fd2                = fd2;
     swin->csa                = csa;
-    swin->num_acks           = 0;
+    swin->num_acks           = 1;
     swin->next_seq           = 0;
     swin->swinsz             = swinsz;
     swin->rwinsz             = 0;
@@ -144,7 +144,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
             treap_delete(&swin->swin, seq);
         }
         swin->oldest_unacked_seq = ack;
-        swin->num_acks           = 0;
+        swin->num_acks           = 1;
         swin->oas_num_time_outs  = 0;
     }
 
