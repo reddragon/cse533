@@ -83,15 +83,24 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
 #endif
   }
   treap_sz = treap_size(&rwin->t_rwin);
-  pthread_mutex_unlock(rwin->mutex);
   
   // Marshalling the acknowledgment packet
   ack_pkt->seq = 0;
   ack_pkt->ack = rwin->smallest_expected_seq;
   ack_pkt->flags = FLAG_ACK;
+  // FIXME: The code below should be something like:
+  // ack_pkt->rwinsz = rwin->rwinsz;
+  // treap_node *smallest = treap_smallest(&rwin->t_win);
+  // if (smallest && smallest->key < rwin->smallest_expected_seq) {
+  //   ack_pkt->rwinsz -= (rwin->smallest_expected_seq - smallest->key)
+  // }
   ack_pkt->rwinsz = rwin->rwinsz - treap_sz;
   // This is only for the debug mode
   ack_pkt->datalen = 0;
+
+  // Protect ALL accesses to rwin with this mutex.
+  pthread_mutex_unlock(rwin->mutex);
+
   return ack_pkt;
 }
 
