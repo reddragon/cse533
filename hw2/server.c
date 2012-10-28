@@ -310,18 +310,6 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   // fast-retransmit and retransmit ONLY that packet and continue
   // processing.
 
-#if 0
-  packet_t pkt;
-  pkt.ack = 0;
-  pkt.seq = 0;
-  pkt.flags = FLAG_SYN;
-  memset(pkt.data, 0, sizeof(pkt.data));
-  pkt.datalen = sprintf(pkt.data, "%d", ntohs(sin.sin_port));
-
-  // Send the new port number on the existing socket.
-  Sendto(old_sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
-#endif
-
   sport = ntohs(sin.sin_port);
   FILE *pf = fopen(file_name, "r");
   assert(pf);
@@ -352,33 +340,6 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   last_call_to_select    = current_time_in_ms();
   last_select_timeout_ms = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
   r = fdset_poll2(&scfds);
-
-#if 0
-  // Once the client sends back an ACK on the new socket we connected
-  // from, we can proceed with the file transfer. Wait for the ACK.
-  r = Recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
-
-  // Send data till we have more data to write.
-  pkt.flags = 0;
-  while (1) {
-    memset(pkt.data, 0, sizeof(pkt.data));
-    int bread = fread(pkt.data, 1, sizeof(pkt.data), pf);
-    if (bread == 0) {
-      pkt.flags = FLAG_FIN;
-    }
-    pkt.datalen = bread;
-    ++pkt.seq;
-    fprintf(stdout, "Sending %d bytes of file data for packet %u\n", bread, pkt.seq);
-    Send(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE);
-    if (bread == 0) {
-      break;
-    }
-  }
-
-  fclose(pf);
-  close(sockfd);
-#endif
-
 }
 
 
