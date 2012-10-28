@@ -25,6 +25,8 @@ int calc_adv_rwinsz(rwindow *rwin) {
   if (tn == NULL) {
     // There is no element in the treap
     return 0;
+  } else if (tn->key > rwin->smallest_expected_seq) {
+    return rwin->rwinsz;
   }
   return rwin->rwinsz - (rwin->smallest_expected_seq - tn->key);
 }
@@ -102,7 +104,6 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
 #endif
   }
   treap_sz = treap_size(&rwin->t_rwin);
-  pthread_mutex_unlock(rwin->mutex);
   
   // Marshalling the acknowledgment packet
   ack_pkt->seq = 0;
@@ -111,6 +112,10 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   ack_pkt->rwinsz = calc_adv_rwinsz(rwin);
   // This is only for the debug mode
   ack_pkt->datalen = 0;
+
+  // Protect ALL accesses to rwin with this mutex.
+  pthread_mutex_unlock(rwin->mutex);
+
   return ack_pkt;
 }
 

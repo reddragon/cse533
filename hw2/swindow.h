@@ -50,7 +50,6 @@ typedef struct swindow {
     int oldest_unacked_seq; // The oldest un-acknowledged packet's sequence number
     int num_acks;           // The number of ACK responses for 'oldest_unacked_seq' that we have seen. This is ONLY for ACKs in sequence AFTER we reset 'oldest_unacked_seq'
     int next_seq;           // The seq # of the next packet to be sent
-    int swinsz;             // The current size of the sending window
     int rwinsz;             // The current size of the receiver window
     int rbuffsz;            // The size of the buffer at the receiver
     int sbuffsz;            // The size of the buffer at the sender
@@ -105,7 +104,7 @@ typedef struct swindow {
 
 void swindow_dump(swindow *swin);
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
-                  int sbuffsz, int swinsz, read_more_cb read_some,
+                  int sbuffsz, read_more_cb read_some,
                   void *opaque, ack_cb advanced_ack_cb, end_cb on_end);
 // This function also updates the receiving buffer and receiving
 // window size.

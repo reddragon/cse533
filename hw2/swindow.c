@@ -42,11 +42,10 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
 }
 
 void swindow_dump(swindow *swin) {
-    fprintf(stderr, "Sending Window { ACK: %d, NACKS: %d, NEXTSEQ: %d, SWIN: %d RWIN: %d, NTIMEOUTS: %d, TREAPSZ: %d, isEOF: %s }\n",
+    fprintf(stderr, "Sending Window { ACK: %d, NACKS: %d, NEXTSEQ: %d, RWIN: %d, NTIMEOUTS: %d, TREAPSZ: %d, isEOF: %s }\n",
             swin->oldest_unacked_seq,
             swin->num_acks,
             swin->next_seq,
-            swin->swinsz,
             swin->rwinsz,
             swin->oas_num_time_outs,
             treap_size(&swin->swin),
@@ -54,16 +53,15 @@ void swindow_dump(swindow *swin) {
 }
 
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
-                  int sbuffsz, int swinsz, read_more_cb read_some,
+                  int sbuffsz, read_more_cb read_some,
                   void *opaque, ack_cb advanced_ack_cb, end_cb on_end) {
     treap_init(&swin->swin);
     swin->oldest_unacked_seq = -1;
     swin->fd                 = fd;
     swin->fd2                = fd2;
     swin->csa                = csa;
-    swin->num_acks           = 0;
+    swin->num_acks           = 1;
     swin->next_seq           = 0;
-    swin->swinsz             = swinsz;
     swin->rwinsz             = 0;
     swin->rbuffsz            = 0;
     swin->sbuffsz            = sbuffsz;
@@ -144,7 +142,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
             treap_delete(&swin->swin, seq);
         }
         swin->oldest_unacked_seq = ack;
-        swin->num_acks           = 0;
+        swin->num_acks           = 1;
         swin->oas_num_time_outs  = 0;
     }
 
@@ -154,22 +152,26 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     if (rwinsz == 0) {
         rwinsz = 1;
     }
-    const int sz1 = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
-    const int sz2 = swin->sbuffsz - treap_size(&swin->swin);
-    assert_ge(sz1, 0);
-    assert_ge(sz2, 0);
-    swin->swinsz = imin(sz1, sz2);
+    const int last_seq_no_we_can_send = ack + rwinsz - 1;
+
+    // const int sz1 = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
+    // const int sz2 = swin->sbuffsz - treap_size(&swin->swin);
+    // assert_ge(sz1, 0);
+    // assert_ge(sz2, 0);
+    // swin->swinsz = imin(sz1, sz2);
 
     // Handle the case when we are in window-probe mode.
+    /*
     if (swin->swinsz == 0 && swin->rwinsz == 0 && treap_empty(&swin->swin) && swin->isEOF == FALSE) {
         // TODO: Verify if we can ever have a situation where
         // swin->isEOF == TRUE and we are in window probe mode.
         swin->swinsz = 1;
     }
+    */
 
     // Invoke callback and send the packet on the network.
-    while ((swin->isEOF == FALSE) && (swin->swinsz > 0)) {
-        --swin->swinsz;
+    while ((swin->isEOF == FALSE) && (last_seq_no_we_can_send <= swin->next_seq)) {
+        // --swin->swinsz;
         packet_t pkt;
         memset(&pkt, 0, sizeof(pkt));
         int r = swin->read_some(swin->opaque, pkt.data, sizeof(pkt.data));
@@ -213,14 +215,28 @@ void swindow_transmit_packet(swindow *swin, int seq) {
     fprintf(stderr, "swindow_transmit_packet(SEQ: %d)\n", seq);
     swindow_dump(swin);
 
+    int r = -1;
     tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
     assert(txp);
     // TODO: Set the SO_DONTROUTE flag on the socket to start off with if we need to use it.
-    Send(swin->fd, &txp->pkt, sizeof(txp->pkt), 0);
+    errno = EINTR;
+    while (r < 0 && errno == EINTR) {
+        r = send(swin->fd, &txp->pkt, sizeof(txp->pkt), 0);
+    }
+    if (r < 0) {
+        fprintf(stderr, "Error sending data on line %d\n", __LINE__);
+    }
 
     if (swin->fd2 != -1) {
         // Send the new port number on the existing socket.
-        Sendto(swin->fd2, &txp->pkt, sizeof(txp->pkt), 0, swin->csa, sizeof(SA));
+        r = -1;
+        errno = EINTR;
+        while (r < 0 && errno == EINTR) {
+            r = sendto(swin->fd2, &txp->pkt, sizeof(txp->pkt), 0, swin->csa, sizeof(SA));
+        }
+        if (r < 0) {
+            fprintf(stderr, "Error sending data on line %d\n", __LINE__);
+        }
     }
 
 }
