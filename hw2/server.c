@@ -56,7 +56,11 @@ uint32_t probe_timeout_ms = 1;
 
 /* ===== END GLOBALS ===== */
 
-
+void on_server_child_exit(void) {
+  struct timeval tv;
+  Gettimeofday(&tv, NULL);
+  printf("Server child exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+}
 
 vector* get_all_interfaces(void) {
   if (!vector_empty(&interfaces)) {
@@ -220,7 +224,7 @@ void on_sock_read_ready(void *opaque) {
   fprintf(stderr, "on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
   probe_timeout_ms = 1;
 
-  // int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
+  // Warning: Do NOT use recv(2) here. It fails.
   int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
   if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
     perror("recvfrom");
@@ -253,8 +257,8 @@ void on_select_timeout(void *opaque) {
   uint32_t rto;
 
   // Are we in window probe mode? (detected by the value of
-  // swin.swinsz).
-  if (swin.swinsz == 0) {
+  // swin.rwinsz).
+  if (swin.rwinsz == 0) {
     // We are in window probe mode.
     rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
@@ -315,7 +319,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   assert(pf);
 
   swindow_init(&swin, sockfd, old_sockfd, conn.cli_sa,
-               sargs.sw_size, 1, data_producer,
+               sargs.sw_size, data_producer,
                pf, on_advanced_oldest_unACKed_seq, on_end_cb);
 
   // Connect this socket to the client on the original port that the
@@ -437,6 +441,7 @@ void main_server_read_cb(void *opaque) {
   }
 
   if (pid == 0) {
+    atexit(on_server_child_exit);
     // Child: Close all the sockets except the one that the
     // child owns.
     int j;

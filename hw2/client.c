@@ -1,5 +1,7 @@
 // -*- mode: c; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
 #include "utils.h"
 #include "rwindow.h"
 #include "fdset.h"
@@ -13,6 +15,12 @@ int cliport;              // The client ephemeral port
 
 // The arguments read from the client.in file
 struct client_args *cargs = NULL;
+
+void on_client_exit(void) {
+  struct timeval tv;
+  Gettimeofday(&tv, NULL);
+  printf("Client exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+}
 
 void
 get_conn(void) {
@@ -72,7 +80,7 @@ get_conn(void) {
   }
 }
 
-void consume_packets(rwindow *rwin) {
+void *consume_packets(rwindow *rwin) {
   // TODO First packet number that we receive is 2. We should
   // fix this.
   int next_seq = 1;
@@ -134,7 +142,7 @@ void consume_packets(rwindow *rwin) {
       //}
 
       next_seq++;
-    } else if (pkt != NULL) {
+    } else {
       // We retried 100 times. Packet, Y U NO COME?
       fprintf(stderr, "Did not receive packet seq %d even after 100 retries\n", next_seq);
       fclose(pf);
@@ -143,6 +151,7 @@ void consume_packets(rwindow *rwin) {
     
   } while (!(pkt->flags & FLAG_FIN));
   fclose(pf);
+  return NULL;
 }
 
 void send_packet(packet_t *pkt) {
@@ -236,7 +245,7 @@ send_file(void *opaque) {
   }
 
   while (1) {
-      fprintf(stdout, "Waiting on Recv...\n");
+      fprintf(stdout, "Waiting on recv(2)...\n");
       int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
       if (r < 0) {
           // TODO: Handle EINTR.
@@ -344,6 +353,8 @@ initiate_tx(void) {
 }
 
 int main(int argc, char **argv) {
+  atexit(on_client_exit);
+
   assert(argc == 1);
   const char *cargs_file = CARGS_FILE;
   cargs = MALLOC(client_args);
