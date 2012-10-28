@@ -23,6 +23,9 @@ void* my_malloc(size_t size);
 #define assert_gt(L,R) if((L)<=(R)) { fprintf(stderr, "%d > %d FAILED\n", (L), (R)); assert((L)>(R)); }
 #define assert_ge(L,R) if((L)<(R)) { fprintf(stderr, "%d >= %d FAILED\n", (L), (R)); assert((L)>=(R)); }
 
+#define imax(X,Y) ((X)>(Y)?(X):(Y))
+#define imin(X,Y) ((X)<(Y)?(X):(Y))
+
 typedef struct client_args {
   char ip_addr[20];
   UINT serv_portno;
@@ -76,6 +79,7 @@ void     packet_ntoh(packet_t *out, const packet_t *in);
 char*    strip(char *s);
 void     set_non_blocking(int fd);
 void     set_blocking(int fd);
+void     set_dontroute(int fd);
 
 int read_cargs(const char *cargs_file, struct client_args *cargs);
 int read_sargs(const char *sargs_file, struct server_args *sargs);

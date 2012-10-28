@@ -12,6 +12,8 @@ typedef struct inflight_request {
   struct sockaddr_in si;
 } inflight_request;
 
+/* ===== BEGIN GLOBALS ===== */
+
 // A list of ints storing File Descriptors of listening sockets.
 vector socklist;
 
@@ -47,6 +49,14 @@ uint32_t last_call_to_select = 0;
 // select(2) slept. We subtract this from 'last_select_timeout_ms' to
 // determine the new timeout for select.
 uint32_t last_select_timeout_ms = 0;
+
+// The amount of time we need to wait for a response from the client
+// while we are in the window-probe mode.
+uint32_t probe_timeout_ms = 1;
+
+/* ===== END GLOBALS ===== */
+
+
 
 vector* get_all_interfaces(void) {
   if (!vector_empty(&interfaces)) {
@@ -160,6 +170,9 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
 }
 
+// This function reads data from the file and feeds it to the
+// processing unit. The first piece of data returned MUST be the
+// ephemeral port number of the server.
 int data_producer(void *opaque, void *vbuff, int buffsz) {
   int r = 0;
   FILE *pf = (FILE*)opaque;
@@ -205,17 +218,17 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
 void on_sock_read_ready(void *opaque) {
   packet_t pkt;
   fprintf(stderr, "on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
-  // sleep(1);
+  probe_timeout_ms = 1;
+
   // int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
   int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
-  // assert(r >= 0);
   if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
     perror("recvfrom");
     return;
   }
   fprintf(stderr, "Successfully read %d bytes\n", r);
 
-  // TODO: Decrease timeout value by the amount of time spent in the
+  // Decrease timeout value by the amount of time spent in the
   // select(2) system call.
   uint32_t current_time = current_time_in_ms();
   uint32_t select_slept_for = current_time - last_call_to_select;
@@ -231,18 +244,30 @@ void on_sock_read_ready(void *opaque) {
 }
 
 void on_sock_error(void *opaque) {
+  // Error while listening on the connected socket. Exit the process.
+  exit(1);
 }
 
 void on_select_timeout(void *opaque) {
   last_call_to_select = current_time_in_ms();
+  uint32_t rto;
 
-  // Double the timeout.
-  rtt_scale_RTO(&swin.rtt, 2);
+  // Are we in window probe mode? (detected by the value of
+  // swin.swinsz).
+  if (swin.swinsz == 0) {
+    // We are in window probe mode.
+    rto = probe_timeout_ms;
+    probe_timeout_ms *= 2;
+    probe_timeout_ms = imin(60, imax(probe_timeout_ms, 5));
+  } else {
+    probe_timeout_ms = 1;
 
-  // TODO: Handle the case when we are in the window probe mode
-  // (detected by the value of swin.rwinsz).
-  uint32_t rto = (uint32_t)rtt_get_RTO(&swin.rtt);
-  fprintf(stderr, "on_select_timeout::Updating timeout to %d ms\n", rto);
+    // Double the timeout.
+    rtt_scale_RTO(&swin.rtt, 2);
+
+    rto = (uint32_t)rtt_get_RTO(&swin.rtt);
+    fprintf(stderr, "on_select_timeout::Updating timeout to %d ms\n", rto);
+  }
 
   set_new_select_timeout(rto);
   swindow_timed_out(&swin);
@@ -268,10 +293,8 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   Getsockname(sockfd, (SA *)&sin, &addrlen);
   printf("Client: %s\n", sa_data_str(conn.cli_sa));
   printf("Server's ephemeral Port Number: %d\n", ntohs(sin.sin_port));
-  // TODO
-  // Finish the ARQ part. This is not reliable
 
-  // TODO: Start a timer after sending the first packet. If the ACK
+  // Start a timer after sending the first packet. If the ACK
   // times out, we re-send the port number on both sockets so that the
   // client can respond accordingly. Use select(2) for the connection
   // bit and the actual data sending if possible.
@@ -283,21 +306,9 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   // in our window.
 
   // We also set up a timer to track in case no ACKs are coming
-  // in. Also, once 3 ACKs come in for a packet, we switch to
+  // in. Also, once 4 ACKs come in for a packet, we switch to
   // fast-retransmit and retransmit ONLY that packet and continue
   // processing.
-
-#if 0
-  packet_t pkt;
-  pkt.ack = 0;
-  pkt.seq = 0;
-  pkt.flags = FLAG_SYN;
-  memset(pkt.data, 0, sizeof(pkt.data));
-  pkt.datalen = sprintf(pkt.data, "%d", ntohs(sin.sin_port));
-
-  // Send the new port number on the existing socket.
-  Sendto(old_sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE, conn.cli_sa, sizeof(SA));
-#endif
 
   sport = ntohs(sin.sin_port);
   FILE *pf = fopen(file_name, "r");
@@ -329,33 +340,6 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   last_call_to_select    = current_time_in_ms();
   last_select_timeout_ms = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
   r = fdset_poll2(&scfds);
-
-#if 0
-  // Once the client sends back an ACK on the new socket we connected
-  // from, we can proceed with the file transfer. Wait for the ACK.
-  r = Recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
-
-  // Send data till we have more data to write.
-  pkt.flags = 0;
-  while (1) {
-    memset(pkt.data, 0, sizeof(pkt.data));
-    int bread = fread(pkt.data, 1, sizeof(pkt.data), pf);
-    if (bread == 0) {
-      pkt.flags = FLAG_FIN;
-    }
-    pkt.datalen = bread;
-    ++pkt.seq;
-    fprintf(stdout, "Sending %d bytes of file data for packet %u\n", bread, pkt.seq);
-    Send(sockfd, (void*)&pkt, sizeof(pkt), MSG_DONTROUTE);
-    if (bread == 0) {
-      break;
-    }
-  }
-
-  fclose(pf);
-  close(sockfd);
-#endif
-
 }
 
 
@@ -472,11 +456,8 @@ void main_server_read_cb(void *opaque) {
 
 void main_server_ex_cb(void *opaque) {
   int fd = *(int*)opaque;
-  printf("Error detected on fd '%d'\n", fd);
-}
-
-void main_server_timeout_cb(void *opaque) {
-  printf("Timeout in select(2)\n");
+  printf("Error detected on fd '%d'. Exiting...\n", fd);
+  exit(1);
 }
 
 int main(int argc, char **argv) {
@@ -491,10 +472,10 @@ int main(int argc, char **argv) {
 
   fdset fds;
   struct timeval timeout;
-  timeout.tv_sec = 10;
+  timeout.tv_sec  = 0;
   timeout.tv_usec = 0;
 
-  fdset_init(&fds, timeout, main_server_timeout_cb);
+  fdset_init(&fds, timeout, NULL);
 
   // Add every socket in socklist to fds->rev & fds->exev
   for (i = 0; i < vector_size(&socklist); ++i) {
@@ -504,13 +485,12 @@ int main(int argc, char **argv) {
     printf("Added FD %d to read/ex-set\n", *pfd);
   }
 
-  r = fdset_poll(&fds, &timeout, main_server_timeout_cb);
+  r = fdset_poll(&fds, NULL, NULL);
 
-  // Handle EINTR.
   if (r < 0) {
     perror("select");
     assert(errno != EINTR);
-    exit(1);
+    return 1;
   }
 
   return 0;
