@@ -13,13 +13,13 @@ extern struct client_args *cargs;
 static BOOL perhaps_inited = FALSE;
 
 void perhaps_init(void) {
-    srandom(cargs->rand_seed);
+    srand48(cargs->rand_seed);
     perhaps_inited = TRUE;
 }
 
 int perhaps_send(int fd, const void *data, int len, int flags) {
     assert(perhaps_inited == TRUE);
-    double rn = ((double)random()) / (double)(RAND_MAX);
+    double rn = drand48();
     if (rn <= cargs->p) {
         // Silently drop the packet.
         return len;
@@ -31,7 +31,7 @@ int perhaps_send(int fd, const void *data, int len, int flags) {
 
 int perhaps_recv(int fd, void *data, int len, int flags) {
     assert(perhaps_inited == TRUE);
-    double rn = ((double)random()) / (double)(RAND_MAX);
+    double rn = drand48();
     int r = recv(fd, data, len, flags);
     if (rn <= cargs->p) {
         // Silently discard the received data.
