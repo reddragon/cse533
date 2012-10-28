@@ -11,6 +11,7 @@ client_args *cargs;       // The client args
 client_conn *conn;        // The client connection struct
 rwindow *rwin;            // The receiving window
 packet_t *file_name_pkt;  // The file name packet
+packet_t *fin_pkt;        // The final packet to be sent
 int sockfd;               // The socket used for communication 
 int cliport;              // The client ephemeral port
 
@@ -23,8 +24,7 @@ void on_client_exit(void) {
   printf("Client exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
 }
 
-void
-get_conn(void) {
+void get_conn(void) {
   // TODO
   // Check if this function is fine
   struct ifi_info *ifi_head = Get_ifi_info_plus(AF_INET, 0), *ifi;
@@ -164,23 +164,38 @@ void send_packet(packet_t *pkt) {
   }
 }
 
-void
-handle_tx_error(void *opaque) {
+void handle_tx_error(void *opaque) {
   err_sys("Error while receiving acknowledgement from server");
 }
 
-void
-send_filename_pkt(void) {
+void send_filename_pkt(void) {
   send_packet(file_name_pkt);
 }
 
-void 
-ack_timeout(void *opaque) {
+void ack_timeout(void *opaque) {
   fprintf(stderr, "Timed out while waiting for first ack from server\n");
 }
 
-void
-send_file(void *opaque) {
+void resend_fin_pkt(void *opaque) {
+  fprintf(stderr, "Resending the ACK in response to the FIN\n");
+  send_packet(fin_pkt);
+}
+
+void fin_timeout(void *opaque) {
+  fprintf(stderr, "Timed out after waiting for 60 secs after getting a FIN\n");
+  exit(0);
+}
+
+void get_timeval(struct timeval *tv, int ms) {
+  if (ms < 0) {
+    ms = 0;
+  }
+  tv->tv_sec = ms / 1000;
+  tv->tv_usec = (ms % 1000) * 1000;
+}
+
+
+void send_file(void *opaque) {
   int portno;
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
@@ -249,10 +264,40 @@ send_file(void *opaque) {
       send_packet(ack_pkt);
       
       if (pkt.flags & FLAG_FIN) {
-          // TODO Here goes the special logic for dealing with FIN
-          break;
-      }
+          // Here goes the special logic for dealing with FIN
+          fin_pkt = ack_pkt;
+          
+          fdset fds;
+          
+          struct timeval init_time, cur_time, timeout;
+          Gettimeofday(&init_time, NULL);
+          int init_time_ms, cur_time_ms, time_left_ms;
+          init_time_ms = init_time.tv_sec * 1000 + init_time.tv_usec / 1000;
 
+          do {
+            Gettimeofday(&cur_time, NULL);
+            cur_time_ms = cur_time.tv_sec * 1000 + cur_time.tv_usec / 1000;
+            time_left_ms = (cur_time_ms - init_time_ms) + 60*1000;
+            fprintf(stderr, "Waiting for %d seconds after receiving a FIN\n", time_left_ms / 1000);
+            get_timeval(&timeout, time_left_ms);
+            
+            fdset_init(&fds, timeout, fin_timeout);
+            fdset_add(&fds, &fds.rev, sockfd, &sockfd, resend_fin_pkt);
+            int r = fdset_poll(&fds, &timeout, fin_timeout);
+
+            // Handle EINTR.
+            if (r < 0) {
+              perror("select");
+              assert(errno != EINTR);
+              exit(1);
+            }
+
+          } while(1);
+          
+
+          break;
+      } 
+      
       free(ack_pkt);
       ack_pkt = NULL;
   }
@@ -263,8 +308,7 @@ send_file(void *opaque) {
 }
 
 // Connect to the server, and send the first datagram
-void
-initiate_tx(void) {
+void initiate_tx(void) {
   sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
   // Bind to port 0
@@ -287,16 +331,10 @@ initiate_tx(void) {
   // Sending the file name to the server
   // Q. Do we need to pass the conn->serv_sa here?
 
-  // TODO: Start a timer here to re-send the file name till we receive an ACK.
+  // Start a timer here to re-send the file name till we receive an ACK.
   
   int syn_retries = 0;
-  /*
-  int portno;
-  struct sockaddr sa;
-  struct sockaddr_in *si = (struct sockaddr_in *) &sa;
-  socklen_t sa_sz = sizeof(sa);
-  */
-  
+    
   fdset fds;
   struct timeval timeout;
   timeout.tv_sec = 6;
