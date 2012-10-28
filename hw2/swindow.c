@@ -155,21 +155,6 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     }
     const int last_seq_no_we_can_send = ack + rwinsz - 1;
 
-    // const int sz1 = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
-    // const int sz2 = swin->sbuffsz - treap_size(&swin->swin);
-    // assert_ge(sz1, 0);
-    // assert_ge(sz2, 0);
-    // swin->swinsz = imin(sz1, sz2);
-
-    // Handle the case when we are in window-probe mode.
-    /*
-    if (swin->swinsz == 0 && swin->rwinsz == 0 && treap_empty(&swin->swin) && swin->isEOF == FALSE) {
-        // TODO: Verify if we can ever have a situation where
-        // swin->isEOF == TRUE and we are in window probe mode.
-        swin->swinsz = 1;
-    }
-    */
-
     assert_le(treap_size(&swin->swin), swin->sbuffsz);
 
     // Invoke callback and send the packet on the network.
