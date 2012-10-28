@@ -63,7 +63,7 @@ get_conn(struct client_args *cargs, struct client_conn *conn) {
 void consume_packets(rwindow *rwin) {
   // TODO First packet number that we receive is 2. We should
   // fix this.
-  int next_seq = 2;
+  int next_seq = 1;
   packet_t *pkt;
   
   char file_name[300];

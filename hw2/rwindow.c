@@ -6,7 +6,7 @@
 void rwindow_init(rwindow *rwin, int rwinsz) {
   treap_init(&rwin->t_rwin);
   // TODO Fix. The smallest packet to expect should be 2.
-  rwin->smallest_expected_seq = 2; 
+  rwin->smallest_expected_seq = 1; 
   rwin->rwinsz = rwinsz;
   rwin->last_read_seq = -1;
   rwin->mutex = MALLOC(pthread_mutex_t);
@@ -22,7 +22,7 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
 // it, and return an appropriate ACK
 
 // Returns a well-formed acknowledgement packet 
-packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) { 
+packet_t *rwindow_received_packet(packet_t *opkt, rwindow *rwin) { 
   // TODO
   // Discard packet if we do not have space on the receiving
   // window.
@@ -34,7 +34,9 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
   // 2. Or, the packet's seq is lesser than the smallest_expected_seq.
   //   In this case, we would have definitely read this packet from
   //   the sliding window, since (1) is not true.
-  
+  packet_t *pkt = MALLOC(packet_t);
+  memcpy(pkt, opkt, sizeof(packet_t));
+
   pthread_mutex_lock(rwin->mutex);
   // If neither (1), nor (2) is true. Which means, we have
   // a new packet in our hands.
