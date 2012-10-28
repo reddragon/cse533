@@ -24,7 +24,7 @@ int calc_adv_rwinsz(rwindow *rwin) {
   treap_node *tn = treap_smallest(&rwin->t_rwin); 
   if (tn == NULL) {
     // There is no element in the treap
-    return 0;
+    return rwin->rwinsz;
   } else if (tn->key > rwin->smallest_expected_seq) {
     return rwin->rwinsz;
   }
