@@ -95,7 +95,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     }
 
     if (ack == 1) {
-        // Set rbuffsz.
+        // Set rbuffsz since this is the 1st packet.
         swin->rbuffsz = rwinsz;
     }
 
@@ -206,9 +206,6 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
         swin->on_end(TX_SUCCESS);
         return;
     }
-
-    // Set the rbuffsz when we get the first ACK. This happens in the
-    // 3-way handshake function.
 }
 
 // We assume that the packet with SEQ # (seq) is available in swin->swin.
