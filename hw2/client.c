@@ -203,7 +203,7 @@ send_file(void *opaque) {
   // socket to the new port number that the server sent us.
   struct sockaddr_in cli_si = *(struct sockaddr_in*)conn->cli_sa;
   cli_si.sin_port = htons(cliport);
-  Bind(sockfd, (struct sockaddr*)&cli_si, sizeof(SA));
+  Bind(sockfd, (struct sockaddr*)&cli_si, (socklen_t)sizeof(SA));
   sa = *(conn->serv_sa);
   si->sin_port = htons(portno);
   Connect(sockfd, &sa, sizeof(SA));
@@ -268,7 +268,7 @@ initiate_tx(void) {
   sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
   // Bind to port 0
-  Bind(sockfd, conn->cli_sa, sizeof(SA));
+  Bind(sockfd, conn->cli_sa, (socklen_t)sizeof(SA));
 
   struct sockaddr_in sin;
   UINT addrlen = sizeof(SA);
