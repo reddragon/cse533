@@ -3,8 +3,8 @@
 #include <assert.h>
 #include "treap.h"
 
-#define TDEBUG(ARGS...) fprintf(stderr, ARGS);
-// #define TDEBUG(ARGS...)
+//#define TDEBUG(ARGS...) fprintf(stderr, ARGS);
+#define TDEBUG(ARGS...)
 
 void treap_init(treap *t) {
     t->root = NULL;
