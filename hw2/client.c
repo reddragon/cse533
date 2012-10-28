@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "rwindow.h"
 #include "fdset.h"
+#include "perhaps.h"
 
 client_args *cargs;       // The client args
 client_conn *conn;        // The client connection struct
@@ -14,12 +15,22 @@ packet_t *file_name_pkt;  // The file name packet
 packet_t *fin_pkt;        // The final packet to be sent
 int sockfd;               // The socket used for communication 
 int cliport;              // The client ephemeral port
+int recv_total = 0;       // Total calls to recv(2) or recvfrom(2)
+int recv_failed = 0;      // # of calls to recv(2) or recvfrom(2) that failed
+int send_total = 0;       // Total calls to send(2)
+int send_failed = 0;      // # of calls to send(2) that failed
+
 
 // The arguments read from the client.in file
 struct client_args *cargs = NULL;
 
 void on_client_exit(void) {
   struct timeval tv;
+  printf("Failed Calls to recv(2) or recvfrom(2): %d/%d = %.2f\n"
+         "Failed Calls to send(2)               : %d/%d = %.2f\n",
+         recv_failed, recv_total, (double)recv_failed/(double)recv_total,
+         send_failed, send_total, (double)send_failed/(double)send_total);
+
   Gettimeofday(&tv, NULL);
   printf("Client exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
 }
@@ -132,9 +143,9 @@ void *consume_packets(rwindow *rwin) {
     
     sleep_time = -1.0 * cargs->mean * log(drand48());
 #ifdef DEBUG
-  fprintf(stderr, "sleep_time: %lf\n", sleep_time);
+    fprintf(stderr, "sleep_time: %lf\n", sleep_time);
 #endif
-    usleep(sleep_time);
+    usleep(sleep_time * 1000);
   } while (1);
   fclose(pf);
   return NULL;
@@ -158,18 +169,20 @@ void send_packet(packet_t *pkt) {
 #endif
   packet_t tp = *pkt;
   packet_hton(&tp, pkt);
-  int r = send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+  int r = perhaps_send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
   if (r < 0 && errno == EINTR) {
     return;
   } else if (r < 0) {
     perror("send");
-    return;
+    exit(1);
   }
 }
 
 int recv_packet(packet_t *pkt) {
-  int r = recv(sockfd, (void *)pkt, sizeof(*pkt), 0);
-  packet_ntoh(pkt, pkt);
+  int r = perhaps_recv(sockfd, (void *)pkt, sizeof(*pkt), 0);
+  if (r == sizeof(*pkt)) {
+    packet_ntoh(pkt, pkt);
+  }
   return r;
 }
 
@@ -211,7 +224,18 @@ void send_file(void *opaque) {
   socklen_t sa_sz = sizeof(sa);
   
   packet_t pkt;
-  Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+  int r;
+  r = perhaps_recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+  if (r < 0) {
+    if (errno == EINTR) {
+      // We return from this function in the hope that the next time
+      // 'sockfd' is read ready, we will be invoked again.
+      return;
+    } else {
+      perror("recvfrom");
+      exit(1);
+    }
+  }
   packet_ntoh(&pkt, &pkt);
 
   pkt.data[pkt.datalen] = '\0';
@@ -246,7 +270,6 @@ void send_file(void *opaque) {
   memset(pkt.data, 0, sizeof(pkt.data));
   sprintf(pkt.data, "ACK:%d, RWINSZ: %d", pkt.ack, pkt.rwinsz);
 
-  // TODO: Call packet_hton() and pass an output buffer.
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
   send_packet(&pkt);
 
@@ -268,9 +291,14 @@ void send_file(void *opaque) {
       fprintf(stdout, "Waiting on recv(2)...\n");
       int r = recv_packet(&pkt);
       if (r < 0) {
-          // TODO: Handle EINTR.
+        // Handle EINTR.
+        if (errno == EINTR) {
+          // Go back to waiting for a packet.
+          continue;
+        } else {
           perror("recv");
           exit(1);
+        }
       }
       fprintf(stdout, "recv(2) read %d bytes. Packet seq#: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
@@ -390,7 +418,8 @@ int main(int argc, char **argv) {
   if (read_cargs((const char *)cargs_file, cargs)) {
       exit(1);
   }
-  
+
+  perhaps_init();
   conn = MALLOC(client_conn);
   file_name_pkt = MALLOC(packet_t);
   memset(file_name_pkt, 0, sizeof(packet_t));

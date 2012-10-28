@@ -210,6 +210,7 @@ void set_new_select_timeout(uint32_t ms) {
   tv.tv_sec = ms / 1000;
   tv.tv_usec = (ms % 1000) * 1000;
   scfds.timeout = tv;
+  fprintf(stderr, "Setting a timeout of '%d' ms for select(2)\n", ms);
 }
 
 void on_advanced_oldest_unACKed_seq(void *opaque) {
@@ -331,7 +332,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   Connect(sockfd, conn.cli_sa, sizeof(SA));
 
   struct timeval timeout;
-  timeout.tv_sec = 20;
+  timeout.tv_sec = 0;
   timeout.tv_usec = 0;
 
   // Set up the callbacks.
@@ -339,13 +340,15 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   fdset_add(&scfds, &scfds.rev,  sockfd, NULL, on_sock_read_ready);
   fdset_add(&scfds, &scfds.exev, sockfd, NULL, on_sock_error);
 
+  set_new_select_timeout(3000);
+
   // Start sending the packets.
   swindow_received_ACK(&swin, 0, 1);
 
   int r;
 
   last_call_to_select    = current_time_in_ms();
-  last_select_timeout_ms = timeout.tv_sec * 1000 + timeout.tv_usec / 1000;
+  last_select_timeout_ms = 3000;
   r = fdset_poll2(&scfds);
 }
 

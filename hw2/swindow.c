@@ -15,6 +15,7 @@ void rtt_info_init(rtt_info_t *rtt) {
 
 // Periodically update the RTO values. mRTT is in 'ms'.
 void rtt_update(rtt_info_t *rtt, int mRTT) {
+    fprintf(stderr, "rtt_update::measuredRTT(ms): %d\n", mRTT);
     int _8mRTT = mRTT * 8;
     int _8delta = _8mRTT - rtt->_8srtt;
     rtt->_8srtt += (_8delta / 8);
