@@ -12,6 +12,8 @@ typedef struct inflight_request {
   struct sockaddr_in si;
 } inflight_request;
 
+/* ===== BEGIN GLOBALS ===== */
+
 // A list of ints storing File Descriptors of listening sockets.
 vector socklist;
 
@@ -48,7 +50,13 @@ uint32_t last_call_to_select = 0;
 // determine the new timeout for select.
 uint32_t last_select_timeout_ms = 0;
 
+// The amount of time we need to wait for a response from the client
+// while we are in the window-probe mode.
 uint32_t probe_timeout_ms = 1;
+
+/* ===== END GLOBALS ===== */
+
+
 
 vector* get_all_interfaces(void) {
   if (!vector_empty(&interfaces)) {
@@ -162,6 +170,9 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
 }
 
+// This function reads data from the file and feeds it to the
+// processing unit. The first piece of data returned MUST be the
+// ephemeral port number of the server.
 int data_producer(void *opaque, void *vbuff, int buffsz) {
   int r = 0;
   FILE *pf = (FILE*)opaque;
@@ -233,6 +244,8 @@ void on_sock_read_ready(void *opaque) {
 }
 
 void on_sock_error(void *opaque) {
+  // Error while listening on the connected socket. Exit the process.
+  exit(1);
 }
 
 void on_select_timeout(void *opaque) {
@@ -280,10 +293,8 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   Getsockname(sockfd, (SA *)&sin, &addrlen);
   printf("Client: %s\n", sa_data_str(conn.cli_sa));
   printf("Server's ephemeral Port Number: %d\n", ntohs(sin.sin_port));
-  // TODO
-  // Finish the ARQ part. This is not reliable
 
-  // TODO: Start a timer after sending the first packet. If the ACK
+  // Start a timer after sending the first packet. If the ACK
   // times out, we re-send the port number on both sockets so that the
   // client can respond accordingly. Use select(2) for the connection
   // bit and the actual data sending if possible.
@@ -295,7 +306,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   // in our window.
 
   // We also set up a timer to track in case no ACKs are coming
-  // in. Also, once 3 ACKs come in for a packet, we switch to
+  // in. Also, once 4 ACKs come in for a packet, we switch to
   // fast-retransmit and retransmit ONLY that packet and continue
   // processing.
 
@@ -484,11 +495,8 @@ void main_server_read_cb(void *opaque) {
 
 void main_server_ex_cb(void *opaque) {
   int fd = *(int*)opaque;
-  printf("Error detected on fd '%d'\n", fd);
-}
-
-void main_server_timeout_cb(void *opaque) {
-  printf("Timeout in select(2)\n");
+  printf("Error detected on fd '%d'. Exiting...\n", fd);
+  exit(1);
 }
 
 int main(int argc, char **argv) {
@@ -503,10 +511,10 @@ int main(int argc, char **argv) {
 
   fdset fds;
   struct timeval timeout;
-  timeout.tv_sec = 10;
+  timeout.tv_sec  = 0;
   timeout.tv_usec = 0;
 
-  fdset_init(&fds, timeout, main_server_timeout_cb);
+  fdset_init(&fds, timeout, NULL);
 
   // Add every socket in socklist to fds->rev & fds->exev
   for (i = 0; i < vector_size(&socklist); ++i) {
@@ -516,12 +524,12 @@ int main(int argc, char **argv) {
     printf("Added FD %d to read/ex-set\n", *pfd);
   }
 
-  r = fdset_poll(&fds, &timeout, main_server_timeout_cb);
+  r = fdset_poll(&fds, NULL, NULL);
 
   if (r < 0) {
     perror("select");
     assert(errno != EINTR);
-    exit(1);
+    return 1;
   }
 
   return 0;
