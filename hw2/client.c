@@ -170,7 +170,13 @@ void send_packet(packet_t *pkt) {
     packet_len = PACKET_SZ;
   }
 #endif
-  Send(sockfd, (void *)pkt, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+  int r = send(sockfd, (void *)pkt, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+  if (r < 0 && errno == EINTR) {
+    return;
+  } else if (r < 0) {
+    perror("send");
+    return;
+  }
 }
 
 void
@@ -224,7 +230,7 @@ send_file(void *opaque) {
   ++pkt.seq;
   pkt.datalen = 0;
   memset(pkt.data, 0, sizeof(pkt.data));
-  sprintf(pkt.data, "ACK:%d", pkt.ack);
+  sprintf(pkt.data, "ACK:%d, RWINSZ: %d", pkt.ack, pkt.rwinsz);
 
   // TODO: Call packet_hton() and pass an output buffer.
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
@@ -252,26 +258,17 @@ send_file(void *opaque) {
           perror("recv");
           exit(1);
       }
-      fprintf(stdout, "recv(2) returned with exit code: %d and  with seq number: %u\n", r, pkt.seq);
+      fprintf(stdout, "recv(2) read %d bytes. Packet seq#: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
       fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
       // TODO Disable this is if needed. The server doesn't accept ACKs so far.
       // This is only an ACK packet. Hence, PACKET_HEADER_SZ
       fprintf(stderr,  "Sending ack packet\n");
       send_packet(ack_pkt);
+      free(ack_pkt);
+      ack_pkt = NULL;
       // Send(sockfd, (void *)&ack_pkt, PACKET_HEADER_SZ, conn->is_local ? MSG_DONTROUTE : 0);
 
-      if (r < 0 && errno == EINTR) {
-          continue;
-      }
-      if (r < 0) {
-          perror("recv");
-          break;
-      }
-      if (r == 0) {
-          fprintf(stdout, "End of file while recv(2)ing file\n");
-          break;
-      }
       // Writing out the packet data must be done in the consumer thread (consume_data())
       // fwrite(pkt.data, pkt.datalen, 1, pf);
       if (pkt.flags & FLAG_FIN) {

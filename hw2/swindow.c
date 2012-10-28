@@ -42,11 +42,12 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
 }
 
 void swindow_dump(swindow *swin) {
-    fprintf(stderr, "Sending Window { ACK: %d, NACKS: %d, NEXTSEQ: %d, RWIN: %d, NTIMEOUTS: %d, TREAPSZ: %d, isEOF: %s }\n",
+    fprintf(stderr, "Sending Window { ACK: %d, NACKS: %d, NEXTSEQ: %d, RWIN: %d, RBUFF:%d, NTIMEOUTS: %d, TREAPSZ: %d, isEOF: %s }\n",
             swin->oldest_unacked_seq,
             swin->num_acks,
             swin->next_seq,
             swin->rwinsz,
+            swin->rbuffsz,
             swin->oas_num_time_outs,
             treap_size(&swin->swin),
             swin->isEOF ? "TRUE" : "FALSE");
@@ -169,9 +170,12 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     }
     */
 
+    assert_le(treap_size(&swin->swin), swin->sbuffsz);
+
     // Invoke callback and send the packet on the network.
-    while ((swin->isEOF == FALSE) && (last_seq_no_we_can_send <= swin->next_seq)) {
-        // --swin->swinsz;
+    while ((swin->isEOF == FALSE) &&
+           (swin->next_seq <= last_seq_no_we_can_send) &&
+           (treap_size(&swin->swin) < swin->sbuffsz)) {
         packet_t pkt;
         memset(&pkt, 0, sizeof(pkt));
         int r = swin->read_some(swin->opaque, pkt.data, sizeof(pkt.data));
@@ -224,7 +228,8 @@ void swindow_transmit_packet(swindow *swin, int seq) {
         r = send(swin->fd, &txp->pkt, sizeof(txp->pkt), 0);
     }
     if (r < 0) {
-        fprintf(stderr, "Error sending data on line %d\n", __LINE__);
+        fprintf(stderr, "Error sending data on line %d::", __LINE__);
+        perror("send");
     }
 
     if (swin->fd2 != -1) {
@@ -235,7 +240,8 @@ void swindow_transmit_packet(swindow *swin, int seq) {
             r = sendto(swin->fd2, &txp->pkt, sizeof(txp->pkt), 0, swin->csa, sizeof(SA));
         }
         if (r < 0) {
-            fprintf(stderr, "Error sending data on line %d\n", __LINE__);
+            fprintf(stderr, "Error sending data on line %d::", __LINE__);
+            perror("sendto");
         }
     }
 
