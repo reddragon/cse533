@@ -185,7 +185,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   pkt.ack = 0;
   pkt.seq = 0;
   pkt.flags = FLAG_SYN;
-  pkt.rwinsz = cargs->sw_size;
+  // pkt.rwinsz = cargs->sw_size;
   pkt.datalen = strlen(cargs->file_name);
   strcpy(pkt.data, cargs->file_name);
 
