@@ -54,18 +54,18 @@ void packet_hton(packet_t *out, const packet_t *in) {
     *out = *in;
     out->ack = htonl(in->ack);
     out->seq = htonl(in->seq);
+    out->rwinsz = htonl(in->rwinsz);
     out->flags = htons(in->flags);
-    out->rwinsz = htons(in->rwinsz);
-    out->datalen = htonl(in->datalen);
+    out->datalen = htons(in->datalen);
 }
 
 void packet_ntoh(packet_t *out, const packet_t *in) {
     *out = *in;
-    out->ack = htonl(in->ack);
-    out->seq = htonl(in->seq);
-    out->flags = htons(in->flags);
-    out->rwinsz = htons(in->rwinsz);
-    out->datalen = htonl(in->datalen);
+    out->ack = ntohl(in->ack);
+    out->seq = ntohl(in->seq);
+    out->rwinsz = ntohl(in->rwinsz);
+    out->flags = ntohs(in->flags);
+    out->datalen = ntohs(in->datalen);
 }
 
 char *strip(char *s) {

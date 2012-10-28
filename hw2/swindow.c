@@ -203,14 +203,17 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
 void swindow_transmit_packet(swindow *swin, int seq) {
     fprintf(stderr, "swindow_transmit_packet(SEQ: %d)\n", seq);
     swindow_dump(swin);
+    packet_t tp;
 
     int r = -1;
     tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
     assert(txp);
+    packet_hton(&tp, &txp->pkt);
+    
     // TODO: Set the SO_DONTROUTE flag on the socket to start off with if we need to use it.
     errno = EINTR;
     while (r < 0 && errno == EINTR) {
-        r = send(swin->fd, &txp->pkt, sizeof(txp->pkt), 0);
+        r = send(swin->fd, &tp, sizeof(tp), 0);
     }
     if (r < 0) {
         fprintf(stderr, "Error sending data on line %d::", __LINE__);
@@ -225,7 +228,7 @@ void swindow_transmit_packet(swindow *swin, int seq) {
         r = -1;
         errno = EINTR;
         while (r < 0 && errno == EINTR) {
-            r = sendto(swin->fd2, &txp->pkt, sizeof(txp->pkt), 0, swin->csa, sizeof(SA));
+            r = sendto(swin->fd2, &tp, sizeof(tp), 0, swin->csa, sizeof(SA));
         }
         if (r < 0) {
             fprintf(stderr, "Error sending data on line %d::", __LINE__);

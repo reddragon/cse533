@@ -156,13 +156,21 @@ void send_packet(packet_t *pkt) {
     packet_len = PACKET_SZ;
   }
 #endif
-  int r = send(sockfd, (void *)pkt, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+  packet_t tp = *pkt;
+  packet_hton(&tp, pkt);
+  int r = send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
   if (r < 0 && errno == EINTR) {
     return;
   } else if (r < 0) {
     perror("send");
     return;
   }
+}
+
+int recv_packet(packet_t *pkt) {
+  int r = recv(sockfd, (void *)pkt, sizeof(*pkt), 0);
+  packet_ntoh(pkt, pkt);
+  return r;
 }
 
 void handle_tx_error(void *opaque) {
@@ -204,6 +212,7 @@ void send_file(void *opaque) {
   
   packet_t pkt;
   Recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+  packet_ntoh(&pkt, &pkt);
 
   pkt.data[pkt.datalen] = '\0';
   sscanf(pkt.data, "%d", &portno);
@@ -239,7 +248,7 @@ void send_file(void *opaque) {
 
   // TODO: Call packet_hton() and pass an output buffer.
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
-  send_packet(pkt);
+  send_packet(&pkt);
 
   // Receive data from the socket till a packet with the FLAG_FIN flag
   // is received.
@@ -257,7 +266,7 @@ void send_file(void *opaque) {
 
   while (1) {
       fprintf(stdout, "Waiting on recv(2)...\n");
-      int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
+      int r = recv_packet(&pkt);
       if (r < 0) {
           // TODO: Handle EINTR.
           perror("recv");

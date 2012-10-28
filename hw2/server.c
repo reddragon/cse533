@@ -225,7 +225,9 @@ void on_sock_read_ready(void *opaque) {
   probe_timeout_ms = 1;
 
   // Warning: Do NOT use recv(2) here. It fails.
+  memset(&pkt, 0, sizeof(pkt));
   int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
+  packet_ntoh(&pkt, &pkt);
   if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
     perror("recvfrom");
     return;
@@ -395,7 +397,9 @@ void main_server_read_cb(void *opaque) {
   // we are using level triggered multiplexed I/O we will be invoked
   // again in case we didn't read anything when there was something to
   // read.
+  memset(&pkt, 0, sizeof(pkt));
   r = recvfrom(fd, (void*)&pkt, sizeof(pkt), 0, &cli_sa, &sa_sz);
+  packet_ntoh(&pkt, &pkt);
   if (r < 0 && errno == EINTR) {
     return;
   }
@@ -405,7 +409,8 @@ void main_server_read_cb(void *opaque) {
     printf("Error getting file name from the client\n");
     return;
   }
-
+  
+  fprintf(stderr, "Packet datalen: %d\n", pkt.datalen);
   assert(pkt.datalen < sizeof(pkt.data));
   pkt.data[pkt.datalen] = '\0';
   strcpy(file_name, pkt.data);
