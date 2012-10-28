@@ -200,7 +200,8 @@ get_ifi_info_plus(int family, int doaliases)
     lastlen = 0;
     len = 100 * sizeof(struct ifreq);	/* initial buffer size guess */
     for ( ; ; ) {
-        buf = Malloc(len);
+        buf = calloc(len, 1);
+        assert(buf);
         ifc.ifc_len = len;
         ifc.ifc_buf = buf;
         if (ioctl(sockfd, SIOCGIFCONF, &ifc) < 0) {
