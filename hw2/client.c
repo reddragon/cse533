@@ -76,7 +76,8 @@ void get_conn(void) {
     conn->is_local = FALSE;
     // TODO
     // The first address might be a loopback address. Can we choose it like that?
-    conn->cli_sa = ifi_head->ifi_addr;
+    conn->cli_sa = MALLOC(struct sockaddr);
+    memcpy(conn->cli_sa, ifi_head->ifi_addr, sizeof(struct sockaddr));
     conn->serv_sa = inet_pton_sa((const char *)cargs->ip_addr, cargs->serv_portno);
   }
 }
@@ -216,9 +217,13 @@ void send_file(void *opaque) {
 
   // Bind to the port we were originally bound to, and connect this
   // socket to the new port number that the server sent us.
-  struct sockaddr_in cli_si = *(struct sockaddr_in*)conn->cli_sa;
-  cli_si.sin_port = htons(cliport);
-  Bind(sockfd, (struct sockaddr*)&cli_si, sizeof(SA));
+  struct sockaddr cli_sa;
+  struct sockaddr_in *cli_si = (struct sockaddr_in*)&cli_sa;
+  memset(&cli_sa, 0, sizeof(cli_sa));
+  memcpy(&cli_sa, conn->cli_sa, sizeof(struct sockaddr));
+  cli_si->sin_port = htons(cliport);
+  Bind(sockfd, &cli_sa, (socklen_t)sizeof(struct sockaddr_in));
+
   sa = *(conn->serv_sa);
   si->sin_port = htons(portno);
   Connect(sockfd, &sa, sizeof(SA));
@@ -312,7 +317,7 @@ void initiate_tx(void) {
   sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
   // Bind to port 0
-  Bind(sockfd, conn->cli_sa, sizeof(SA));
+  Bind(sockfd, conn->cli_sa, (socklen_t)sizeof(SA));
 
   struct sockaddr_in sin;
   UINT addrlen = sizeof(SA);
