@@ -129,8 +129,7 @@ void *consume_packets(rwindow *rwin) {
       break;
     }
     
-    double rd = drand48();
-    double dsleep_time = -1.0 * cargs->mean * log(rd);
+    double dsleep_time = -1.0 * cargs->mean * log(drand48());
 #ifdef DEBUG
   fprintf(stderr, "dsleep_time: %lf\n", dsleep_time);
 #endif
