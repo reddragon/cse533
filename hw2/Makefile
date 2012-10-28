@@ -49,5 +49,4 @@ perhaps.o: perhaps.c perhaps.h utils.h
 test:
 	$(CC) $(CFLAGS) -o treap.test treap.c -DTEST -g
 clean:
-	rm $(OBJ)
-
+	rm -f $(OBJ)

@@ -1,13 +1,12 @@
 #ifndef PERHAPS_H
 #define PERHAPS_H
 
-#include "utils.h"
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 // These functions are used only by the client since only the client
 // behaves erratically.
-
-extern struct client_args cargs;
 
 void perhaps_init(void);
 int perhaps_send(int fd, const void *data, int len, int flags);

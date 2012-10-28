@@ -1,3 +1,4 @@
+// -*- mode: c; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 #include <stdio.h>
 #include "utils.h"
 #include "rwindow.h"
@@ -14,7 +15,7 @@ int cliport;              // The client ephemeral port
 struct client_args *cargs = NULL;
 
 void
-get_conn() {
+get_conn(void) {
   // TODO
   // Check if this function is fine
   struct ifi_info *ifi_head = Get_ifi_info_plus(AF_INET, 0), *ifi;
@@ -164,22 +165,22 @@ void send_packet(packet_t *pkt) {
 }
 
 void
-handle_tx_error() {
+handle_tx_error(void *opaque) {
   err_sys("Error while receiving acknowledgement from server");
 }
 
 void
-send_filename_pkt() {
+send_filename_pkt(void) {
   send_packet(file_name_pkt);
 }
 
 void 
-ack_timeout() {
+ack_timeout(void *opaque) {
   fprintf(stderr, "Timed out while waiting for first ack from server\n");
 }
 
 void
-send_file() {
+send_file(void *opaque) {
   int portno;
   struct sockaddr sa;
   struct sockaddr_in *si = (struct sockaddr_in *) &sa;
@@ -277,7 +278,7 @@ send_file() {
 
 // Connect to the server, and send the first datagram
 void
-initiate_tx() {
+initiate_tx(void) {
   sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
   // Bind to port 0
