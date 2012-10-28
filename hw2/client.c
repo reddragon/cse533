@@ -241,6 +241,7 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
       fprintf(stdout, "Waiting on Recv...\n");
       int r = recv(sockfd, (void*)&pkt, sizeof(pkt), 0);
       if (r < 0) {
+          // TODO: Handle EINTR.
           perror("recv");
           exit(1);
       }

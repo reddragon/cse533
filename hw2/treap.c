@@ -3,7 +3,8 @@
 #include <assert.h>
 #include "treap.h"
 
-// Moved the treap_node and treap definitions to treap.h
+#define TDEBUG(ARGS...) fprintf(stderr, ARGS);
+// #define TDEBUG(ARGS...)
 
 void treap_init(treap *t) {
     t->root = NULL;
@@ -22,7 +23,7 @@ void treap_clear(treap *t, void (*deletr)(void*)) {
 
 void treap_insert(treap *t, int key, const void *data) {
     int heapkey = rand() % 1000;
-    fprintf(stderr, "treap_insert(%d, %d)\n", key, heapkey);
+    TDEBUG("treap_insert(%d, %d)\n", key, heapkey);
     treap_node *n = calloc(1, sizeof(treap_node));
     n->key = key;
     n->heapkey = heapkey;
@@ -53,7 +54,7 @@ void treap_insert(treap *t, int key, const void *data) {
     ++t->size;
     r = prev;
     n->parent = r;
-    fprintf(stderr, "Adding [%d:%d] as the %s child of [%d:%d]\n", n->key, n->heapkey,
+    TDEBUG("Adding [%d:%d] as the %s child of [%d:%d]\n", n->key, n->heapkey,
             (n->key < r->key ? "left" : "right"), r->key, r->heapkey);
     if (n->key < r->key) {
         r->left = n;
@@ -127,7 +128,7 @@ void treap_rotate_up(treap *t, treap_node *n) {
 }
 
 const void* treap_get_value(treap *t, int key) {
-    fprintf(stderr, "treap_get_value(%d)\n", key);
+    TDEBUG("treap_get_value(%d)\n", key);
     treap_node *n = treap_find(t, key);
     if (n) {
         return n->data;
@@ -158,7 +159,7 @@ treap_node* treap_lower_bound(treap *t, int key) {
 }
 
 void treap_delete_leaf_or_single_child_node(treap *t, treap_node *n) {
-    fprintf(stderr, "key: %d; n->left: %p, n->right: %p\n", n->key, n->left, n->right);
+    TDEBUG("del_leaf_or_single_child::key: %d; n->left: %p, n->right: %p\n", n->key, n->left, n->right);
     assert(!(n->left && n->right));
 
     if (n->left || n->right) {
@@ -192,13 +193,13 @@ void treap_delete_leaf_or_single_child_node(treap *t, treap_node *n) {
 }
 
 treap_node* treap_successor(treap_node *n) {
-    fprintf(stderr, "treap_successor(%d) == ", n->key);
+    TDEBUG("treap_successor(%d) == ", n->key);
     if (n->right) {
         n = n->right;
         while (n->left) {
             n = n->left;
         }
-        fprintf(stderr, "%d\n", n->key);
+        TDEBUG("%d\n", n->key);
         return n;
     } else {
         treap_node *par = n->parent;
@@ -206,34 +207,34 @@ treap_node* treap_successor(treap_node *n) {
             n = par;
             par = par->parent;
         }
-        fprintf(stderr, "%d\n", par ? par->key : -1);
+        TDEBUG("%d\n", par ? par->key : -1);
         return par;
     }
 }
 
 treap_node* treap_predecessor(treap_node *n) {
-    fprintf(stderr, "treap_predecessor(%d) == ", n->key);
+    TDEBUG("treap_predecessor(%d) == ", n->key);
     if (n->left) {
         n = n->left;
         while (n->right) {
             n = n->right;
         }
-        fprintf(stderr, "{1} %d\n", n->key);
+        TDEBUG("{1} %d\n", n->key);
         return n;
     } else {
         treap_node *par = n->parent;
         while (par && par->left == n) {
-            fprintf(stderr, "{3} %d; ", par->key);
+            TDEBUG("{3} %d; ", par->key);
             n = par;
             par = par->parent;
         }
-        fprintf(stderr, "{2} %d\n", par ? par->key : -1);
+        TDEBUG("{2} %d\n", par ? par->key : -1);
         return par;
     }
 }
 
 void treap_delete(treap *t, int key) {
-    fprintf(stderr, "treap_delete(%d)\n", key);
+    TDEBUG("treap_delete(%d)\n", key);
     treap_node *n = treap_find(t, key);
     if (!n) { return; }
     treap_delete_node(t, n);
