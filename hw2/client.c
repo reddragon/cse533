@@ -85,8 +85,8 @@ void consume_packets(rwindow *rwin) {
       if (tn != NULL) {
         pkt = (packet_t *) (tn->data);
         break;
-      }
-      
+      }  
+
       // If the packet that we are expected isn't in the treap,
       // wait for some time.
       usleep(sleep_time);
@@ -108,12 +108,16 @@ void consume_packets(rwindow *rwin) {
       pthread_mutex_unlock(rwin->mutex);
 
       // TODO Actual writing out of the packet to file
-      fprintf(stderr, "==== Read packet %d with datalen %d ====\n", next_seq, pkt->datalen);
+#ifdef DEBUG      
+      fprintf(stderr, "==== Read packet %d with datalen %d and flags %x ====\n", next_seq, pkt->datalen, pkt->flags);
+#endif
 
       // TODO: Check return value of fwrite(3)
       int ret = fwrite(pkt->data, pkt->datalen, 1, pf);
       // if (ret < 0) {
+#ifdef DEBUG
       fprintf(stderr, "fwrite returned with ret = %d\n", ret);
+#endif
       //}
 
       next_seq++;

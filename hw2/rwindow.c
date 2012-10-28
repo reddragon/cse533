@@ -44,12 +44,19 @@ packet_t *rwindow_received_packet(packet_t *pkt, rwindow *rwin) {
     // We assume that the server respects the sliding window
     // size that we piggyback on the ACK.
     // Insert the packet into the treap
+#ifdef DEBUG
+    fprintf(stderr, "Inserting into treap the packet %d with datalen %d and flags %x\n", pkt->seq, pkt->datalen, pkt->flags);
+#endif
     treap_insert(&rwin->t_rwin, pkt->seq, (void *)pkt);
     
     int *seq = &rwin->smallest_expected_seq;
     while (treap_find(&rwin->t_rwin, *seq)) {
       *seq = *seq + 1;
-    }
+    } 
+  } else {
+#ifdef DEBUG
+      fprintf(stderr, "The packet %d was already in the treap\n", pkt->seq);
+#endif
   }
   pthread_mutex_unlock(rwin->mutex);
   
