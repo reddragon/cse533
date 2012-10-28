@@ -385,7 +385,7 @@ void main_server_read_cb(void *opaque) {
   printf("There is a disturbance in the force at fd '%d'\n", fd);
   char file_name[256];
   struct sockaddr cli_sa;
-  memset(&cli_sa, 0, sizeof(cli_sa);
+  memset(&cli_sa, 0, sizeof(cli_sa));
   struct sockaddr_in *cli_si = (struct sockaddr_in *) &cli_sa;
   socklen_t sa_sz = sizeof(cli_sa);
   int r;
