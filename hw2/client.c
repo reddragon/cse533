@@ -96,7 +96,7 @@ void *consume_packets(rwindow *rwin) {
   FILE *pf = fopen(file_name, "w");
   assert(pf);
   
-  uint32_t sleep_time = 1000;
+  double sleep_time;
   BOOL last_pkt_found = FALSE;
   
   do {
@@ -129,11 +129,11 @@ void *consume_packets(rwindow *rwin) {
       break;
     }
     
-    double dsleep_time = -1.0 * cargs->mean * log(drand48());
+    sleep_time = -1.0 * cargs->mean * log(drand48());
 #ifdef DEBUG
-  fprintf(stderr, "dsleep_time: %lf\n", dsleep_time);
+  fprintf(stderr, "sleep_time: %lf\n", sleep_time);
 #endif
-    usleep(dsleep_time);
+    usleep(sleep_time);
   } while (1);
 
 #if 0
