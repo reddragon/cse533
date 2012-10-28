@@ -4,7 +4,7 @@ INCFLAGS = -I/home/courses/cse533/Stevens/unpv13e_solaris2.10/lib
 LIBS = /home/courses/cse533/Stevens/unpv13e_solaris2.10/libunp.a \
 	-lm -lresolv -lsocket -lnsl -lpthread
 OBJ = client server vector.o utils.o fdset.o algorithm.o swindow.o \
-	rwindow.o perhaps.o
+	rwindow.o perhaps.o treap.test
 ALLOBJDEPS = vector.o utils.o fdset.o algorithm.o treap.o swindow.o \
 	rwindow.o
 
@@ -49,5 +49,7 @@ perhaps.o: perhaps.c perhaps.h utils.h
 	$(CC) $(CFLAGS) -c -o perhaps.o perhaps.c
 test:
 	$(CC) $(CFLAGS) -o treap.test treap.c -DTEST -g
+handin:
+	ls *.c *.h Makefile | xargs /home/courses/cse533/handin 1
 clean:
 	rm -f $(OBJ)
