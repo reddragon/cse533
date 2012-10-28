@@ -380,6 +380,19 @@ bind_udp(struct server_args *sargs, vector *v) {
   }
 }
 
+int find_connected_client(const void *lhs, const void *rhs) {
+  int equal = 0;
+  struct sockaddr_in *lhs_sa = &((connected_client*)lhs)->si;
+  struct sockaddr_in *rhs_sa = &((connected_client*)rhs)->si;
+
+  if (lhs_sa->sin_family      == rhs_sa->sin_family      &&
+      lhs_sa->sin_port        == rhs_sa->sin_port        &&
+      lhs_sa->sin_addr.s_addr == rhs_sa->sin_addr.s_addr) {
+    equal = 1;
+  }
+  return equal;
+}
+
 void main_server_read_cb(void *opaque) {
   int fd = *(int*)opaque;
   printf("There is a disturbance in the force at fd '%d'\n", fd);
@@ -411,19 +424,19 @@ void main_server_read_cb(void *opaque) {
   strcpy(file_name, pkt.data);
   printf("%s:%u requested file '%s'\n", sa_data_str(&cli_sa), ntohs(cli_si->sin_port), file_name);
 
-#if 0
-  // TODO: Check if this is a re-request for an in-flight request.
-  inflight_request req;
-  req.fd = fd;
-  req.sa = cli_sa;
-  req.si = *si;
-  int pos = algorithm_find(inflight_requests, req, find_inflight_request);
+  // Check if this is a re-request from an already connected client.
+  connected_client cc;
+  cc.fd = fd;
+  cc.sa = cli_sa;
+  cc.si = *cli_si;
+  int pos = algorithm_find(&connected_clients, &cc, find_connected_client);
 
   if (pos != -1) {
-    req = *(inflight_request*)vector_at(&inflight_requests, pos);
+    cc = *(connected_client*)vector_at(&connected_clients, pos);
 
     // Check if the process is running.
-    if (kill(pid, 0) != 0) {
+    if (kill(cc.pid, 0) != 0) {
+      // Process is NOT running.
       pos = -1;
     }
   }
@@ -432,7 +445,6 @@ void main_server_read_cb(void *opaque) {
     // Process is running - do nothing.
     return;
   }
-#endif
 
   int pid = fork();
   if (pid < 0) {
@@ -453,8 +465,11 @@ void main_server_read_cb(void *opaque) {
       }
     }
 
-    // TODO: Add to list of connected clients.
-    // vector_push_back(&connected_clients)
+    cc.pid = pid;
+    // Add to list of connected clients.
+    vector_push_back(&connected_clients, &cc);
+
+    // Start the FTP transfer.
     start_ftp(fd, &cli_sa, file_name);
     printf("Child process exiting\n");
     exit(0);
