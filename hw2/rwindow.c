@@ -56,6 +56,10 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   int adv_rwinsz = calc_adv_rwinsz(rwin);
   treap_sz = treap_size(&rwin->t_rwin);
 
+#ifdef DEBUG
+  fprintf(stderr, "adv_rwinsz: %d\n", adv_rwinsz);
+#endif
+
   if (adv_rwinsz == 0) {
     pthread_mutex_unlock(rwin->mutex);
 
