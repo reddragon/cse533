@@ -120,8 +120,14 @@ read_cargs(const char *cargs_file, struct client_args *cargs) {
         fprintf(stderr, "Could not open file\n");
         return 1;
     }
-    assert(fscanf(fp, "%s%u%s%u%u%lf%lf", cargs->ip_addr, &cargs->serv_portno, \
-                  cargs->file_name, &cargs->sw_size, &cargs->rand_seed, &cargs->p, &cargs->mean) == 7);
+    int r = fscanf(fp, "%s%u%s%u%u%lf%lf", cargs->ip_addr,
+                   &cargs->serv_portno,
+                   cargs->file_name,
+                   &cargs->sw_size,
+                   &cargs->rand_seed,
+                   &cargs->p,
+                   &cargs->mean);
+    assert(r == 7);
     return 0;
 }
 
@@ -132,7 +138,8 @@ read_sargs(const char *sargs_file, struct server_args *sargs) {
         fprintf(stderr, "Could not open file\n");
         return 1;
     }
-    assert(fscanf(fp, "%d%d", &sargs->serv_portno, &sargs->sw_size) == 2);
+    int r = fscanf(fp, "%d%d", &sargs->serv_portno, &sargs->sw_size);
+    assert(r == 2);
     return 0;
 }
 
@@ -159,7 +166,8 @@ get_ntm_len(struct sockaddr *ntm) {
 // We are we assuming network byte order here.
 char *
 sa_data_str(struct sockaddr *sa) {
-    char *str = (char *) malloc(sizeof(char) * 20);
+    char *str = (char *)calloc(20, sizeof(char));
+    assert(str);
     sprintf(str, "%u.%u.%u.%u", 
             sa->sa_data[2] & 0xFF, sa->sa_data[3] & 0xFF, 
             sa->sa_data[4] & 0xFF, sa->sa_data[5] & 0xFF);
@@ -168,12 +176,12 @@ sa_data_str(struct sockaddr *sa) {
 
 struct sockaddr *
 inet_pton_sa(const char *ip_addr, UINT portno) {
-    struct sockaddr *sa;
-    struct sockaddr_in *si = MALLOC(struct sockaddr_in);
+    struct sockaddr *sa    = MALLOC(struct sockaddr);
+    struct sockaddr_in *si = (struct sockaddr_in*)sa;
     si->sin_family = AF_INET;
     si->sin_port = htons(portno);
     inet_pton(AF_INET, ip_addr, &si->sin_addr);
-    return sa = (struct sockaddr *)si;
+    return sa;
 }
 
 struct ifi_info *
