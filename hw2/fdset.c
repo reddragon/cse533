@@ -99,7 +99,7 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
         if (r == 0) {
             // Timeout case
             timeout_cb(NULL);
-            break;
+            continue;
         }
         int i;
         for (i = 0; i < vector_size(&fds->rev); ++i) {

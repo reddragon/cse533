@@ -2,6 +2,9 @@
 #include "utils.h"
 #include "rwindow.h"
 
+// The arguments read from the client.in file
+struct client_args *cargs = NULL;
+
 void
 get_conn(struct client_args *cargs, struct client_conn *conn) {
   // TODO
@@ -219,11 +222,11 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   // Send an ACK to the server.
   pkt.flags = FLAG_ACK;
   pkt.ack   = 1;
-  pkt.rwinsz = 10;
+  pkt.rwinsz = cargs->sw_size;
   ++pkt.seq;
   pkt.datalen = 0;
   memset(pkt.data, 0, sizeof(pkt.data));
-  sprintf(pkt.data, "ACK:1");
+  sprintf(pkt.data, "ACK:%d", pkt.ack);
 
   // TODO: Call packet_hton() and pass an output buffer.
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
@@ -286,10 +289,10 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
 int main(int argc, char **argv) {
   assert(argc == 1);
   const char *cargs_file = CARGS_FILE;
-  struct client_args *cargs = (struct client_args *)
-    malloc(sizeof(struct client_args));
+  cargs = MALLOC(struct client_args);
+
   if (read_cargs((const char *)cargs_file, cargs)) {
-    exit(1);
+      exit(1);
   }
   
   struct client_conn conn;

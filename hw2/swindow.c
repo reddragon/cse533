@@ -7,9 +7,6 @@
 #include "utils.h"
 #include "swindow.h"
 
-#define imax(X,Y) ((X)>(Y)?(X):(Y))
-#define imin(X,Y) ((X)<(Y)?(X):(Y))
-
 void rtt_info_init(rtt_info_t *rtt) {
     rtt->_8srtt = 0;
     rtt->_8rttvar = 750 * 8;
@@ -79,10 +76,10 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
 }
 
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
-    fprintf(stderr, "swindow_received_ACK(ACK: %d, RWINSZ: %d)\n[1] ", ack, rwinsz);
+    fprintf(stderr, "swindow_received_ACK(ACK: %d, RWINSZ: %d)\n[ENTER] ", ack, rwinsz);
     swindow_dump(swin);
     swindow_received_ACK_real(swin, ack, rwinsz);
-    fprintf(stderr, "[2] ");
+    fprintf(stderr, "[LEAVE] ");
     swindow_dump(swin);
 }
 
@@ -154,11 +151,21 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     swin->rwinsz = rwinsz;
 
     // The effective window size
+    if (rwinsz == 0) {
+        rwinsz = 1;
+    }
     const int sz1 = rwinsz - treap_size(&swin->swin) /* # of in-flight packets */;
     const int sz2 = swin->sbuffsz - treap_size(&swin->swin);
     assert_ge(sz1, 0);
     assert_ge(sz2, 0);
     swin->swinsz = imin(sz1, sz2);
+
+    // Handle the case when we are in window-probe mode.
+    if (swin->swinsz == 0 && swin->rwinsz == 0 && treap_empty(&swin->swin) && swin->isEOF == FALSE) {
+        // TODO: Verify if we can ever have a situation where
+        // swin->isEOF == TRUE and we are in window probe mode.
+        swin->swinsz = 1;
+    }
 
     // Invoke callback and send the packet on the network.
     while ((swin->isEOF == FALSE) && (swin->swinsz > 0)) {

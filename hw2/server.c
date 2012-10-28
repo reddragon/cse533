@@ -48,6 +48,8 @@ uint32_t last_call_to_select = 0;
 // determine the new timeout for select.
 uint32_t last_select_timeout_ms = 0;
 
+uint32_t probe_timeout_ms = 1;
+
 vector* get_all_interfaces(void) {
   if (!vector_empty(&interfaces)) {
     return &interfaces;
@@ -205,17 +207,17 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
 void on_sock_read_ready(void *opaque) {
   packet_t pkt;
   fprintf(stderr, "on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
-  // sleep(1);
+  probe_timeout_ms = 1;
+
   // int r = Recv(swin.fd, &pkt, sizeof(pkt), 0);
   int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
-  // assert(r >= 0);
   if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
     perror("recvfrom");
     return;
   }
   fprintf(stderr, "Successfully read %d bytes\n", r);
 
-  // TODO: Decrease timeout value by the amount of time spent in the
+  // Decrease timeout value by the amount of time spent in the
   // select(2) system call.
   uint32_t current_time = current_time_in_ms();
   uint32_t select_slept_for = current_time - last_call_to_select;
@@ -235,14 +237,24 @@ void on_sock_error(void *opaque) {
 
 void on_select_timeout(void *opaque) {
   last_call_to_select = current_time_in_ms();
+  uint32_t rto;
 
-  // Double the timeout.
-  rtt_scale_RTO(&swin.rtt, 2);
+  // Are we in window probe mode? (detected by the value of
+  // swin.swinsz).
+  if (swin.swinsz == 0) {
+    // We are in window probe mode.
+    rto = probe_timeout_ms;
+    probe_timeout_ms *= 2;
+    probe_timeout_ms = imin(60, imax(probe_timeout_ms, 5));
+  } else {
+    probe_timeout_ms = 1;
 
-  // TODO: Handle the case when we are in the window probe mode
-  // (detected by the value of swin.rwinsz).
-  uint32_t rto = (uint32_t)rtt_get_RTO(&swin.rtt);
-  fprintf(stderr, "on_select_timeout::Updating timeout to %d ms\n", rto);
+    // Double the timeout.
+    rtt_scale_RTO(&swin.rtt, 2);
+
+    rto = (uint32_t)rtt_get_RTO(&swin.rtt);
+    fprintf(stderr, "on_select_timeout::Updating timeout to %d ms\n", rto);
+  }
 
   set_new_select_timeout(rto);
   swindow_timed_out(&swin);
@@ -506,7 +518,6 @@ int main(int argc, char **argv) {
 
   r = fdset_poll(&fds, &timeout, main_server_timeout_cb);
 
-  // Handle EINTR.
   if (r < 0) {
     perror("select");
     assert(errno != EINTR);

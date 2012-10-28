@@ -23,6 +23,9 @@ void* my_malloc(size_t size);
 #define assert_gt(L,R) if((L)<=(R)) { fprintf(stderr, "%d > %d FAILED\n", (L), (R)); assert((L)>(R)); }
 #define assert_ge(L,R) if((L)<(R)) { fprintf(stderr, "%d >= %d FAILED\n", (L), (R)); assert((L)>=(R)); }
 
+#define imax(X,Y) ((X)>(Y)?(X):(Y))
+#define imin(X,Y) ((X)<(Y)?(X):(Y))
+
 typedef struct client_args {
   char ip_addr[20];
   UINT serv_portno;
