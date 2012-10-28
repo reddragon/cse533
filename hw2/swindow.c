@@ -215,6 +215,9 @@ void swindow_transmit_packet(swindow *swin, int seq) {
     if (r < 0) {
         fprintf(stderr, "Error sending data on line %d::", __LINE__);
         perror("send");
+        if (seq > 1) {
+            exit(1);
+        }
     }
 
     if (swin->fd2 != -1) {
@@ -229,7 +232,6 @@ void swindow_transmit_packet(swindow *swin, int seq) {
             perror("sendto");
         }
     }
-
 }
 
 void swindow_timed_out(swindow *swin) {
