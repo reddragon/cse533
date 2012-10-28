@@ -4,6 +4,7 @@
 #include "fdset.h"
 #include "algorithm.h"
 #include "swindow.h"
+#include <signal.h>
 
 typedef struct connected_client {
   int fd;             // The fd of the socket on which the request arrived.
@@ -482,9 +483,24 @@ void main_server_ex_cb(void *opaque) {
   exit(1);
 }
 
+void on_got_SIGCHLD(int x) {
+  int i;
+  for (i = 0; i < vector_size(&connected_clients); ++i) {
+    connected_client *cc = (connected_client*)vector_at(&connected_clients, i);
+    int status;
+    pid_t pid = waitpid(cc->pid, &status, WNOHANG);
+    if (pid == cc->pid) {
+      vector_erase(&connected_clients, i);
+      --i;
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   const char *sargs_file = SARGS_FILE;
   int i, r;
+
+  signal(SIGCHLD, on_got_SIGCHLD);
 
   utils_init();
   vector_init(&socklist, sizeof(int));
