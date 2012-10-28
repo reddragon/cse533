@@ -135,66 +135,6 @@ void *consume_packets(rwindow *rwin) {
 #endif
     usleep(sleep_time);
   } while (1);
-
-#if 0
-  do {
-    uint32_t sleep_time = 1000, retries = 0;
-    pkt = NULL;
-    do {
-      pthread_mutex_lock(rwin->mutex);
-      treap_node *tn = treap_find(&rwin->t_rwin, next_seq);
-      pthread_mutex_unlock(rwin->mutex);
-      
-      // We found the node with the right seq number
-      if (tn != NULL) {
-        pkt = (packet_t *) (tn->data);
-        break;
-      }  
-
-      // If the packet that we are expected isn't in the treap,
-      // wait for some time.
-      usleep(sleep_time);
-      
-      // If the sleep_time is already more than a second, don't
-      // double it.
-      sleep_time = (sleep_time > 1000000) 
-                    ? sleep_time : sleep_time << 1;
-      
-      // We will only wait for a packet for at max 100 retries.
-      retries++;
-    } while (retries < 100);
-    
-    if (pkt != NULL) {
-      // Received the packet.
-
-      pthread_mutex_lock(rwin->mutex);
-      treap_delete(&rwin->t_rwin, next_seq);
-      int treap_sz = treap_size(&rwin->t_rwin);
-      pthread_mutex_unlock(rwin->mutex);
-
-      // TODO Actual writing out of the packet to file
-#ifdef DEBUG      
-      fprintf(stderr, "==== Read packet %d with datalen %d and flags %x, treap_sz: %d ====\n", next_seq, pkt->datalen, pkt->flags, treap_sz);
-#endif
-
-      // TODO: Check return value of fwrite(3)
-      int ret = fwrite(pkt->data, pkt->datalen, 1, pf);
-      // if (ret < 0) {
-#ifdef DEBUG
-      fprintf(stderr, "fwrite returned with ret = %d\n", ret);
-#endif
-      //}
-
-      next_seq++;
-    } else {
-      // We retried 100 times. Packet, Y U NO COME?
-      fprintf(stderr, "Did not receive packet seq %d even after 100 retries\n", next_seq);
-      fclose(pf);
-      exit(1);
-    }
-    
-  } while (!(pkt->flags & FLAG_FIN));
-#endif
   fclose(pf);
   return NULL;
 }
