@@ -79,6 +79,7 @@ void     packet_ntoh(packet_t *out, const packet_t *in);
 char*    strip(char *s);
 void     set_non_blocking(int fd);
 void     set_blocking(int fd);
+void     set_dontroute(int fd);
 
 int read_cargs(const char *cargs_file, struct client_args *cargs);
 int read_sargs(const char *sargs_file, struct server_args *sargs);
