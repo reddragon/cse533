@@ -2,8 +2,10 @@ CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
 INCFLAGS = -I/home/courses/cse533/Stevens/unpv13e_solaris2.10/lib
 LIBS = /home/courses/cse533/Stevens/unpv13e_solaris2.10/libunp.a -lm
-OBJ = client server vector.o utils.o fdset.o algorithm.o swindow.o rwindow.o
-ALLOBJDEPS = vector.o utils.o fdset.o algorithm.o treap.o swindow.o rwindow.o
+OBJ = client server vector.o utils.o fdset.o algorithm.o swindow.o \
+	rwindow.o perhaps.o
+ALLOBJDEPS = vector.o utils.o fdset.o algorithm.o treap.o swindow.o \
+	rwindow.o
 
 PLATFORM=${shell uname}
 
@@ -26,8 +28,8 @@ targets: server client
 
 server: server.c utils.h $(ALLOBJDEPS)
 	$(CC) $(CFLAGS) server.c $(ALLOBJDEPS) -o server $(LIBS)
-client: client.c utils.h $(ALLOBJDEPS)
-	$(CC) $(CFLAGS) client.c $(ALLOBJDEPS) -o client $(LIBS)
+client: client.c utils.h perhaps.o $(ALLOBJDEPS)
+	$(CC) $(CFLAGS) client.c perhaps.o $(ALLOBJDEPS) -o client $(LIBS)
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c -o utils.o utils.c
 rwindow.o: rwindow.h rwindow.c
@@ -42,6 +44,8 @@ treap.o: treap.c treap.h
 	$(CC) $(CFLAGS) -c -o treap.o treap.c
 swindow.o: swindow.c swindow.h treap.h
 	$(CC) $(CFLAGS) -c -o swindow.o swindow.c
+perhaps.o: perhaps.c perhaps.h utils.h
+	$(CC) $(CFLAGS) -c -o perhaps.o perhaps.c
 test:
 	$(CC) $(CFLAGS) -o treap.test treap.c -DTEST -g
 clean:
