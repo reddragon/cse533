@@ -180,6 +180,8 @@ start_tx(struct client_args *cargs, struct client_conn *conn) {
   pkt.datalen = strlen(cargs->file_name);
   strcpy(pkt.data, cargs->file_name);
 
+  // TODO: Start a timer here to re-send the file name till we receive an ACK.
+
   printf("Sending %d bytes of data to the server\n", sizeof(pkt));
   Sendto(sockfd, (void*)&pkt, sizeof(pkt), conn->is_local ? MSG_DONTROUTE : 0,
          conn->serv_sa, sizeof(SA));
