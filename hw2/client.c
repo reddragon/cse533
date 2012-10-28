@@ -76,7 +76,8 @@ get_conn(void) {
     conn->is_local = FALSE;
     // TODO
     // The first address might be a loopback address. Can we choose it like that?
-    conn->cli_sa = ifi_head->ifi_addr;
+    conn->cli_sa = MALLOC(struct sockaddr);
+    memcpy(conn->cli_sa, ifi_head->ifi_addr, sizeof(struct sockaddr));
     conn->serv_sa = inet_pton_sa((const char *)cargs->ip_addr, cargs->serv_portno);
   }
 }
