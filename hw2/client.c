@@ -202,9 +202,13 @@ send_file(void *opaque) {
 
   // Bind to the port we were originally bound to, and connect this
   // socket to the new port number that the server sent us.
-  struct sockaddr_in cli_si = *(struct sockaddr_in*)conn->cli_sa;
-  cli_si.sin_port = htons(cliport);
-  Bind(sockfd, (struct sockaddr*)&cli_si, (socklen_t)sizeof(SA));
+  struct sockaddr cli_sa;
+  struct sockaddr_in *cli_si = (struct sockaddr_in*)&cli_sa;
+  memset(&cli_sa, 0, sizeof(cli_sa));
+  memcpy(&cli_sa, conn->cli_sa, sizeof(struct sockaddr));
+  cli_si->sin_port = htons(cliport);
+  Bind(sockfd, &cli_sa, (socklen_t)sizeof(struct sockaddr_in));
+
   sa = *(conn->serv_sa);
   si->sin_port = htons(portno);
   Connect(sockfd, &sa, sizeof(SA));
