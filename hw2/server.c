@@ -5,22 +5,22 @@
 #include "algorithm.h"
 #include "swindow.h"
 
-typedef struct inflight_request {
-  int fd; // The fd of the socket on which the request arrived.
-  pid_t pid; // The pid of the child process spawned to serve this client.
+typedef struct connected_client {
+  int fd;             // The fd of the socket on which the request arrived.
+  pid_t pid;          // The pid of the child process spawned to serve this client.
   struct sockaddr sa; // Connection information.
   struct sockaddr_in si;
-} inflight_request;
+} connected_client;
 
 /* ===== BEGIN GLOBALS ===== */
 
 // A list of ints storing File Descriptors of listening sockets.
 vector socklist;
 
-// Stores a list of in-flight requests that have connected, but not yet
-// terminated. Useful in case responses from the server are lost and the
-// client re-requests stuff.
-vector inflight_requests;
+// Stores a list of connected clients that are being served. Useful in
+// case responses from the server are lost and the client re-requests
+// stuff.
+vector connected_clients;
 
 // Stores all the information for interfaces in this machine.
 vector interfaces;
@@ -452,7 +452,8 @@ void main_server_read_cb(void *opaque) {
       }
     }
 
-    // TODO: Add to list of in-flight requests.
+    // TODO: Add to list of connected clients.
+    // vector_push_back(&connected_clients)
     start_ftp(fd, &cli_sa, file_name);
     printf("Child process exiting\n");
     exit(0);
@@ -472,6 +473,7 @@ int main(int argc, char **argv) {
   utils_init();
   vector_init(&socklist, sizeof(int));
   vector_init(&interfaces, sizeof(struct ifi_info));
+  vector_init(&connected_clients, sizeof(connected_client));
   read_sargs(sargs_file, &sargs);
   bind_udp(&sargs, &socklist);
 
