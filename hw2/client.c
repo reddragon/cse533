@@ -105,11 +105,12 @@ void consume_packets(rwindow *rwin) {
 
       pthread_mutex_lock(rwin->mutex);
       treap_delete(&rwin->t_rwin, next_seq);
+      int treap_sz = treap_size(&rwin->t_rwin);
       pthread_mutex_unlock(rwin->mutex);
 
       // TODO Actual writing out of the packet to file
 #ifdef DEBUG      
-      fprintf(stderr, "==== Read packet %d with datalen %d and flags %x ====\n", next_seq, pkt->datalen, pkt->flags);
+      fprintf(stderr, "==== Read packet %d with datalen %d and flags %x, treap_sz: %d ====\n", next_seq, pkt->datalen, pkt->flags, treap_sz);
 #endif
 
       // TODO: Check return value of fwrite(3)

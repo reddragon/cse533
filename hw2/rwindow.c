@@ -24,9 +24,34 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
 // Returns a well-formed acknowledgement packet 
 packet_t *rwindow_received_packet(packet_t *opkt, rwindow *rwin) { 
   // TODO
-  // Discard packet if we do not have space on the receiving
+  // Do not discard packet if we do not have space on the receiving
   // window.
+  
+  int treap_sz;
+  packet_t *pkt, *ack_pkt;
+  // We wont be frugal here
+  ack_pkt = MALLOC(packet_t);
 
+  pthread_mutex_lock(rwin->mutex);
+  treap_sz = treap_size(&rwin->t_rwin);
+
+  if (rwin->rwinsz == treap_sz) {
+    pthread_mutex_unlock(rwin->mutex);
+
+    // This is basically saying to the server:
+    // "I don't know what you are sending me, but I want
+    //  ack_pkt->ack, and I don't have space yet"
+    ack_pkt->rwinsz = 0;
+    ack_pkt->ack = rwin->smallest_expected_seq;
+    ack_pkt->flags = FLAG_ACK;
+    ack_pkt->datalen = 0;
+    return ack_pkt;
+  }
+  
+
+  pkt = MALLOC(packet_t);
+  memcpy(pkt, opkt, sizeof(packet_t));
+  
   // Check if this is a duplicate packet, which was already
   // received. We can find this out in two ways:
   // 1. Either the packet already exists in the treap. In this
@@ -34,10 +59,7 @@ packet_t *rwindow_received_packet(packet_t *opkt, rwindow *rwin) {
   // 2. Or, the packet's seq is lesser than the smallest_expected_seq.
   //   In this case, we would have definitely read this packet from
   //   the sliding window, since (1) is not true.
-  packet_t *pkt = MALLOC(packet_t);
-  memcpy(pkt, opkt, sizeof(packet_t));
 
-  pthread_mutex_lock(rwin->mutex);
   // If neither (1), nor (2) is true. Which means, we have
   // a new packet in our hands.
   if (!((treap_find(&rwin->t_rwin, pkt->seq)) || 
@@ -60,17 +82,15 @@ packet_t *rwindow_received_packet(packet_t *opkt, rwindow *rwin) {
       fprintf(stderr, "The packet %d was already in the treap\n", pkt->seq);
 #endif
   }
+  treap_sz = treap_size(&rwin->t_rwin);
   pthread_mutex_unlock(rwin->mutex);
-  
-  // We will not be frugal here
-  packet_t *ack_pkt = MALLOC(packet_t);
   
   // Marshalling the acknowledgment packet
   ack_pkt->seq = 0;
   ack_pkt->ack = rwin->smallest_expected_seq;
   ack_pkt->flags = FLAG_ACK;
-  ack_pkt->rwinsz = rwin->rwinsz - treap_size(&rwin->t_rwin);
-  // TODO This is only for the debug mode
+  ack_pkt->rwinsz = rwin->rwinsz - treap_sz;
+  // This is only for the debug mode
   ack_pkt->datalen = 0;
   return ack_pkt;
 }
