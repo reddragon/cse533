@@ -91,8 +91,8 @@ void get_conn(void) {
     conn->is_local = FALSE;
     // TODO
     // The first address might be a loopback address. Can we choose it like that?
-    fprintf(stderr, "sa == NULL\n");
-    conn->serv_sa = inet_pton_sa((const char *)cargs->ip_addr, cargs->serv_portno);
+    conn->serv_sa = inet_pton_sa((const char*)cargs->ip_addr,
+                                 cargs->serv_portno);
     conn->cli_sa = inet_pton_sa("0.0.0.0", 0);
   }
 }

@@ -247,6 +247,10 @@ void on_sock_read_ready(void *opaque) {
     last_select_timeout_ms = 0;
   }
 
+  // We set the updated timeout value here. If the ACK is for the
+  //oldest unACKed SEQ#, then the on_advanced_oldest_unACKed_seq()
+  // function will be called, which will update the timeout to the RTO
+  // value.
   set_new_select_timeout(last_select_timeout_ms);
   swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
 
