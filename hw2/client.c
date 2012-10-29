@@ -10,7 +10,6 @@
 
 client_args *cargs;       // The client args
 client_conn *conn;        // The client connection struct
-rwindow *rwin;            // The receiving window
 packet_t *file_name_pkt;  // The file name packet
 packet_t *fin_pkt;        // The final packet to be sent
 int sockfd;               // The socket used for communication 
@@ -22,7 +21,10 @@ int send_failed = 0;      // # of calls to send(2) that failed
 fdset fds;                // fdset for the client socket
 uint32_t time_av_ms;      // Time available for select(2)    
 uint32_t at_select_ms;    // Time available for select(2)    
-
+rwindow rwin;             // The receiving window
+pthread_t tid;            // The consumer thread
+int syn_retries = 0;      // The # of times we re-tried sending the file name packet. We quit after successive 12 timeouts
+    
 // The arguments read from the client.in file
 struct client_args *cargs = NULL;
 
@@ -206,11 +208,24 @@ void send_filename_pkt(void) {
 }
 
 void ack_timeout(void *opaque) {
-  fprintf(stderr, "Timed out while waiting for first ack from server\n");
+  fprintf(stderr, "Timed out %d times while waiting for first ack from server\n", syn_retries);
+  if (++syn_retries > 12) {
+    exit(1);
+  }
+
+  // Send the packet again and reset timeout.
+  send_filename_pkt();
+  fds.timeout.tv_sec = 3;
+  fds.timeout.tv_usec = 0;
 }
 
 void resend_fin_pkt(void *opaque) {
   fprintf(stderr, "Resending the ACK in response to the FIN\n");
+
+  packet_t pkt;
+  // Read the packet from the socket.
+  recv_packet(&pkt);
+
   uint32_t cur_ms = current_time_in_ms();
   uint32_t elapsed_ms = cur_ms - at_select_ms;
   if (elapsed_ms <= time_av_ms) {
@@ -220,13 +235,18 @@ void resend_fin_pkt(void *opaque) {
     time_av_ms = 0;
   }
   fds.timeout.tv_sec = time_av_ms / 1000;
-  fds.timeout.tv_sec = (time_av_ms % 1000) * 1000;
+  fds.timeout.tv_usec = (time_av_ms % 1000) * 1000;
 
   send_packet(fin_pkt);
+  fprintf(stdout, "Waiting for %d more second\n", time_av_ms/1000);
 }
 
 void fin_timeout(void *opaque) {
   fprintf(stderr, "Timed out after waiting for 60 secs after getting a FIN\n");
+
+  // We should exit only when the consumer thread has finished its job
+  pthread_join(tid, NULL);
+
   exit(0);
 }
 
@@ -298,13 +318,6 @@ void send_file(void *opaque) {
   // Receive data from the socket till a packet with the FLAG_FIN flag
   // is received.
  
-  // The receiving window
-  rwindow rwin;
-
-  // Initialize the receiving window
-  rwindow_init(&rwin, cargs->sw_size);
-  
-  pthread_t tid;
   if (pthread_create(&tid, NULL, (void *) (&consume_packets), (void *) (&rwin)) < 0) {
       err_sys("Could not spawn the consumer thread to read packets");
   }
@@ -333,14 +346,6 @@ void send_file(void *opaque) {
       
       if (pkt.flags & FLAG_FIN) {
           // Here goes the special logic for dealing with FIN
-          
-          /*
-          struct timeval init_time, cur_time, timeout;
-          Gettimeofday(&init_time, NULL);
-          int init_time_ms, cur_time_ms, time_left_ms;
-          init_time_ms = init_time.tv_sec * 1000 + init_time.tv_usec / 1000;
-          */
-
           fdset_remove(&fds, &fds.rev, sockfd);
           fds.timeout_cb = fin_timeout;
           fdset_add(&fds, &fds.rev, sockfd, &sockfd, resend_fin_pkt);
@@ -349,16 +354,13 @@ void send_file(void *opaque) {
           
           time_av_ms = 60*1000;
           at_select_ms = current_time_in_ms();
+          fprintf(stdout, "Entering the FIN_WAIT state\n");
           return;
       } 
       
       free(ack_pkt);
       ack_pkt = NULL;
-  }
-  // We should exit only when the consumer thread has finished its job
-  pthread_join(tid, NULL);
-  // We don't want to return to the main thread
-  exit(0);
+  } // while (1)
 }
 
 // Connect to the server, and send the first datagram
@@ -387,37 +389,25 @@ void initiate_tx(void) {
 
   // Start a timer here to re-send the file name till we receive an ACK.
   
-  int syn_retries = 0;
-    
   struct timeval timeout;
-  timeout.tv_sec = 6;
+  timeout.tv_sec = 3;
   timeout.tv_usec = 0;
 
-  do {
-    timeout.tv_sec = 6;
-    timeout.tv_usec = 0;
+  fdset_init(&fds, timeout, ack_timeout);
 
-    fdset_init(&fds, timeout, ack_timeout);
+  fdset_add(&fds, &fds.rev, sockfd, &sockfd, send_file);
+  fdset_add(&fds, &fds.exev, sockfd, &sockfd, handle_tx_error);
 
-    fdset_add(&fds, &fds.rev, sockfd, &sockfd, send_file);
-    fdset_add(&fds, &fds.exev, sockfd, &sockfd, handle_tx_error);
-    
-    fprintf(stderr, "Trying to send the SYN packet to the Server with the file name\n");
+  // Send the packet to the server
+  fprintf(stderr, "Trying to send the SYN packet to the Server with the file name\n");
+  send_filename_pkt();
 
-    // Send the packet to the server
-    send_filename_pkt();
-    
-    int r = fdset_poll2(&fds);
-    // Handle EINTR.
-    if (r < 0) {
-      perror("select");
-      assert(errno != EINTR);
-      exit(1);
-    }
-
-    syn_retries++;
-  } while (syn_retries < 12);
-  fprintf(stderr, "Too many retries.\n");
+  int r = fdset_poll2(&fds);
+  if (r < 0) {
+    perror("select");
+    assert(errno != EINTR);
+    exit(1);
+  }
 }
 
 int main(int argc, char **argv) {
@@ -432,6 +422,10 @@ int main(int argc, char **argv) {
   
   utils_init();
   perhaps_init();
+
+  // Initialize the receiving window
+  rwindow_init(&rwin, cargs->sw_size);
+
   conn = MALLOC(client_conn);
   file_name_pkt = MALLOC(packet_t);
   memset(file_name_pkt, 0, sizeof(packet_t));

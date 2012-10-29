@@ -25,13 +25,13 @@ void perhaps_init(void) {
 #ifdef DEBUG
 int perhaps_rarely_send(int fd, const void *data, int len, int flags) {
     assert(perhaps_inited == TRUE);
-    fprintf(stderr, "perhaps_rarely_send() called\n");
-    ++send_total;
+    // ++send_total;
     double rn = drand48();
-    if (rn <= 0.9) {
+    fprintf(stderr, "perhaps_rarely_send::rn = %.2f\n", rn);
+    if (rn <= 0.7) {
         // Silently drop the packet.
         fprintf(stderr, "perhaps_rarely_send::Dropping packet.\n");
-        ++send_failed;
+        // ++send_failed;
         return len;
     }
     // Actually send the data.

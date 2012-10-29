@@ -53,7 +53,7 @@ uint32_t last_select_timeout_ms = 0;
 
 // The amount of time we need to wait for a response from the client
 // while we are in the window-probe mode.
-uint32_t probe_timeout_ms = 1;
+uint32_t probe_timeout_ms = 1000;
 
 /* ===== END GLOBALS ===== */
 
@@ -224,7 +224,7 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
 void on_sock_read_ready(void *opaque) {
   packet_t pkt;
   fprintf(stderr, "on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
-  probe_timeout_ms = 1;
+  probe_timeout_ms = 1000;
 
   // Warning: Do NOT use recv(2) here. It fails.
   memset(&pkt, 0, sizeof(pkt));
@@ -266,9 +266,9 @@ void on_select_timeout(void *opaque) {
     // We are in window probe mode.
     rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
-    probe_timeout_ms = imin(60, imax(probe_timeout_ms, 5));
+    probe_timeout_ms = imin(60000, imax(probe_timeout_ms, 5000));
   } else {
-    probe_timeout_ms = 1;
+    probe_timeout_ms = 1000;
 
     // Double the timeout.
     rtt_scale_RTO(&swin.rtt, 2);
