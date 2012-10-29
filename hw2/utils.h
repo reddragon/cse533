@@ -31,7 +31,7 @@ void* my_malloc(size_t size);
 #define TIMESTAMPMSG(TYPE, X, VARGS...) { \
                                           time_t rawtime; \
                                           time(&rawtime); \
-                                          fprintf(stderr, TYPE " [%d]: " X "\n", current_time_in_ms(), VARGS); \
+                                          fprintf(stderr, TYPE " [%d]: " X, current_time_in_ms(), VARGS); \
                                         }
  
 
