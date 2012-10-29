@@ -76,15 +76,15 @@ vector* get_all_interfaces(void) {
 }
 
 const void* is_local_interface_reducer(const void *lhs, const void *rhs) {
-  struct ifi_info *ifi = (struct ifi_info*)rhs;
   struct ifi_info *cli_ifi = (struct ifi_info*)lhs;
+  struct ifi_info *serv_ifi = (struct ifi_info*)rhs;
 
-  char rhs_addr[40], cli_addr[40];
-  strcpy(rhs_addr, Sock_ntop_host(ifi->ifi_addr, sizeof(SA)));
+  char serv_addr[40], cli_addr[40];
   strcpy(cli_addr, Sock_ntop_host(cli_ifi->ifi_addr, sizeof(SA)));
+  strcpy(serv_addr, Sock_ntop_host(serv_ifi->ifi_addr, sizeof(SA)));
 
-  INFO("[1] Comparing Server '%s' and client '%s' IP.\n", rhs_addr, cli_addr);
-  if (!strcmp(cli_addr, rhs_addr)) {
+  INFO("[1] Comparing Server '%s' and client '%s' IP.\n", serv_addr, cli_addr);
+  if (!strcmp(cli_addr, serv_addr)) {
     // They are the same.
     INFO("Server and client are on the same machine.\n", "");
     cli_ifi->ifi_myflags = 1;
@@ -103,8 +103,10 @@ const void* longest_match_reducer(const void *lhs, const void *rhs) {
 
   char serv_snaddr_str[40], cli_snaddr_str[40];
 
-  struct sockaddr *cli_snaddr =  get_subnet_addr(this_ifi->ifi_addr, ifi->ifi_ntmaddr);
-  struct sockaddr *serv_snaddr = get_subnet_addr(ifi->ifi_addr,      ifi->ifi_ntmaddr);
+  struct sockaddr *cli_snaddr  = get_subnet_addr(this_ifi->ifi_addr,
+                                                 ifi->ifi_ntmaddr);
+  struct sockaddr *serv_snaddr = get_subnet_addr(ifi->ifi_addr,
+                                                 ifi->ifi_ntmaddr);
 
   strcpy(serv_snaddr_str, Sock_ntop_host(serv_snaddr, sizeof(SA)));
   strcpy(cli_snaddr_str,  Sock_ntop_host(cli_snaddr,  sizeof(SA)));
@@ -127,7 +129,6 @@ const void* longest_match_reducer(const void *lhs, const void *rhs) {
 }
 
 
-// TODO: Copy get_conn() to client.
 // cli_sa is what we got when we did the initial recvfrom(2) from the client.
 void
 get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
@@ -168,9 +169,9 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
     return;
   }
 
-  // We could not find any local interfaces. Just choose the 1st one
-  // at random.
-  VERBOSE("cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
+  // We could not find any local interfaces that match. Let the kernel
+  // choose the outgoing interface for us.
+  VERBOSE(stderr, "cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
   conn->cli_sa  = cli_sa;
   conn->serv_sa = inet_pton_sa("0.0.0.0", 0);
 }
@@ -249,7 +250,7 @@ void on_sock_read_ready(void *opaque) {
   }
 
   // We set the updated timeout value here. If the ACK is for the
-  //oldest unACKed SEQ#, then the on_advanced_oldest_unACKed_seq()
+  // oldest unACKed SEQ#, then the on_advanced_oldest_unACKed_seq()
   // function will be called, which will update the timeout to the RTO
   // value.
   set_new_select_timeout(new_select_timeout_ms);
@@ -539,6 +540,9 @@ int main(int argc, char **argv) {
   vector_init(&interfaces, sizeof(struct ifi_info));
   vector_init(&connected_clients, sizeof(connected_client));
   read_sargs(sargs_file, &sargs);
+
+  // TODO: Call print_ifi_info().
+
   bind_udp(&sargs, &socklist);
 
   fdset fds;
