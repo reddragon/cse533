@@ -255,10 +255,20 @@ void on_sock_read_ready(void *opaque) {
   set_new_select_timeout(new_select_timeout_ms);
   swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
 
-  // TODO: Enter window probe mode HERE. We should know the value of
+  // Enter window probe mode HERE. We should know the value of
   // rwinsz and enter window probe mode here itself instead of waiting
   // for a timeout.
-
+  //
+  // Are we in window probe mode? (detected by the value of
+  // swin.rwinsz).
+  if (swin.rwinsz == 0) {
+    // We are in window probe mode.
+    fprintf(stderr, "Entering WINDOW-PROBE-MODE\n");
+    int rto = probe_timeout_ms;
+    probe_timeout_ms *= 2;
+    probe_timeout_ms = imin(60000, imax(probe_timeout_ms, 5000));
+    set_new_select_timeout(rto);
+  }
 }
 
 void on_sock_error(void *opaque) {
