@@ -56,9 +56,7 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   int adv_rwinsz = calc_adv_rwinsz(rwin);
   treap_sz = treap_size(&rwin->t_rwin);
 
-#ifdef DEBUG
-  fprintf(stderr, "adv_rwinsz: %d\n", adv_rwinsz);
-#endif
+  VERBOSE("adv_rwinsz: %d\n", adv_rwinsz);
 
   if (adv_rwinsz == 0) {
     pthread_mutex_unlock(rwin->mutex);
@@ -93,9 +91,7 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
     // We assume that the server respects the sliding window
     // size that we piggyback on the ACK.
     // Insert the packet into the treap
-#ifdef DEBUG
-    fprintf(stderr, "Inserting into treap the packet %d with datalen %d and flags %x\n", pkt->seq, pkt->datalen, pkt->flags);
-#endif
+    VERBOSE("Inserting into treap the packet %d with datalen %d and flags %x\n", pkt->seq, pkt->datalen, pkt->flags);
     treap_insert(&rwin->t_rwin, pkt->seq, (void *)pkt);
     
     int *seq = &rwin->smallest_expected_seq;
@@ -103,9 +99,7 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
       *seq = *seq + 1;
     } 
   } else {
-#ifdef DEBUG
-      fprintf(stderr, "The packet %d was already in the treap\n", pkt->seq);
-#endif
+    VERBOSE("The packet %d was already in the treap\n", pkt->seq);
   }
   treap_sz = treap_size(&rwin->t_rwin);
   

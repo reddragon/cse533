@@ -15,7 +15,7 @@ void rtt_info_init(rtt_info_t *rtt) {
 
 // Periodically update the RTO values. mRTT is in 'ms'.
 void rtt_update(rtt_info_t *rtt, int mRTT) {
-    fprintf(stderr, "rtt_update::measuredRTT(ms): %d\n", mRTT);
+    INFO("rtt_update::measuredRTT(ms): %d\n", mRTT);
     int _8mRTT = mRTT * 8;
     int _8delta = _8mRTT - rtt->_8srtt;
     if (_8delta < 0) {
@@ -46,15 +46,15 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
 }
 
 void swindow_dump(swindow *swin) {
-    fprintf(stderr, "Sending Window { ACK: %d, NACKS: %d, NEXTSEQ: %d, RWIN: %d, RBUFF:%d, NTIMEOUTS: %d, TREAPSZ: %d, isEOF: %s }\n",
-            swin->oldest_unacked_seq,
-            swin->num_acks,
-            swin->next_seq,
-            swin->rwinsz,
-            swin->rbuffsz,
-            swin->oas_num_time_outs,
-            treap_size(&swin->swin),
-            swin->isEOF ? "TRUE" : "FALSE");
+    INFO("Sending Window { ACK: %d, #ACKS: %d, NEXTSEQ: %d, RWIN: %d, RBUFF:%d, #TIMEOUTS: %d, #UNACKED: %d, isEOF: %s }\n",
+          swin->oldest_unacked_seq,
+          swin->num_acks,
+          swin->next_seq,
+          swin->rwinsz,
+          swin->rbuffsz,
+          swin->oas_num_time_outs,
+          treap_size(&swin->swin),
+          swin->isEOF ? "TRUE" : "FALSE");
 }
 
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
@@ -79,10 +79,10 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
 }
 
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
-    fprintf(stderr, "swindow_received_ACK(ACK: %d, RWINSZ: %d)\n[ENTER] ", ack, rwinsz);
+    INFO("Got (ACK: %d, RWINSZ: %d) from client\n [BEFORE] ", ack, rwinsz);
     swindow_dump(swin);
     swindow_received_ACK_real(swin, ack, rwinsz);
-    fprintf(stderr, "[LEAVE] ");
+    fprintf(stderr, "[AFTER] ");
     swindow_dump(swin);
 }
 
@@ -93,7 +93,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     // number.
     if (ack < swin->oldest_unacked_seq) {
         // Discard ACK, since we don't care.
-        fprintf(stderr, "Dsiscaring ACK: %d since it is < oldest unacked SEQ: %d\n", ack, swin->oldest_unacked_seq);
+        INFO("Discarding ACK: %d since it is < oldest unacked SEQ: %d\n", ack, swin->oldest_unacked_seq);
         return;
     }
 
@@ -207,7 +207,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
 
 // We assume that the packet with SEQ # (seq) is available in swin->swin.
 void swindow_transmit_packet(swindow *swin, int seq) {
-    fprintf(stderr, "swindow_transmit_packet(SEQ: %d)\n", seq);
+    INFO("swindow_transmit_packet(SEQ: %d)\n", seq);
     swindow_dump(swin);
     packet_t tp;
 
@@ -222,7 +222,7 @@ void swindow_transmit_packet(swindow *swin, int seq) {
         r = send(swin->fd, &tp, sizeof(tp), 0);
     }
     if (r < 0) {
-        fprintf(stderr, "Error sending data on line %d::", __LINE__);
+        INFO("Error sending data on line %d::", __LINE__);
         perror("send");
         if (seq > 1) {
             exit(1);
@@ -244,7 +244,7 @@ void swindow_transmit_packet(swindow *swin, int seq) {
 }
 
 void swindow_timed_out(swindow *swin) {
-    fprintf(stderr, "swindow_timed_out()\n");
+    INFO("swindow_timed_out()\n", "");
     swindow_dump(swin);
 
     // Sending the packet with the seq # 'oldest_unacked_seq' timed out.

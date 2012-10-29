@@ -30,13 +30,13 @@ struct client_args *cargs = NULL;
 
 void on_client_exit(void) {
   struct timeval tv;
-  printf("Failed Calls to recv(2) or recvfrom(2): %d/%d = %.2f\n"
-         "Failed Calls to send(2)               : %d/%d = %.2f\n",
-         recv_failed, recv_total, (double)recv_failed/(double)recv_total,
-         send_failed, send_total, (double)send_failed/(double)send_total);
+  INFO("Failed Calls to recv(2) or recvfrom(2): %d/%d = %.2f\n"
+        "Failed Calls to send(2)               : %d/%d = %.2f\n",
+        recv_failed, recv_total, (double)recv_failed/(double)recv_total,
+        send_failed, send_total, (double)send_failed/(double)send_total);
 
   Gettimeofday(&tv, NULL);
-  printf("Client exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+  INFO("Client exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
 }
 
 void get_conn(void) {
@@ -44,9 +44,9 @@ void get_conn(void) {
   // Check if this function is fine
   struct ifi_info *ifi_head = Get_ifi_info_plus(AF_INET, 0), *ifi;
   struct sockaddr* sa = NULL, *serv_sa = inet_pton_sa((const char *)cargs->ip_addr, cargs->serv_portno);
-  printf("Client Interfaces:\n");
+  INFO("Client Interfaces:\n", 2);
   print_ifi_info(ifi_head);
-  printf("\n");
+  INFO("\n", "");
 
   UINT longest_match_len = 0;
   // Find if the server is local to the client
@@ -125,15 +125,15 @@ void *consume_packets(rwindow *rwin) {
       treap_delete(&rwin->t_rwin, next_seq);
 #if DEBUG
       int treap_sz = treap_size(&rwin->t_rwin);
-      fprintf(stderr, "==== Read packet %d with datalen %d and flags %x, treap_sz: %d ====\n", next_seq, pkt->datalen, pkt->flags, treap_sz);
+      VERBOSE("==== Read packet %d with datalen %d and flags %x, treap_sz: %d ====\n", next_seq, pkt->datalen, pkt->flags, treap_sz);
       int ret = fwrite(pkt->data, pkt->datalen, 1, pf);
-      fprintf(stderr, "fwrite returned with ret = %d\n", ret);
+      VERBOSE("fwrite returned with ret = %d\n", ret);
 #else
       if (!(pkt->flags & FLAG_FIN)) {
-        fprintf(stdout, "\n==== BEGIN PACKET #%d DATA ===\
-                         \n%s\
-                         \n====  END PACKET #%d DATA  ===\n", 
-                        pkt->seq, pkt->data, pkt->seq);
+        INFO("\n==== BEGIN PACKET #%d DATA ===\
+              \n%s\
+              \n====  END PACKET #%d DATA  ===\n", 
+              pkt->seq, pkt->data, pkt->seq);
       }
 #endif
 
@@ -153,7 +153,7 @@ void *consume_packets(rwindow *rwin) {
     
     sleep_time = -1.0 * cargs->mean * log(drand48());
 #ifdef DEBUG
-    fprintf(stderr, "sleep_time: %lf\n", sleep_time);
+    VERBOSE("sleep_time: %lf\n", sleep_time);
 #endif
     usleep(sleep_time * 1000);
   } while (1);
@@ -217,7 +217,7 @@ void send_filename_pkt(void) {
 }
 
 void ack_timeout(void *opaque) {
-  fprintf(stderr, "Timed out %d times while waiting for first ack from server\n", syn_retries);
+  INFO("Timed out %d times while waiting for first ack from server\n", syn_retries);
   if (++syn_retries > 12) {
     exit(1);
   }
@@ -229,7 +229,7 @@ void ack_timeout(void *opaque) {
 }
 
 void resend_fin_pkt(void *opaque) {
-  fprintf(stderr, "Resending the ACK in response to the FIN\n");
+  INFO("Resending the ACK in response to the FIN\n", "");
 
   packet_t pkt;
   // Read the packet from the socket.
@@ -247,11 +247,11 @@ void resend_fin_pkt(void *opaque) {
   fds.timeout.tv_usec = (time_av_ms % 1000) * 1000;
 
   send_packet(fin_pkt);
-  fprintf(stdout, "Waiting for %d more second\n", time_av_ms/1000);
+  VERBOSE("Waiting for %d more seconds\n", time_av_ms/1000);
 }
 
 void fin_timeout(void *opaque) {
-  fprintf(stderr, "Timed out after waiting for 60 secs after getting a FIN\n");
+  INFO("Timed out after waiting for 60 secs after getting a FIN\n", "");
 
   // We should exit only when the consumer thread has finished its job
   pthread_join(tid, NULL);
@@ -293,7 +293,7 @@ void send_file(void *opaque) {
   sscanf(pkt.data, "%d", &portno);
   const char *serverIP = sa_data_str(&sa);
 
-  printf("Server endpoints {1} [%s:%d] & {2} [%s:%d]\n", serverIP, ntohs(si->sin_port), serverIP, portno);
+  INFO("Server endpoints {1} [%s:%d] & {2} [%s:%d]\n", serverIP, ntohs(si->sin_port), serverIP, portno);
 
   /*
   // Disconnect port association.
@@ -336,7 +336,7 @@ void send_file(void *opaque) {
   memset(pkt.data, 0, sizeof(pkt.data));
   sprintf(pkt.data, "ACK:%d, RWINSZ: %d", pkt.ack, pkt.rwinsz);
 
-  printf("Sending %d bytes of data to the server\n", sizeof(pkt));
+  INFO("Sending %d bytes of data to the server\n", sizeof(pkt));
   send_packet(&pkt);
 
   // Receive data from the socket till a packet with the FLAG_FIN flag
@@ -347,7 +347,7 @@ void send_file(void *opaque) {
   }
 
   while (1) {
-      fprintf(stdout, "Waiting on recv(2)...\n");
+      VERBOSE("Waiting on recv(2)...\n", "");
       int r = recv_packet(&pkt);
       if (r < 0) {
         // Handle EINTR.
@@ -359,9 +359,9 @@ void send_file(void *opaque) {
           exit(1);
         }
       }
-      fprintf(stdout, "recv(2) read %d bytes. Packet seq#: %u\n", r, pkt.seq);
+      VERBOSE("recv(2) read %d bytes. Packet seq#: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
-      fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
+      INFO("ACK Packet will be sent with ACK: %u, Window Size: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
       if (pkt.flags & FLAG_FIN) {
         fin_pkt = ack_pkt;
       } 
@@ -378,7 +378,7 @@ void send_file(void *opaque) {
           
           time_av_ms = 60*1000;
           at_select_ms = current_time_in_ms();
-          fprintf(stdout, "Entering the FIN_WAIT state\n");
+          INFO("Entering the FIN_WAIT state\n", "");
           return;
       } 
       
@@ -400,7 +400,7 @@ void initiate_tx(void) {
   // Fetch port number at which kernel bound this socket.
   Getsockname(sockfd, (SA *)&sin, &addrlen);
   cliport = ntohs(sin.sin_port);
-  printf("Client's ephemeral Port Number: %d\n", cliport);
+  INFO("Client's ephemeral Port Number: %d\n", cliport);
 
   // Connect to the server.
   Connect(sockfd, conn->serv_sa, sizeof(SA));
@@ -423,7 +423,7 @@ void initiate_tx(void) {
   fdset_add(&fds, &fds.exev, sockfd, &sockfd, handle_tx_error);
 
   // Send the packet to the server
-  fprintf(stderr, "Trying to send the SYN packet to the Server with the file name\n");
+  INFO("Trying to send the SYN packet to the Server with the file name\n", "");
   send_filename_pkt();
 
   int r = fdset_poll2(&fds);
@@ -460,11 +460,10 @@ int main(int argc, char **argv) {
   strcpy(file_name_pkt->data, cargs->file_name);
 
   get_conn();
-  printf("Server is %s\nIPServer: %s\nIPClient: %s\n", 
-          (conn->is_local ? "Local" : "Not Local"),
+  INFO("Server is %s\nIPServer: %s\nIPClient: %s\n", 
+        (conn->is_local ? "Local" : "Not Local"),
           sa_data_str(conn->serv_sa),
           sa_data_str(conn->cli_sa));
-  // printf("IPServer: %s\n", Sock_ntop(sa, sizeof(SA)));
   initiate_tx();
   return 0;
 }

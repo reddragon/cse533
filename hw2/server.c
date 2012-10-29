@@ -60,7 +60,7 @@ uint32_t probe_timeout_ms = 1000;
 void on_server_child_exit(void) {
   struct timeval tv;
   Gettimeofday(&tv, NULL);
-  printf("Server child exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+  INFO("Server child exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
 }
 
 vector* get_all_interfaces(void) {
@@ -83,10 +83,10 @@ const void* is_local_interface_reducer(const void *lhs, const void *rhs) {
   strcpy(rhs_addr, Sock_ntop_host(ifi->ifi_addr, sizeof(SA)));
   strcpy(cli_addr, Sock_ntop_host(cli_ifi->ifi_addr, sizeof(SA)));
 
-  printf("[1] Comparing Server '%s' and client '%s' IP.\n", rhs_addr, cli_addr);
+  INFO("[1] Comparing Server '%s' and client '%s' IP.\n", rhs_addr, cli_addr);
   if (!strcmp(cli_addr, rhs_addr)) {
     // They are the same.
-    printf("Server and client are on the same machine.\n");
+    INFO("Server and client are on the same machine.\n", "");
     cli_ifi->ifi_myflags = 1;
   }
   return lhs;
@@ -117,9 +117,9 @@ const void* longest_match_reducer(const void *lhs, const void *rhs) {
 
   UINT ntm_len = get_ntm_len(ifi->ifi_ntmaddr);
 
-  printf("[2] Comparing Server '%s' and Client '%s' IP. len(netmask): %d\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
+  INFO("[2] Comparing Server '%s' and Client '%s' IP. len(netmask): %d\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
   if (!strcmp(serv_snaddr_str, cli_snaddr_str) && ntm_len > this_ifi->ifi_myflags) {
-    printf("Server IP '%s' matches client IP '%s' with length '%d'\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
+    INFO("Server IP '%s' matches client IP '%s' with length '%d'\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
     this_ifi->ifi_myflags = ntm_len;
     this_ifi->ifi_brdaddr = ifi->ifi_addr;
   }
@@ -170,7 +170,7 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
 
   // We could not find any local interfaces. Just choose the 1st one
   // at random.
-  fprintf(stderr, "cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
+  VERBOSE("cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
   conn->cli_sa  = cli_sa;
   conn->serv_sa = inet_pton_sa("0.0.0.0", 0);
 }
@@ -197,7 +197,7 @@ int data_producer(void *opaque, void *vbuff, int buffsz) {
 }
 
 void on_end_cb(int status) {
-  fprintf(stderr, "on_end_cb(%s)\n", (status == TX_SUCCESS ? "SUCCESS" : "FAILURE"));
+  VERBOSE("on_end_cb(%s)\n", (status == TX_SUCCESS ? "SUCCESS" : "FAILURE"));
   if (status == TX_FAILURE) {
     exit(1);
   } else {
@@ -211,20 +211,20 @@ void set_new_select_timeout(uint32_t ms) {
   tv.tv_sec = ms / 1000;
   tv.tv_usec = (ms % 1000) * 1000;
   scfds.timeout = tv;
-  fprintf(stderr, "Setting a timeout of '%d' ms for select(2)\n", ms);
+  INFO("Setting a timeout of '%d' ms for select(2)\n", ms);
 }
 
 void on_advanced_oldest_unACKed_seq(void *opaque) {
   // We reset the timeout value when the oldest unACKed sequence # is
   // advanced.
   uint32_t rto = rtt_get_RTO(&swin.rtt);
-  fprintf(stderr, "on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
+  INFO("on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
   set_new_select_timeout(rto);
 }
 
 void on_sock_read_ready(void *opaque) {
   packet_t pkt;
-  fprintf(stderr, "on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
+  VERBOSE("on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
   probe_timeout_ms = 1000;
 
   // Warning: Do NOT use recv(2) here. It fails.
@@ -235,7 +235,7 @@ void on_sock_read_ready(void *opaque) {
     perror("recvfrom");
     return;
   }
-  fprintf(stderr, "Successfully read %d bytes\n", r);
+  VERBOSE("Successfully read %d bytes\n", r);
 
   // Decrease timeout value by the amount of time spent in the
   // select(2) system call.
@@ -263,7 +263,7 @@ void on_sock_read_ready(void *opaque) {
   // swin.rwinsz).
   if (swin.rwinsz == 0) {
     // We are in window probe mode.
-    fprintf(stderr, "Entering WINDOW-PROBE-MODE\n");
+    INFO("Entering WINDOW-PROBE-MODE\n", "");
     int rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
     probe_timeout_ms = imin(60000, imax(probe_timeout_ms, 5000));
@@ -294,7 +294,7 @@ void on_select_timeout(void *opaque) {
     rtt_scale_RTO(&swin.rtt, 2);
 
     rto = (uint32_t)rtt_get_RTO(&swin.rtt);
-    fprintf(stderr, "on_select_timeout::Updating timeout to %d ms\n", rto);
+    INFO("on_select_timeout::Updating timeout to %d ms\n", rto);
   }
 
   set_new_select_timeout(rto);
@@ -306,11 +306,11 @@ void
 start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   struct server_conn conn;
   get_conn(cli_sa, &conn);
-  printf("Client is %s\nIPServer: %s\nIPClient: %s\n", 
-         (conn.is_local ? "Local" : "Not Local"),
-         my_sock_ntop(conn.serv_sa),
-         my_sock_ntop(conn.cli_sa)
-         );
+  INFO("Client is %s\nIPServer: %s\nIPClient: %s\n", 
+        (conn.is_local ? "Local" : "Not Local"),
+        my_sock_ntop(conn.serv_sa),
+        my_sock_ntop(conn.cli_sa)
+      );
   fflush(stdout);
 
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
@@ -322,8 +322,8 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   struct sockaddr_in sin;
   UINT addrlen = sizeof(SA);
   Getsockname(sockfd, (SA *)&sin, &addrlen);
-  printf("Client: %s\n", sa_data_str(conn.cli_sa));
-  printf("Server's ephemeral Port Number: %d\n", ntohs(sin.sin_port));
+  INFO("Client: %s\n", sa_data_str(conn.cli_sa));
+  INFO("Server's ephemeral Port Number: %d\n", ntohs(sin.sin_port));
 
   fflush(stdout);
 
@@ -353,7 +353,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   // Connect this socket to the client on the original port that the
   // client sent data from.
-  printf("Client has connected from port: %d\n", ntohs(((struct sockaddr_in*)(conn.cli_sa))->sin_port));
+  INFO("Client has connected from port: %d\n", ntohs(((struct sockaddr_in*)(conn.cli_sa))->sin_port));
   Connect(sockfd, conn.cli_sa, sizeof(SA));
 
   struct timeval timeout;
@@ -403,10 +403,10 @@ bind_udp(struct server_args *sargs, vector *v) {
     vector_push_back(v, &sockfd);
 
     struct sockaddr* sn_addr = get_subnet_addr((SA *)sa, (SA *)ifi->ifi_ntmaddr);
-    printf("Bound socket on\n\taddress: %s\n\tnetwork mask: %s\n\tsubnet address: %s\n",
-           sa_data_str((SA *)sa),
-           sa_data_str((SA *)ifi->ifi_ntmaddr),
-           sa_data_str(sn_addr));
+    INFO("Bound socket on\n\taddress: %s\n\tnetwork mask: %s\n\tsubnet address: %s\n",
+        sa_data_str((SA *)sa),
+        sa_data_str((SA *)ifi->ifi_ntmaddr),
+        sa_data_str(sn_addr));
   }
 }
 
@@ -425,7 +425,7 @@ int find_connected_client(const void *lhs, const void *rhs) {
 
 void main_server_read_cb(void *opaque) {
   int fd = *(int*)opaque;
-  printf("There is a disturbance in the force at fd '%d'\n", fd);
+  VERBOSE("There is a disturbance in the force at fd '%d'\n", fd);
   char file_name[256];
   struct sockaddr cli_sa;
   memset(&cli_sa, 0, sizeof(cli_sa));
@@ -451,11 +451,11 @@ void main_server_read_cb(void *opaque) {
     return;
   }
   
-  fprintf(stderr, "Packet datalen: %d\n", pkt.datalen);
+  VERBOSE("Packet datalen: %d\n", pkt.datalen);
   assert(pkt.datalen < sizeof(pkt.data));
   pkt.data[pkt.datalen] = '\0';
   strcpy(file_name, pkt.data);
-  printf("%s:%u requested file '%s'\n", sa_data_str(&cli_sa), ntohs(cli_si->sin_port), file_name);
+  INFO("%s:%u requested file '%s'\n", sa_data_str(&cli_sa), ntohs(cli_si->sin_port), file_name);
 
   // Check if this is a re-request from an already connected client.
   connected_client cc;
@@ -511,7 +511,7 @@ void main_server_read_cb(void *opaque) {
 
 void main_server_ex_cb(void *opaque) {
   int fd = *(int*)opaque;
-  printf("Error detected on fd '%d'. Exiting...\n", fd);
+  INFO("Error detected on fd '%d'. Exiting...\n", fd);
   exit(1);
 }
 
@@ -553,7 +553,7 @@ int main(int argc, char **argv) {
     int *pfd = (int*)vector_at(&socklist, i);
     fdset_add(&fds, &fds.rev,  *pfd, pfd, main_server_read_cb);
     fdset_add(&fds, &fds.exev, *pfd, pfd, main_server_ex_cb  );
-    printf("Added FD %d to read/ex-set\n", *pfd);
+    VERBOSE("Added FD %d to read/ex-set\n", *pfd);
   }
 
   r = fdset_poll(&fds, NULL, NULL);

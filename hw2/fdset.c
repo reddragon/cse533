@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "algorithm.h"
+#include "utils.h"
 
 void fdset_init(fdset *fds, struct timeval timeout, ev_callback_t timeout_cb) {
     FD_ZERO(&fds->rfds);
@@ -105,14 +106,14 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
         for (i = 0; i < vector_size(&fds->rev); ++i) {
             select_event_t *pse = (select_event_t*)vector_at(&fds->rev, i);
             if (FD_ISSET(pse->fd, &fds->rfds)) {
-                fprintf(stdout, "FD %d is read ready\n", pse->fd);
+                VERBOSE("FD %d is read ready\n", pse->fd);
                 pse->callback(pse->opaque);
             }
         }
         for (i = 0; i < vector_size(&fds->exev); ++i) {
             select_event_t se = *(select_event_t*)vector_at(&fds->exev, i);
             if (FD_ISSET(se.fd, &fds->exfds)) {
-                fprintf(stdout, "FD %d is in ERROR\n", se.fd);
+                INFO("FD %d is in ERROR\n", se.fd);
                 // Also remove this fd from the list of ex/read events
                 // to monitor.
                 vector_erase(&fds->exev, i);
@@ -164,14 +165,14 @@ int fdset_poll2(fdset *fds) {
         for (i = 0; i < vector_size(&fds->rev); ++i) {
             select_event_t *pse = (select_event_t*)vector_at(&fds->rev, i);
             if (FD_ISSET(pse->fd, &fds->rfds)) {
-                fprintf(stdout, "FD %d is read ready\n", pse->fd);
+                VERBOSE("FD %d is read ready\n", pse->fd);
                 pse->callback(pse->opaque);
             }
         }
         for (i = 0; i < vector_size(&fds->exev); ++i) {
             select_event_t se = *(select_event_t*)vector_at(&fds->exev, i);
             if (FD_ISSET(se.fd, &fds->exfds)) {
-                fprintf(stdout, "FD %d is in ERROR\n", se.fd);
+                INFO("FD %d is in ERROR\n", se.fd);
                 // Also remove this fd from the list of ex/read events
                 // to monitor.
                 vector_erase(&fds->exev, i);
