@@ -105,13 +105,15 @@ void *consume_packets(rwindow *rwin) {
   
   srand48(cargs->rand_seed);
 
+#ifdef DEBUG
   char file_name[300];
   // Open the file for writing
   sprintf(file_name, "%s.out", "test");
 
   FILE *pf = fopen(file_name, "w");
   assert(pf);
-  
+#endif
+
   double sleep_time;
   BOOL last_pkt_found = FALSE;
   
@@ -124,11 +126,15 @@ void *consume_packets(rwindow *rwin) {
 #if DEBUG
       int treap_sz = treap_size(&rwin->t_rwin);
       fprintf(stderr, "==== Read packet %d with datalen %d and flags %x, treap_sz: %d ====\n", next_seq, pkt->datalen, pkt->flags, treap_sz);
-#endif
       int ret = fwrite(pkt->data, pkt->datalen, 1, pf);
-      // if (ret < 0) {
-#ifdef DEBUG
       fprintf(stderr, "fwrite returned with ret = %d\n", ret);
+#else
+      if (!(pkt->flags & FLAG_FIN)) {
+        fprintf(stdout, "\n==== BEGIN PACKET #%d DATA ===\
+                         \n%s\
+                         \n====  END PACKET #%d DATA  ===\n", 
+                        pkt->seq, pkt->data, pkt->seq);
+      }
 #endif
 
       if (pkt->flags & FLAG_FIN) {
@@ -151,7 +157,10 @@ void *consume_packets(rwindow *rwin) {
 #endif
     usleep(sleep_time * 1000);
   } while (1);
+
+#ifdef DEBUG
   fclose(pf);
+#endif
   return NULL;
 }
 
