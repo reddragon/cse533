@@ -207,6 +207,7 @@ void on_end_cb(int status) {
 
 void set_new_select_timeout(uint32_t ms) {
   struct timeval tv;
+  last_select_timeout_ms = ms;
   tv.tv_sec = ms / 1000;
   tv.tv_usec = (ms % 1000) * 1000;
   scfds.timeout = tv;
@@ -241,19 +242,33 @@ void on_sock_read_ready(void *opaque) {
   uint32_t current_time = current_time_in_ms();
   uint32_t select_slept_for = current_time - last_call_to_select;
   last_call_to_select = current_time;
-  last_select_timeout_ms -= select_slept_for;
-  if (last_select_timeout_ms > 500000) {
+  uint32_t new_select_timeout_ms =   last_select_timeout_ms - select_slept_for;
+  if (new_select_timeout_ms > 500000) {
     // Some unholy value (500sec).
-    last_select_timeout_ms = 0;
+    new_select_timeout_ms = 0;
   }
 
-  set_new_select_timeout(last_select_timeout_ms);
+  // We set the updated timeout value here. If the ACK is for the
+  //oldest unACKed SEQ#, then the on_advanced_oldest_unACKed_seq()
+  // function will be called, which will update the timeout to the RTO
+  // value.
+  set_new_select_timeout(new_select_timeout_ms);
   swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
 
-  // TODO: Enter window probe mode HERE. We should know the value of
+  // Enter window probe mode HERE. We should know the value of
   // rwinsz and enter window probe mode here itself instead of waiting
   // for a timeout.
-
+  //
+  // Are we in window probe mode? (detected by the value of
+  // swin.rwinsz).
+  if (swin.rwinsz == 0) {
+    // We are in window probe mode.
+    fprintf(stderr, "Entering WINDOW-PROBE-MODE\n");
+    int rto = probe_timeout_ms;
+    probe_timeout_ms *= 2;
+    probe_timeout_ms = imin(60000, imax(probe_timeout_ms, 5000));
+    set_new_select_timeout(rto);
+  }
 }
 
 void on_sock_error(void *opaque) {
@@ -357,8 +372,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   int r;
 
-  last_call_to_select    = current_time_in_ms();
-  last_select_timeout_ms = 3000;
+  last_call_to_select = current_time_in_ms();
   r = fdset_poll2(&scfds);
 }
 
