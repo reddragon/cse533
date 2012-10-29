@@ -92,9 +92,8 @@ void get_conn(void) {
     // TODO
     // The first address might be a loopback address. Can we choose it like that?
     fprintf(stderr, "sa == NULL\n");
-    conn->cli_sa = MALLOC(struct sockaddr);
-    memcpy(conn->cli_sa, ifi_head->ifi_addr, sizeof(struct sockaddr));
     conn->serv_sa = inet_pton_sa((const char *)cargs->ip_addr, cargs->serv_portno);
+    conn->cli_sa = inet_pton_sa("0.0.0.0", 0);
   }
 }
 

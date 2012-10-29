@@ -172,7 +172,7 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   // at random.
   assert(!vector_empty(ifaces));
   conn->cli_sa  = cli_sa;
-  conn->serv_sa = ((struct ifi_info*)vector_at(ifaces, 0))->ifi_addr;
+  conn->serv_sa =     conn->cli_sa = inet_pton_sa("0.0.0.0", 0);
 }
 
 // This function reads data from the file and feeds it to the
@@ -249,6 +249,11 @@ void on_sock_read_ready(void *opaque) {
 
   set_new_select_timeout(last_select_timeout_ms);
   swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
+
+  // TODO: Enter window probe mode HERE. We should know the value of
+  // rwinsz and enter window probe mode here itself instead of waiting
+  // for a timeout.
+
 }
 
 void on_sock_error(void *opaque) {
