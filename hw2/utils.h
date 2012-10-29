@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "unpifiplus.h"
 
 #define UINT unsigned int
@@ -26,6 +27,21 @@ void* my_malloc(size_t size);
 
 #define imax(X,Y) ((X)>(Y)?(X):(Y))
 #define imin(X,Y) ((X)<(Y)?(X):(Y))
+
+#define TIMESTAMPMSG(TYPE, X, VARGS...) { \
+                                          time_t rawtime; \
+                                          time(&rawtime); \
+                                          fprintf(stderr, TYPE " [%d]: " X "\n", current_time_in_ms(), VARGS); \
+                                        }
+ 
+
+#ifdef DEBUG
+#define VERBOSE(X, VARGS...) TIMESTAMPMSG("VERBOSE", X, VARGS)
+#else
+#define VERBOSE(X...)
+#endif
+
+#define INFO(X, VARGS...) TIMESTAMPMSG("INFO", X, VARGS)
 
 
 typedef struct client_args {
