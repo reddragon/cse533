@@ -217,8 +217,8 @@ void send_filename_pkt(void) {
 }
 
 void ack_timeout(void *opaque) {
-  INFO("Timed out %d times while waiting for first ack from server\n", syn_retries);
-  if (++syn_retries > 12) {
+  INFO("Timed out %d times while waiting for first ack from server\n", ++syn_retries);
+  if (syn_retries > 12) {
     exit(1);
   }
 
