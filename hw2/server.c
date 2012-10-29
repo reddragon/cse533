@@ -170,9 +170,9 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
 
   // We could not find any local interfaces. Just choose the 1st one
   // at random.
-  assert(!vector_empty(ifaces));
+  fprintf(stderr, "cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
   conn->cli_sa  = cli_sa;
-  conn->serv_sa =     conn->cli_sa = inet_pton_sa("0.0.0.0", 0);
+  conn->serv_sa = conn->cli_sa = inet_pton_sa("0.0.0.0", 0);
 }
 
 // This function reads data from the file and feeds it to the
