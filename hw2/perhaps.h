@@ -9,6 +9,9 @@
 // behaves erratically.
 
 void perhaps_init(void);
+#ifdef DEBUG
+int perhaps_rarely_send(int fd, const void *data, int len, int flags);
+#endif
 int perhaps_send(int fd, const void *data, int len, int flags);
 int perhaps_recv(int fd, void *data, int len, int flags);
 int perhaps_recvfrom(int fd, void *data, int len, int flags,

@@ -19,7 +19,9 @@ int recv_total = 0;       // Total calls to recv(2) or recvfrom(2)
 int recv_failed = 0;      // # of calls to recv(2) or recvfrom(2) that failed
 int send_total = 0;       // Total calls to send(2)
 int send_failed = 0;      // # of calls to send(2) that failed
-
+fdset fds;                // fdset for the client socket
+uint32_t time_av_ms;      // Time available for select(2)    
+uint32_t at_select_ms;    // Time available for select(2)    
 
 // The arguments read from the client.in file
 struct client_args *cargs = NULL;
@@ -169,7 +171,16 @@ void send_packet(packet_t *pkt) {
 #endif
   packet_t tp = *pkt;
   packet_hton(&tp, pkt);
+#ifdef DEBUG
+  int r;
+  if (pkt == fin_pkt) {
+     r = perhaps_rarely_send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+  } else {
+     r = perhaps_send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+  }
+#else
   int r = perhaps_send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+#endif
   if (r < 0 && errno == EINTR) {
     return;
   } else if (r < 0) {
@@ -200,6 +211,17 @@ void ack_timeout(void *opaque) {
 
 void resend_fin_pkt(void *opaque) {
   fprintf(stderr, "Resending the ACK in response to the FIN\n");
+  uint32_t cur_ms = current_time_in_ms();
+  uint32_t elapsed_ms = cur_ms - at_select_ms;
+  if (elapsed_ms <= time_av_ms) {
+    time_av_ms -= elapsed_ms;
+    at_select_ms = cur_ms;
+  } else {
+    time_av_ms = 0;
+  }
+  fds.timeout.tv_sec = time_av_ms / 1000;
+  fds.timeout.tv_sec = (time_av_ms % 1000) * 1000;
+
   send_packet(fin_pkt);
 }
 
@@ -303,41 +325,31 @@ void send_file(void *opaque) {
       fprintf(stdout, "recv(2) read %d bytes. Packet seq#: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
       fprintf(stdout, "ack_pkt will be sent with ack: %u, rwinsz: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
+      if (pkt.flags & FLAG_FIN) {
+        fin_pkt = ack_pkt;
+      } 
+
       send_packet(ack_pkt);
       
       if (pkt.flags & FLAG_FIN) {
           // Here goes the special logic for dealing with FIN
-          fin_pkt = ack_pkt;
           
-          fdset fds;
-          
+          /*
           struct timeval init_time, cur_time, timeout;
           Gettimeofday(&init_time, NULL);
           int init_time_ms, cur_time_ms, time_left_ms;
           init_time_ms = init_time.tv_sec * 1000 + init_time.tv_usec / 1000;
+          */
 
-          do {
-            Gettimeofday(&cur_time, NULL);
-            cur_time_ms = cur_time.tv_sec * 1000 + cur_time.tv_usec / 1000;
-            time_left_ms = (cur_time_ms - init_time_ms) + 60*1000;
-            fprintf(stderr, "Waiting for %d seconds after receiving a FIN\n", time_left_ms / 1000);
-            get_timeval(&timeout, time_left_ms);
-            
-            fdset_init(&fds, timeout, fin_timeout);
-            fdset_add(&fds, &fds.rev, sockfd, &sockfd, resend_fin_pkt);
-            int r = fdset_poll(&fds, &timeout, fin_timeout);
-
-            // Handle EINTR.
-            if (r < 0) {
-              perror("select");
-              assert(errno != EINTR);
-              exit(1);
-            }
-
-          } while(1);
+          fdset_remove(&fds, &fds.rev, sockfd);
+          fds.timeout_cb = fin_timeout;
+          fdset_add(&fds, &fds.rev, sockfd, &sockfd, resend_fin_pkt);
+          fds.timeout.tv_sec = 60;
+          fds.timeout.tv_usec = 0;
           
-
-          break;
+          time_av_ms = 60*1000;
+          at_select_ms = current_time_in_ms();
+          return;
       } 
       
       free(ack_pkt);
@@ -377,7 +389,6 @@ void initiate_tx(void) {
   
   int syn_retries = 0;
     
-  fdset fds;
   struct timeval timeout;
   timeout.tv_sec = 6;
   timeout.tv_usec = 0;
@@ -396,7 +407,7 @@ void initiate_tx(void) {
     // Send the packet to the server
     send_filename_pkt();
     
-    int r = fdset_poll(&fds, &timeout, ack_timeout);
+    int r = fdset_poll2(&fds);
     // Handle EINTR.
     if (r < 0) {
       perror("select");
@@ -418,7 +429,8 @@ int main(int argc, char **argv) {
   if (read_cargs((const char *)cargs_file, cargs)) {
       exit(1);
   }
-
+  
+  utils_init();
   perhaps_init();
   conn = MALLOC(client_conn);
   file_name_pkt = MALLOC(packet_t);

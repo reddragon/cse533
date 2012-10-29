@@ -22,6 +22,24 @@ void perhaps_init(void) {
     perhaps_inited = TRUE;
 }
 
+#ifdef DEBUG
+int perhaps_rarely_send(int fd, const void *data, int len, int flags) {
+    assert(perhaps_inited == TRUE);
+    fprintf(stderr, "perhaps_rarely_send() called\n");
+    ++send_total;
+    double rn = drand48();
+    if (rn <= 0.9) {
+        // Silently drop the packet.
+        fprintf(stderr, "perhaps_rarely_send::Dropping packet.\n");
+        ++send_failed;
+        return len;
+    }
+    // Actually send the data.
+    int r = send(fd, data, len, flags);
+    return r;
+}
+#endif
+
 int perhaps_send(int fd, const void *data, int len, int flags) {
     assert(perhaps_inited == TRUE);
     ++send_total;
