@@ -18,6 +18,9 @@ void rtt_update(rtt_info_t *rtt, int mRTT) {
     fprintf(stderr, "rtt_update::measuredRTT(ms): %d\n", mRTT);
     int _8mRTT = mRTT * 8;
     int _8delta = _8mRTT - rtt->_8srtt;
+    if (_8delta < 0) {
+        _8delta = -_8delta;
+    }
     rtt->_8srtt += (_8delta / 8);
     rtt->_8rttvar = (3 * (rtt->_8rttvar) + _8delta) / 4;
     rtt->_8rto = rtt->_8srtt + (4 * rtt->_8rttvar);
