@@ -7,6 +7,7 @@
 #include "rwindow.h"
 #include "fdset.h"
 #include "perhaps.h"
+#include "algorithm.h"
 
 client_args *cargs;       // The client args
 client_conn *conn;        // The client connection struct
@@ -24,7 +25,9 @@ uint32_t at_select_ms;    // Time available for select(2)
 rwindow rwin;             // The receiving window
 pthread_t tid;            // The consumer thread
 int syn_retries = 0;      // The # of times we re-tried sending the file name packet. We quit after successive 12 timeouts
-    
+vector interfaces;        // Stores information for the interfaces in this machine
+
+
 // The arguments read from the client.in file
 struct client_args *cargs = NULL;
 
@@ -39,62 +42,115 @@ void on_client_exit(void) {
   INFO("Client exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
 }
 
-void get_conn(void) {
-  // TODO
-  // Check if this function is fine
-  struct ifi_info *ifi_head = Get_ifi_info_plus(AF_INET, 0), *ifi;
-  struct sockaddr* sa = NULL, *serv_sa = inet_pton_sa((const char *)cargs->ip_addr, cargs->serv_portno);
-  INFO("Client Interfaces:\n", 2);
-  print_ifi_info(ifi_head);
-  INFO("\n", "");
+vector* get_all_interfaces(void) {
+  if (!vector_empty(&interfaces)) {
+    return &interfaces;
+  }
+  struct ifi_info *ifi, *ifi_head = Get_ifi_info_plus(AF_INET, 0);
 
-  UINT longest_match_len = 0;
-  // Find if the server is local to the client
-  conn->is_local = FALSE;
   for (ifi = ifi_head; ifi != NULL; ifi = ifi->ifi_next) {
-    char *if_addr_str = Sock_ntop(ifi->ifi_addr, sizeof(SA));
-    
-    // printf("Address: %s NTM: %s NTM Len: %d\n", if_addr_str, sa_data_str(ifi->ifi_ntmaddr), get_ntm_len(ifi->ifi_ntmaddr));
+    vector_push_back(&interfaces, ifi);
+  }
+  return &interfaces;
+}
 
-    // If we found the same IP being used by one of the interfaces,
-    // then we simply say that the server is local, marshal the
-    // client connection structure properly, and return.
-    if (!strcmp(if_addr_str, cargs->ip_addr)) {
-      // printf("Server address: %s, is local\n", cargs->ip_addr);
-      conn->is_local = TRUE;
-      conn->serv_sa = inet_pton_sa("127.0.0.1", cargs->serv_portno);
-      conn->cli_sa = inet_pton_sa("127.0.0.1", 0);
-      break;
-    }
-    
-    // Now check if (server's IP addr & server network mask) is the
-    // same as (client's IP addr & client network mask). If yes,
-    // store it. (Only if the prefix match is longer than any
-    // previous prefix match found, thus far.
-    struct sockaddr *serv_snaddr = get_subnet_addr(serv_sa, ifi->ifi_ntmaddr);
-    char *serv_snaddr_str = sa_data_str(serv_snaddr);
-    struct sockaddr *cli_snaddr = get_subnet_addr(ifi->ifi_addr, ifi->ifi_ntmaddr);
-    char *cli_snaddr_str = sa_data_str(cli_snaddr);
-    UINT ntm_len = get_ntm_len(ifi->ifi_ntmaddr);
-    
-    // printf("ntm: %s serv_snaddr: %s, cli_snaddr: %s\n", sa_data_str(ifi->ifi_ntmaddr), serv_snaddr_str, cli_snaddr_str);
-    if (!strcmp(serv_snaddr_str, cli_snaddr_str) && ntm_len > longest_match_len) {
-      longest_match_len = ntm_len;
-      conn->is_local = TRUE;
-      conn->serv_sa = inet_pton_sa("127.0.0.1", cargs->serv_portno);
-      conn->cli_sa = inet_pton_sa("127.0.0.1", 0);
-      break;
-    }
+const void* is_local_interface_reducer(const void *lhs, const void *rhs) {
+  struct ifi_info *serv_ifi = (struct ifi_info*)lhs;
+  struct ifi_info *cli_ifi = (struct ifi_info*)rhs;
+
+  char serv_addr[40], cli_addr[40];
+  strcpy(cli_addr,  Sock_ntop_host(cli_ifi->ifi_addr,  sizeof(SA)));
+  strcpy(serv_addr, Sock_ntop_host(serv_ifi->ifi_addr, sizeof(SA)));
+
+  printf("[1] Comparing Client '%s' and server '%s' IP.\n", cli_addr, serv_addr);
+  if (!strcmp(cli_addr, serv_addr)) {
+    // They are the same.
+    printf("Server and client are on the same machine.\n");
+    serv_ifi->ifi_myflags = 1;
   }
-  
-  if (sa == NULL) {
-    conn->is_local = FALSE;
-    // TODO
-    // The first address might be a loopback address. Can we choose it like that?
-    conn->serv_sa = inet_pton_sa((const char*)cargs->ip_addr,
-                                 cargs->serv_portno);
-    conn->cli_sa = inet_pton_sa("0.0.0.0", 0);
+  return lhs;
+}
+
+const void* longest_match_reducer(const void *lhs, const void *rhs) {
+  struct ifi_info *ifi = (struct ifi_info*)rhs;
+  struct ifi_info *this_ifi = (struct ifi_info*)lhs;
+
+  // Now check if (server's IP addr & server network mask) is the
+  // same as (client's IP addr & client network mask). If yes,
+  // store it. (Only if the prefix match is longer than any
+  // previous prefix match found, thus far).
+
+  char serv_snaddr_str[40], cli_snaddr_str[40];
+
+  struct sockaddr *serv_snaddr = get_subnet_addr(this_ifi->ifi_addr,
+                                                 ifi->ifi_ntmaddr);
+  struct sockaddr *cli_snaddr  = get_subnet_addr(ifi->ifi_addr,
+                                                 ifi->ifi_ntmaddr);
+
+  strcpy(serv_snaddr_str, Sock_ntop_host(serv_snaddr, sizeof(SA)));
+  strcpy(cli_snaddr_str,  Sock_ntop_host(cli_snaddr,  sizeof(SA)));
+
+  free(cli_snaddr);
+  free(serv_snaddr);
+
+  // this_ifi->ifi_myflags stores the length of the longet prefix, and
+  // this_ifi->ifi_brdaddr stores the actual entry that is the longest.
+
+  UINT ntm_len = get_ntm_len(ifi->ifi_ntmaddr);
+
+  printf("[2] Comparing Server '%s' and Client '%s' IP. len(netmask): %d\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
+  if (!strcmp(serv_snaddr_str, cli_snaddr_str) && ntm_len > this_ifi->ifi_myflags) {
+    printf("Server IP '%s' matches client IP '%s' with length '%d'\n", serv_snaddr_str, cli_snaddr_str, ntm_len);
+    this_ifi->ifi_myflags = ntm_len;
+    this_ifi->ifi_brdaddr = ifi->ifi_addr;
   }
+  return lhs;
+}
+
+void get_conn(client_conn *conn) {
+  const char *server_ip = (const char*)cargs->ip_addr;
+  int server_port = cargs->serv_portno;
+  struct sockaddr *serv_sa = inet_pton_sa(server_ip, server_port);
+
+  vector *ifaces = get_all_interfaces();
+  struct ifi_info serv_ifi;
+
+  memset(&serv_ifi, 0, sizeof(serv_ifi));
+  serv_ifi.ifi_addr = serv_sa;
+  conn->is_local = FALSE;
+
+  // Check if the server is on the same machine as the client.
+  algorithm_reduce(ifaces, is_local_interface_reducer, &serv_ifi);
+
+  // serv_ifi.ifi_myflags is == 1 if the client & server share an IP
+  // address.
+  if (serv_ifi.ifi_myflags) {
+    // Client & server are on the same machine.
+    conn->is_local = TRUE;
+    conn->cli_sa  = inet_pton_sa("127.0.0.1", 0);
+    conn->serv_sa = inet_pton_sa("127.0.0.1", server_port);
+    return;
+  }
+
+  serv_ifi.ifi_myflags = 0; // The length of the longest match.
+  algorithm_reduce(ifaces, longest_match_reducer, &serv_ifi);
+
+  if (serv_ifi.ifi_brdaddr) {
+    conn->is_local = TRUE;
+    conn->serv_sa  = serv_sa;
+    char client_ip[40];
+    strcpy(client_ip, Sock_ntop_host(serv_ifi.ifi_brdaddr, sizeof(SA)));
+
+    // Client bind(2)s to port 0 (locally).
+    conn->cli_sa = inet_pton_sa(client_ip, 0);
+    return;
+  }
+
+  // We could not find any local interfaces that match. Let the kernel
+  // choose the outgoing interface for us.
+  fprintf(stderr, "serv_sa: %s\n", Sock_ntop(serv_sa, sizeof(*serv_sa)));
+  conn->cli_sa  = inet_pton_sa("0.0.0.0", 0);
+  conn->serv_sa = serv_sa;
 }
 
 void *consume_packets(rwindow *rwin) {
@@ -446,9 +502,12 @@ int main(int argc, char **argv) {
   
   utils_init();
   perhaps_init();
+  vector_init(&interfaces, sizeof(struct ifi_info));
 
   // Initialize the receiving window
   rwindow_init(&rwin, cargs->sw_size);
+
+  // TODO: Call print_ifi_info().
 
   conn = MALLOC(client_conn);
   file_name_pkt = MALLOC(packet_t);
@@ -459,11 +518,11 @@ int main(int argc, char **argv) {
   file_name_pkt->datalen = strlen(cargs->file_name);
   strcpy(file_name_pkt->data, cargs->file_name);
 
-  get_conn();
+  get_conn(conn);
   INFO("Server is %s\nIPServer: %s\nIPClient: %s\n", 
-        (conn->is_local ? "Local" : "Not Local"),
-          sa_data_str(conn->serv_sa),
-          sa_data_str(conn->cli_sa));
+       (conn->is_local ? "Local" : "Not Local"),
+       sa_data_str(conn->serv_sa),
+       sa_data_str(conn->cli_sa));
   initiate_tx();
   return 0;
 }
