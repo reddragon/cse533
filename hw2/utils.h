@@ -89,6 +89,7 @@ struct ifi_info * Get_ifi_info_plus(int family, int doaliases);
 void print_ifi_info(struct ifi_info *ifi);
 struct sockaddr* get_subnet_addr(struct sockaddr *addr, struct sockaddr *ntm);
 char *sa_data_str(struct sockaddr *sa);
+char *my_sock_ntop(struct sockaddr *sa);
 UINT get_ntm_len(struct sockaddr *ntm);
 struct sockaddr *inet_pton_sa(const char *ip_addr, UINT portno);
 #endif

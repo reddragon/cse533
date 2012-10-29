@@ -174,6 +174,15 @@ sa_data_str(struct sockaddr *sa) {
     return str;
 }
 
+char *
+my_sock_ntop(struct sockaddr *sa) {
+    char *str = (char *)calloc(40, sizeof(char));
+    assert(str);
+    strcpy(str, Sock_ntop(sa, sizeof(*sa)));
+    return str;
+}
+
+
 struct sockaddr *
 inet_pton_sa(const char *ip_addr, UINT portno) {
     struct sockaddr *sa    = MALLOC(struct sockaddr);

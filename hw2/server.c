@@ -292,9 +292,12 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   struct server_conn conn;
   get_conn(cli_sa, &conn);
   printf("Client is %s\nIPServer: %s\nIPClient: %s\n", 
-    (conn.is_local ? "Local" : "Not Local"),
-    sa_data_str(conn.serv_sa),
-    sa_data_str(conn.cli_sa));
+         (conn.is_local ? "Local" : "Not Local"),
+         my_sock_ntop(conn.serv_sa),
+         my_sock_ntop(conn.cli_sa)
+         );
+  fflush(stdout);
+
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
 
   set_non_blocking(sockfd);
@@ -306,6 +309,8 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   Getsockname(sockfd, (SA *)&sin, &addrlen);
   printf("Client: %s\n", sa_data_str(conn.cli_sa));
   printf("Server's ephemeral Port Number: %d\n", ntohs(sin.sin_port));
+
+  fflush(stdout);
 
   // Start a timer after sending the first packet. If the ACK
   // times out, we re-send the port number on both sockets so that the
