@@ -172,7 +172,7 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
   // at random.
   fprintf(stderr, "cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
   conn->cli_sa  = cli_sa;
-  conn->serv_sa = conn->cli_sa = inet_pton_sa("0.0.0.0", 0);
+  conn->serv_sa = inet_pton_sa("0.0.0.0", 0);
 }
 
 // This function reads data from the file and feeds it to the
