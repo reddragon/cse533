@@ -286,6 +286,7 @@ void send_file(void *opaque) {
 
   printf("Server endpoints {1} [%s:%d] & {2} [%s:%d]\n", serverIP, ntohs(si->sin_port), serverIP, portno);
 
+  /*
   // Disconnect port association.
   sa.sa_family = AF_UNSPEC;
   Connect(sockfd, &sa, sizeof(SA));
@@ -298,6 +299,20 @@ void send_file(void *opaque) {
   memcpy(&cli_sa, conn->cli_sa, sizeof(struct sockaddr));
   cli_si->sin_port = htons(cliport);
   Bind(sockfd, &cli_sa, (socklen_t)sizeof(struct sockaddr_in));
+  */
+
+  // We open a new socket and dup2() since nothing else seems to be
+  // working on both Linux as well as Solaris.
+  int new_sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+  dup2(new_sockfd, sockfd);
+
+  // Bind to the port we were originally bound to, and connect this
+  // socket to the new port number that the server sent us.
+  struct sockaddr_in cli_si;
+  memset(&cli_si, 0, sizeof(cli_si));
+  memcpy(&cli_si, conn->cli_sa, sizeof(struct sockaddr));
+  cli_si.sin_port = htons(cliport);
+  Bind(sockfd, (struct sockaddr*)&cli_si, (socklen_t)sizeof(struct sockaddr_in));
 
   sa = *(conn->serv_sa);
   si->sin_port = htons(portno);
