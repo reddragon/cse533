@@ -5,8 +5,9 @@
 // Initialize the receiving window for the client
 void rwindow_init(rwindow *rwin, int rwinsz) {
   treap_init(&rwin->t_rwin);
-  // TODO Fix. The smallest packet to expect should be 2.
-  rwin->smallest_expected_seq = 1; 
+
+  // The smallest packet expected has SEQ #1.
+  rwin->smallest_expected_seq = 1;
   rwin->rwinsz = rwinsz;
   rwin->last_read_seq = -1;
   rwin->mutex = MALLOC(pthread_mutex_t);
@@ -43,10 +44,9 @@ int calc_adv_rwinsz(rwindow *rwin) {
 
 // Returns a well-formed acknowledgement packet 
 packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) { 
-  // TODO
-  // Do not discard packet if we do not have space on the receiving
-  // window.
-  
+  // Respond to the packet and then discard it if we do not have space
+  // on the receiving window.
+
   int treap_sz;
   packet_t *pkt, *ack_pkt;
   // We wont be frugal here
@@ -59,7 +59,6 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   VERBOSE("adv_rwinsz: %d\n", adv_rwinsz);
 
   if (adv_rwinsz == 0) {
-    pthread_mutex_unlock(rwin->mutex);
 
     // This is basically saying to the server:
     // "I don't know what you are sending me, but I want
@@ -68,6 +67,10 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
     ack_pkt->ack = rwin->smallest_expected_seq;
     ack_pkt->flags = FLAG_ACK;
     ack_pkt->datalen = 0;
+
+    // Lock when accessing rwin->ANYTHING.
+    pthread_mutex_unlock(rwin->mutex);
+
     return ack_pkt;
   }
   
@@ -77,23 +80,25 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   
   // Check if this is a duplicate packet, which was already
   // received. We can find this out in two ways:
+  //
   // 1. Either the packet already exists in the treap. In this
-  //   case, it is clearly a duplicate
+  //    case, it is clearly a duplicate
+  //
   // 2. Or, the packet's seq is lesser than the smallest_expected_seq.
-  //   In this case, we would have definitely read this packet from
-  //   the sliding window, since (1) is not true.
+  //    In this case, we would have definitely read this packet from
+  //    the sliding window, since (1) is not true.
+  //
 
   // If neither (1), nor (2) is true. Which means, we have
   // a new packet in our hands.
   if (!((treap_find(&rwin->t_rwin, pkt->seq)) || 
       (pkt->seq < rwin->smallest_expected_seq))) {
-    // TODO
-    // We assume that the server respects the sliding window
-    // size that we piggyback on the ACK.
+
     // Insert the packet into the treap
-    VERBOSE("Inserting into treap the packet %d with datalen %d and flags %x\n", pkt->seq, pkt->datalen, pkt->flags);
+    VERBOSE("Inserting into treap the packet %d with datalen %d and flags %x\n",
+	    pkt->seq, pkt->datalen, pkt->flags);
     treap_insert(&rwin->t_rwin, pkt->seq, (void *)pkt);
-    
+
     int *seq = &rwin->smallest_expected_seq;
     while (treap_find(&rwin->t_rwin, *seq)) {
       *seq = *seq + 1;
@@ -129,9 +134,10 @@ packet_t *read_packet(rwindow *rwin) {
   }
   
   treap_delete(&rwin->t_rwin, next_seq);
-  pthread_mutex_unlock(rwin->mutex);
   
   rwin->last_read_seq = rwin->last_read_seq + 1;
+  pthread_mutex_unlock(rwin->mutex);
+
   return (packet_t *)(tn->data);
 }
 

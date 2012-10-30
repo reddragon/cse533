@@ -8,6 +8,7 @@
 #include "fdset.h"
 #include "perhaps.h"
 #include "algorithm.h"
+#include "email.h"
 
 client_args *cargs;       // The client args
 client_conn *conn;        // The client connection struct
@@ -33,13 +34,16 @@ struct client_args *cargs = NULL;
 
 void on_client_exit(void) {
   struct timeval tv;
-  INFO("Failed Calls to recv(2) or recvfrom(2): %d/%d = %.2f\n"
-        "Failed Calls to send(2)               : %d/%d = %.2f\n",
-        recv_failed, recv_total, (double)recv_failed/(double)recv_total,
-        send_failed, send_total, (double)send_failed/(double)send_total);
+  VERBOSE("Failed Calls to recv(2) or recvfrom(2): %d/%d = %.2f\n",
+          recv_failed, recv_total, (double)recv_failed/(double)recv_total);
+  VERBOSE("Failed Calls to send(2)               : %d/%d = %.2f\n",
+          send_failed, send_total, (double)send_failed/(double)send_total);
 
   Gettimeofday(&tv, NULL);
-  INFO("Client exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+  time_t currtime;
+  char str_time[40];
+  strftime(str_time, 40, "%T", localtime(&currtime));
+  INFO("Client exited at %s.%03u\n", str_time, (unsigned int)tv.tv_usec/1000);
 }
 
 vector* get_all_interfaces(void) {
@@ -154,12 +158,9 @@ void get_conn(client_conn *conn) {
 }
 
 void *consume_packets(rwindow *rwin) {
-  // TODO First packet number that we receive is 2. We should
-  // fix this.
+  // First packet number that we receive is one with SEQ #1
   int next_seq = 1;
   packet_t *pkt;
-  
-  srand48(cargs->rand_seed);
 
 #ifdef DEBUG
   char file_name[300];
@@ -167,7 +168,7 @@ void *consume_packets(rwindow *rwin) {
   sprintf(file_name, "%s.out", "test");
 
   FILE *pf = fopen(file_name, "w");
-  assert(pf);
+  ASSERT(pf);
 #endif
 
   double sleep_time;
@@ -186,10 +187,10 @@ void *consume_packets(rwindow *rwin) {
       VERBOSE("fwrite returned with ret = %d\n", ret);
 #else
       if (!(pkt->flags & FLAG_FIN)) {
-        INFO("\n==== BEGIN PACKET #%d DATA ===\
-              \n%s\
-              \n====  END PACKET #%d DATA  ===\n", 
-              pkt->seq, pkt->data, pkt->seq);
+        INFO("\n==== BEGIN PACKET #%d DATA ==="
+             "\n%s"
+             "\n====  END PACKET #%d DATA  ===\n",
+             pkt->seq, pkt->data, pkt->seq);
       }
 #endif
 
@@ -241,12 +242,12 @@ void send_packet(packet_t *pkt) {
 #ifdef DEBUG
   int r;
   if (pkt == fin_pkt) {
-     r = perhaps_rarely_send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+     r = perhaps_rarely_send(sockfd, (void *)&tp, packet_len, 0);
   } else {
-     r = perhaps_send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+     r = perhaps_send(sockfd, (void *)&tp, packet_len, 0);
   }
 #else
-  int r = perhaps_send(sockfd, (void *)&tp, packet_len, conn->is_local ? MSG_DONTROUTE : 0);
+  int r = perhaps_send(sockfd, (void *)&tp, packet_len, 0);
 #endif
   if (r < 0 && errno == EINTR) {
     return;
@@ -285,7 +286,7 @@ void ack_timeout(void *opaque) {
 }
 
 void resend_fin_pkt(void *opaque) {
-  INFO("Resending the ACK in response to the FIN\n", "");
+  INFO("Resending the ACK in response to the FIN%s\n", "");
 
   packet_t pkt;
   // Read the packet from the socket.
@@ -303,11 +304,11 @@ void resend_fin_pkt(void *opaque) {
   fds.timeout.tv_usec = (time_av_ms % 1000) * 1000;
 
   send_packet(fin_pkt);
-  VERBOSE("Waiting for %d more seconds\n", time_av_ms/1000);
+  INFO("Waiting for %d more seconds in the FIN_WAIT state\n", time_av_ms/1000);
 }
 
 void fin_timeout(void *opaque) {
-  INFO("Timed out after waiting for 60 secs after getting a FIN\n", "");
+  INFO("Timed out after waiting for 60 secs after getting a FIN%s\n", "");
 
   // We should exit only when the consumer thread has finished its job
   pthread_join(tid, NULL);
@@ -333,8 +334,9 @@ void send_file(void *opaque) {
   packet_t pkt;
   int r;
   r = perhaps_recvfrom(sockfd, (void*)&pkt, sizeof(pkt), 0, &sa, &sa_sz);
+
   if (r < 0) {
-    if (errno == EINTR) {
+    if (errno == EINTR || errno == ECONNREFUSED) {
       // We return from this function in the hope that the next time
       // 'sockfd' is read ready, we will be invoked again.
       return;
@@ -370,6 +372,9 @@ void send_file(void *opaque) {
   // working on both Linux as well as Solaris.
   int new_sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
   dup2(new_sockfd, sockfd);
+  if (conn->is_local) {
+    set_dontroute(sockfd);
+  }
 
   // Bind to the port we were originally bound to, and connect this
   // socket to the new port number that the server sent us.
@@ -403,7 +408,7 @@ void send_file(void *opaque) {
   }
 
   while (1) {
-      VERBOSE("Waiting on recv(2)...\n", "");
+      VERBOSE("Waiting on recv(2)...%s\n", "");
       int r = recv_packet(&pkt);
       if (r < 0) {
         // Handle EINTR.
@@ -434,7 +439,7 @@ void send_file(void *opaque) {
           
           time_av_ms = 60*1000;
           at_select_ms = current_time_in_ms();
-          INFO("Entering the FIN_WAIT state\n", "");
+          INFO("Entering the TIME_WAIT state%s\n", "");
           return;
       } 
       
@@ -446,6 +451,9 @@ void send_file(void *opaque) {
 // Connect to the server, and send the first datagram
 void initiate_tx(void) {
   sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+  if (conn->is_local) {
+    set_dontroute(sockfd);	
+  }
 
   // Bind to port 0
   Bind(sockfd, conn->cli_sa, (socklen_t)sizeof(SA));
@@ -464,11 +472,9 @@ void initiate_tx(void) {
   // TODO
   // Do we need getpeername here?
   
-  // Sending the file name to the server
-  // Q. Do we need to pass the conn->serv_sa here?
+  // Start a timer here to re-send the file name till we receive an
+  // ACK.
 
-  // Start a timer here to re-send the file name till we receive an ACK.
-  
   struct timeval timeout;
   timeout.tv_sec = 3;
   timeout.tv_usec = 0;
@@ -479,13 +485,13 @@ void initiate_tx(void) {
   fdset_add(&fds, &fds.exev, sockfd, &sockfd, handle_tx_error);
 
   // Send the packet to the server
-  INFO("Trying to send the SYN packet to the Server with the file name\n", "");
+  INFO("Trying to send the SYN packet to the Server with the file name%s\n", "");
   send_filename_pkt();
 
   int r = fdset_poll2(&fds);
   if (r < 0) {
     perror("select");
-    assert(errno != EINTR);
+    ASSERT(errno != EINTR);
     exit(1);
   }
 }
@@ -493,7 +499,6 @@ void initiate_tx(void) {
 int main(int argc, char **argv) {
   atexit(on_client_exit);
 
-  assert(argc == 1);
   const char *cargs_file = CARGS_FILE;
   cargs = MALLOC(client_args);
   if (read_cargs((const char *)cargs_file, cargs)) {
@@ -507,7 +512,10 @@ int main(int argc, char **argv) {
   // Initialize the receiving window
   rwindow_init(&rwin, cargs->sw_size);
 
-  // TODO: Call print_ifi_info().
+  get_all_interfaces();
+
+  // Call print_ifi_info().
+  print_ifi_info((struct ifi_info*)vector_at(&interfaces, 0));
 
   conn = MALLOC(client_conn);
   file_name_pkt = MALLOC(packet_t);

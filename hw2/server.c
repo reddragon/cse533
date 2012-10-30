@@ -55,12 +55,24 @@ uint32_t last_select_timeout_ms = 0;
 // while we are in the window-probe mode.
 uint32_t probe_timeout_ms = 1000;
 
+// The server_conn struct
+struct server_conn conn;
+
+// The file name
+char requested_file[200];
+
 /* ===== END GLOBALS ===== */
+
+void on_got_SIGCHLD(int x);
 
 void on_server_child_exit(void) {
   struct timeval tv;
   Gettimeofday(&tv, NULL);
-  INFO("Server child exited at %u:%u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec);
+  time_t currtime;
+  char str_time[40];
+  strftime(str_time, 40, "%T", localtime(&currtime));
+  INFO("Server child exited at %s:%03u\n",
+       str_time, (unsigned int)tv.tv_usec / 1000);
 }
 
 vector* get_all_interfaces(void) {
@@ -86,7 +98,7 @@ const void* is_local_interface_reducer(const void *lhs, const void *rhs) {
   INFO("[1] Comparing Server '%s' and client '%s' IP.\n", serv_addr, cli_addr);
   if (!strcmp(cli_addr, serv_addr)) {
     // They are the same.
-    INFO("Server and client are on the same machine.\n", "");
+    INFO("Server and client are on the same machine.%s\n", "");
     cli_ifi->ifi_myflags = 1;
   }
   return lhs;
@@ -171,7 +183,7 @@ get_conn(struct sockaddr *cli_sa, struct server_conn *conn) {
 
   // We could not find any local interfaces that match. Let the kernel
   // choose the outgoing interface for us.
-  VERBOSE(stderr, "cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
+  VERBOSE("cli_sa: %s\n", Sock_ntop(cli_sa, sizeof(*cli_sa)));
   conn->cli_sa  = cli_sa;
   conn->serv_sa = inet_pton_sa("0.0.0.0", 0);
 }
@@ -198,7 +210,10 @@ int data_producer(void *opaque, void *vbuff, int buffsz) {
 }
 
 void on_end_cb(int status) {
-  VERBOSE("on_end_cb(%s)\n", (status == TX_SUCCESS ? "SUCCESS" : "FAILURE"));
+  INFO("Transfer of File '%s' to %s :: %s\n", 
+      requested_file, 
+      Sock_ntop(conn.cli_sa, sizeof(*conn.cli_sa)),
+      (status == TX_SUCCESS ? "SUCCEEDED" : "FAILED"));
   if (status == TX_FAILURE) {
     exit(1);
   } else {
@@ -264,7 +279,7 @@ void on_sock_read_ready(void *opaque) {
   // swin.rwinsz).
   if (swin.rwinsz == 0) {
     // We are in window probe mode.
-    INFO("Entering WINDOW-PROBE-MODE\n", "");
+    INFO("Entering WINDOW-PROBE-MODE%s\n", "");
     int rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
     probe_timeout_ms = imin(60000, imax(probe_timeout_ms, 5000));
@@ -305,9 +320,9 @@ void on_select_timeout(void *opaque) {
 // Most of the heavy lifting happens here
 void
 start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
-  struct server_conn conn;
   get_conn(cli_sa, &conn);
-  INFO("Client is %s\nIPServer: %s\nIPClient: %s\n", 
+  strcpy(requested_file, file_name);
+  INFO("Client is %s\nIPServer: %s\nIPClient: %s\n",
         (conn.is_local ? "Local" : "Not Local"),
         my_sock_ntop(conn.serv_sa),
         my_sock_ntop(conn.cli_sa)
@@ -315,9 +330,11 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
   fflush(stdout);
 
   int sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
-
+	
   set_non_blocking(sockfd);
-  // TODO: Set SO_DONTROUTE if required.
+  if (conn.is_local) {
+    set_dontroute(sockfd);
+  }
 
   Bind(sockfd, conn.serv_sa, sizeof(SA));
   struct sockaddr_in sin;
@@ -416,6 +433,11 @@ int find_connected_client(const void *lhs, const void *rhs) {
   struct sockaddr_in *lhs_sa = &((connected_client*)lhs)->si;
   struct sockaddr_in *rhs_sa = &((connected_client*)rhs)->si;
 
+  VERBOSE("Comparing LHS: [%d, %d, %d] & RHS: [%d, %d, %d]\n",
+          (int)lhs_sa->sin_family, (int)lhs_sa->sin_port, (int)lhs_sa->sin_addr.s_addr,
+          (int)rhs_sa->sin_family, (int)rhs_sa->sin_port, (int)rhs_sa->sin_addr.s_addr
+          );
+
   if (lhs_sa->sin_family      == rhs_sa->sin_family      &&
       lhs_sa->sin_port        == rhs_sa->sin_port        &&
       lhs_sa->sin_addr.s_addr == rhs_sa->sin_addr.s_addr) {
@@ -463,20 +485,16 @@ void main_server_read_cb(void *opaque) {
   cc.fd = fd;
   cc.sa = cli_sa;
   cc.si = *cli_si;
+  on_got_SIGCHLD(0);
   int pos = algorithm_find(&connected_clients, &cc, find_connected_client);
 
   if (pos != -1) {
     cc = *(connected_client*)vector_at(&connected_clients, pos);
-
-    // Check if the process is running.
-    if (kill(cc.pid, 0) != 0) {
-      // Process is NOT running.
-      pos = -1;
-    }
   }
 
   if (pos != -1) {
     // Process is running - do nothing.
+    INFO("Found a server-child process with PID: %d already serving client: %s\n", (int)cc.pid, my_sock_ntop(&cc.sa));
     return;
   }
 
@@ -488,26 +506,31 @@ void main_server_read_cb(void *opaque) {
   }
 
   if (pid == 0) {
-    atexit(on_server_child_exit);
     // Child: Close all the sockets except the one that the
     // child owns.
+    atexit(on_server_child_exit);
+
     int j;
+
     for (j = 0; j < vector_size(&socklist); j++) {
       int sockfd = *(int*)vector_at(&socklist, j);
       if (sockfd != fd) {
-        // close(sockfd);
+        close(sockfd);
       }
     }
-
-    cc.pid = pid;
-    // Add to list of connected clients.
-    vector_push_back(&connected_clients, &cc);
 
     // Start the FTP transfer.
     start_ftp(fd, &cli_sa, file_name);
     printf("Child process exiting\n");
     exit(0);
-  } // if (pid == 0)
+
+  } else {
+    // Parent Process.
+    cc.pid = pid;
+    // Add to list of connected clients.
+    vector_push_back(&connected_clients, &cc);
+  }
+
 }
 
 void main_server_ex_cb(void *opaque) {
@@ -516,7 +539,9 @@ void main_server_ex_cb(void *opaque) {
   exit(1);
 }
 
+// TODO Figure out when is SIGCHLD is delivered?
 void on_got_SIGCHLD(int x) {
+  VERBOSE("In on_got_SIGCHLD%s\n", "");
   int i;
   for (i = 0; i < vector_size(&connected_clients); ++i) {
     connected_client *cc = (connected_client*)vector_at(&connected_clients, i);
@@ -541,7 +566,10 @@ int main(int argc, char **argv) {
   vector_init(&connected_clients, sizeof(connected_client));
   read_sargs(sargs_file, &sargs);
 
-  // TODO: Call print_ifi_info().
+  get_all_interfaces();
+
+  // Call print_ifi_info().
+  print_ifi_info((struct ifi_info*)vector_at(&interfaces, 0));
 
   bind_udp(&sargs, &socklist);
 

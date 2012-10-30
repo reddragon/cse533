@@ -4,9 +4,9 @@ INCFLAGS = -I/home/courses/cse533/Stevens/unpv13e_solaris2.10/lib
 LIBS = /home/courses/cse533/Stevens/unpv13e_solaris2.10/libunp.a \
 	-lm -lresolv -lsocket -lnsl -lpthread
 OBJ = client server vector.o utils.o fdset.o algorithm.o swindow.o \
-	rwindow.o perhaps.o treap.test
+	rwindow.o perhaps.o treap.o server.o email.o treap.test
 ALLOBJDEPS = vector.o utils.o fdset.o algorithm.o treap.o swindow.o \
-	rwindow.o
+	rwindow.o email.o
 
 PLATFORM=${shell uname}
 
@@ -31,11 +31,11 @@ server: server.c utils.h $(ALLOBJDEPS)
 	$(CC) $(CFLAGS) server.c $(ALLOBJDEPS) -o server $(LIBS)
 client: client.c utils.h perhaps.o $(ALLOBJDEPS)
 	$(CC) $(CFLAGS) client.c perhaps.o $(ALLOBJDEPS) -o client $(LIBS)
-utils.o: utils.c utils.h
+utils.o: utils.c utils.h email.h
 	$(CC) $(CFLAGS) -c -o utils.o utils.c
-rwindow.o: rwindow.h rwindow.c
+rwindow.o: rwindow.h rwindow.c utils.h treap.h
 	$(CC) $(CFLAGS) -c -o rwindow.o rwindow.c
-fdset.o: fdset.c fdset.h
+fdset.o: fdset.c fdset.h vector.h algorithm.h
 	$(CC) $(CFLAGS) -c -o fdset.o fdset.c
 vector.o: vector.c vector.h
 	$(CC) $(CFLAGS) -c -o vector.o vector.c
@@ -43,13 +43,15 @@ algorithm.o: algorithm.c algorithm.h vector.h
 	$(CC) $(CFLAGS) -c -o algorithm.o algorithm.c
 treap.o: treap.c treap.h
 	$(CC) $(CFLAGS) -c -o treap.o treap.c
-swindow.o: swindow.c swindow.h treap.h
+swindow.o: swindow.c swindow.h treap.h utils.h
 	$(CC) $(CFLAGS) -c -o swindow.o swindow.c
 perhaps.o: perhaps.c perhaps.h utils.h
 	$(CC) $(CFLAGS) -c -o perhaps.o perhaps.c
+email.o: email.c email.h
+	$(CC) $(CFLAGS) -c -o email.o email.c
 test:
 	$(CC) $(CFLAGS) -o treap.test treap.c -DTEST -g
 handin:
-	ls *.c *.h Makefile | xargs /home/courses/cse533/handin 1
+	ls *.c *.h Makefile README | xargs /home/courses/cse533/handin 2
 clean:
 	rm -f $(OBJ)

@@ -1,0 +1,38 @@
+Group Members:
+[1] Gaurav Menghani
+[2] Dhruv Matani
+
+Tasks:
+------
+
+[1] Modifications to Section 22.5
+
+[2] Report, in a ReadMe file which you hand in with your code, on the
+modifications you had to introduce to ensure that only unicast
+addresses are bound, and on your implementation of the array of
+structures described above.
+
+[3] We implemented the following ARQ mechanisms:
+    [a] RTT based RTO update on the server
+    [b] ACK timeout based re-transmit on the server
+    [c] Duplicate ACK based re-transmit (Fast-retransmit) on the server
+    [d] Re-transmission of initial SYN packet from the client
+    [e] TIME_WAIT state in the client (waits for 60 sec)
+    [f] Fast Recovery on the server
+    [g] Slow Start (cwnd & ssthresh) on the server
+    [h] Congestion Avoidance (cwnd & ssthresh) on the server
+    [i] Window advertisements by the client
+
+[4] When the first packet sent by the server containing the port
+number (destined for the client) is dropped by the client, the client
+re-transmits the request packet with the file name, and the server
+detects this and does NOT spawn off a new server-child process to
+handle this request, which is basically a re-transmission.
+
+[5] The sender notifies the receiver about the last datagram using a
+FIN packet. The receiver sends an ACK to this packet and enters the
+TIME_WAIT state, where it remains for the next 60 sec, responsing to
+FIN packets sent by the server in case the server missed the ACK sent
+to the original FIN packet by the client.
+
+

@@ -1,3 +1,4 @@
+// -*- mode: c++; c-basic-offset: 4 -*-
 #ifndef SWINDOW_H
 #define SWINDOW_H
 
@@ -12,12 +13,14 @@
 //                          opaque, buffer, size
 typedef int  (*read_more_cb)(void*,  void*,  int);
 
-enum { TX_SUCCESS=0, TX_FAILURE=1 };
 //                     status (0->success; 1->failure)
 typedef void (*end_cb)(int);
 
 typedef void (*ack_cb)(void*);
 
+enum { TX_SUCCESS=0, TX_FAILURE=1 };
+enum { CC_MODE_SLOW_START=0, CC_MODE_CONGESTION_AVOIDANCE=1 };
+enum { REASON_TIMEOUT=0, REASON_DUPLICATE_ACK=2 };
 
 typedef struct rtt_info_t {
     // All values are in 'ms'.
@@ -60,7 +63,11 @@ typedef struct swindow {
     void *opaque;           // Opaque data passed to the read_some callback
     rtt_info_t rtt;
     BOOL isEOF;             // End-Of-File if TRUE
-    // Something for a timeout to be used in select(2)
+
+    // Congestion Control related variables.
+    int cwnd;               // Congestion Window
+    int ssthresh;           // Slow Start Threshold
+    int nacks_in_ca_mode;   // # of ACKs in Cong-Avoidance Mode
 } swindow;
 
 // We can only send as many packets as MIN(swinsz, rwinsz).
@@ -102,7 +109,42 @@ typedef struct swindow {
 
 // Using select(2) is a *good* idea.
 
-void swindow_dump(swindow *swin);
+// Congestion Control
+// ------------------
+//
+// 2 Modes: [1] Slow Start & [2] Congestion Avoidance
+//
+// cwnd     -> Congestion window size
+// ssthresh -> Slow Start Threshold
+//
+// Timeout & Duplicate ACKs trigger the existence of congention in the
+// network. When this happens, ssthresh = max(2, min(cwnd,
+// rwin)/2). In case of timeout, set cwnd = 1.
+//
+// In slow start mode, the 'cwnd' is increased by 1 every time a
+// packet is ACKed.
+//
+// Initialize 'ssthresh' with the value of 'rbuffsz' to start off
+// with.
+//
+// Initial 'cwnd' is 1.
+//
+// When a loss occurs half of the current cwnd is saved as a Slow
+// Start Threshold (SSThresh) and slow start begins again from its
+// initial cwnd(1). Once the cwnd reaches the SSThresh, TCP goes into
+// congestion avoidance mode where each ACK increases the cwnd by
+// SS*SS/cwnd. This results in a linear increase of the cwnd.
+//
+// We don't have to implement the window-inflation aspect of fast
+// recovery.
+//
+// Q. When is 'cwnd' increaded by 1? Every time an ACK is received for
+// the oldest unacked sequence or every time any ACK is received?
+// Also, what to do for the case where the oldest unacked seq# is 10
+// and we receive ACK 20 and cwnd = 8 and ssthresh = 10??
+//
+
+void swindow_dump(swindow *swin, const char *prefix);
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
                   int sbuffsz, read_more_cb read_some,
                   void *opaque, ack_cb advanced_ack_cb, end_cb on_end);

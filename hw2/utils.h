@@ -5,10 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include "unpifiplus.h"
+#include "email.h"
 
 #define UINT unsigned int
-#define BOOL unsigned short
+#define BOOL int
 #define FALSE 0
 #define TRUE 1
 #define MALLOC(X) (X *) my_malloc(sizeof(X))
@@ -20,20 +22,25 @@
 void utils_init(void);
 void* my_malloc(size_t size);
 
-#define assert_lt(L,R) if((L)>=(R)) { fprintf(stderr, "%d < %d FAILED\n", (L), (R)); assert((L)<(R)); }
-#define assert_le(L,R) if((L)>(R)) { fprintf(stderr, "%d <= %d FAILED\n", (L), (R)); assert((L)<=(R)); }
-#define assert_gt(L,R) if((L)<=(R)) { fprintf(stderr, "%d > %d FAILED\n", (L), (R)); assert((L)>(R)); }
-#define assert_ge(L,R) if((L)<(R)) { fprintf(stderr, "%d >= %d FAILED\n", (L), (R)); assert((L)>=(R)); }
+#define ASSERT(X) if (!(X)) { char body[4096]; \
+  sprintf(body, "Assertion '%s' FAILED in file %s, on line %d.\n", #X, __FILE__, __LINE__); \
+  send_email("dmatani", "gmenghani", "Assertion failure in " __FILE__, body); \
+  assert(X); }
+
+#define assert_lt(L,R) if((L)>=(R)) { fprintf(stderr, "%d < %d FAILED\n", (L), (R)); ASSERT((L)<(R)); }
+#define assert_le(L,R) if((L)>(R)) { fprintf(stderr, "%d <= %d FAILED\n", (L), (R)); ASSERT((L)<=(R)); }
+#define assert_gt(L,R) if((L)<=(R)) { fprintf(stderr, "%d > %d FAILED\n", (L), (R)); ASSERT((L)>(R)); }
+#define assert_ge(L,R) if((L)<(R)) { fprintf(stderr, "%d >= %d FAILED\n", (L), (R)); ASSERT((L)>=(R)); }
 
 #define imax(X,Y) ((X)>(Y)?(X):(Y))
 #define imin(X,Y) ((X)<(Y)?(X):(Y))
 
-#define TIMESTAMPMSG(TYPE, X, VARGS...) { \
-                                          time_t rawtime; \
-                                          time(&rawtime); \
-                                          fprintf(stderr, TYPE " [%d]: " X, current_time_in_ms(), VARGS); \
-                                        }
- 
+#define TIMESTAMPMSG(TYPE, X, VARGS...) {       		\
+          time_t rawtime;                      		 	\
+          time(&rawtime);                       		\
+          int my_pid = (int)getpid();           		\
+          fprintf(stderr, TYPE "[%d:%d]: " X,       \
+		  my_pid, current_time_in_ms(), VARGS); }
 
 #ifdef DEBUG
 #define VERBOSE(X, VARGS...) TIMESTAMPMSG("VERBOSE", X, VARGS)

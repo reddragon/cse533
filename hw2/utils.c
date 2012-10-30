@@ -109,8 +109,8 @@ void set_blocking(int fd) {
 }
 
 void set_dontroute(int fd) {
-    BOOL yes = 1;
-    Setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+  int yes = 1;
+  Setsockopt(fd, SOL_SOCKET, SO_DONTROUTE, &yes, sizeof(yes));
 }
 
 int
@@ -418,6 +418,9 @@ Get_ifi_info_plus(int family, int doaliases)
 
 void
 print_ifi_info(struct ifi_info *ifihead) {
+    printf("Interfaces Available on this machine:\n"
+	   "-------------------------------------\n"
+          );
     struct ifi_info	*ifi;
     struct sockaddr	*sa;
     u_char		*ptr;
@@ -468,4 +471,5 @@ print_ifi_info(struct ifi_info *ifihead) {
     }
     // We cannot free the ifi pointer here
     // free_ifi_info_plus(ifihead);
+    printf("-------------------------------------\n");
 }

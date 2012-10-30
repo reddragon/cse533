@@ -1,3 +1,4 @@
+// -*- mode: c++; c-basic-offset: 4 -*-
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -6,6 +7,7 @@
 #include "treap.h"
 #include "utils.h"
 #include "swindow.h"
+#include "email.h"
 
 void rtt_info_init(rtt_info_t *rtt) {
     rtt->_8srtt = 0;
@@ -22,7 +24,13 @@ void rtt_update(rtt_info_t *rtt, int mRTT) {
         _8delta = -_8delta;
     }
     rtt->_8srtt += (_8delta / 8);
+
+    // The computation below is done using integers alone since
+    // 3*(value) = 2*value + value [optimized by the compiler]. Also,
+    // all divisions are performed using shifting since all divisors
+    // are powers of 2.
     rtt->_8rttvar = (3 * (rtt->_8rttvar) + _8delta) / 4;
+
     rtt->_8rto = rtt->_8srtt + (4 * rtt->_8rttvar);
 }
 
@@ -45,16 +53,23 @@ tx_packet_info* make_tx_packet(packet_t *pkt) {
     return txp;
 }
 
-void swindow_dump(swindow *swin) {
-    INFO("Sending Window { ACK: %d, #ACKS: %d, NEXTSEQ: %d, RWIN: %d, RBUFF:%d, #TIMEOUTS: %d, #UNACKED: %d, isEOF: %s }\n",
-          swin->oldest_unacked_seq,
+void swindow_dump(swindow *swin, const char *prefix) {
+    INFO("%sSending Window { ACK: %d, #ACKS: %d, NEXTSEQ: %d, RWIN: %d\n"
+	 "                   RBUFF:%d, #TIMEOUTS: %d, #UNACKED: %d, isEOF: %s\n"
+	 "                   CWND: %d, SSTHRESH: %d, MODE: %s }\n",
+	  prefix,
+	  swin->oldest_unacked_seq,
           swin->num_acks,
           swin->next_seq,
           swin->rwinsz,
           swin->rbuffsz,
           swin->oas_num_time_outs,
           treap_size(&swin->swin),
-          swin->isEOF ? "TRUE" : "FALSE");
+	  (swin->isEOF ? "TRUE" : "FALSE"),
+	  swin->cwnd,
+	  swin->ssthresh,
+	  (swin->cwnd <= swin->ssthresh ? "slow-start" : "congestion-avoidance")
+	 );
 }
 
 void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
@@ -75,15 +90,35 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
     swin->opaque             = opaque;
     swin->advanced_ack_cb    = advanced_ack_cb;
     swin->on_end             = on_end;
+    swin->cwnd               = 1;
+    swin->ssthresh           = 1;
+    swin->nacks_in_ca_mode   = 0;
     rtt_info_init(&swin->rtt);
 }
 
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
-    INFO("Got (ACK: %d, RWINSZ: %d) from client\n [BEFORE] ", ack, rwinsz);
-    swindow_dump(swin);
+    INFO("Got (ACK: %d, RWINSZ: %d) from client\n", ack, rwinsz);
+    swindow_dump(swin, "[BEFORE] ");
     swindow_received_ACK_real(swin, ack, rwinsz);
-    fprintf(stderr, "[AFTER] ");
-    swindow_dump(swin);
+    swindow_dump(swin, "[AFTER] ");
+}
+
+void swindow_smelt_congestion(swindow *swin, int reason) {
+    VERBOSE("swindow_smelt_congestion(%s)\n",
+	    (reason == REASON_TIMEOUT ? "TIMEOUT" : "DUPLICATE_ACK"));
+
+    // In case of duplicate ACKs, wait for the 3rd duplicate ACK
+    // before doing anything.
+
+    if (reason == REASON_TIMEOUT) {
+	swin->ssthresh = swin->ssthresh / 2;
+	swin->cwnd = 1;
+    } else {
+	if (swin->num_acks == 4) {
+	    swin->ssthresh = swin->ssthresh / 2;
+	    swin->cwnd = swin->ssthresh;
+	}
+    }
 }
 
 // This function also updates the receiving buffer and receiving
@@ -91,15 +126,34 @@ void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
 void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     // 'ack' the the sequence number of the next *expected* sequence
     // number.
+
+    const int cc_mode = (swin->cwnd <= swin->ssthresh ?
+			 CC_MODE_SLOW_START :
+			 CC_MODE_CONGESTION_AVOIDANCE);
+
+
+    if (cc_mode == CC_MODE_SLOW_START) {
+	swin->cwnd += 1;
+	swin->nacks_in_ca_mode = 0;
+    } else {
+	if (++swin->nacks_in_ca_mode == swin->cwnd) {
+	    swin->cwnd += 1;
+	    swin->nacks_in_ca_mode = 0;
+	}
+    }
+
     if (ack < swin->oldest_unacked_seq) {
         // Discard ACK, since we don't care.
         INFO("Discarding ACK: %d since it is < oldest unacked SEQ: %d\n", ack, swin->oldest_unacked_seq);
+	swindow_smelt_congestion(swin, REASON_DUPLICATE_ACK);
         return;
     }
 
     if (ack == 1) {
         // Set rbuffsz since this is the 1st packet.
         swin->rbuffsz = rwinsz;
+	// Set ssthresh too.
+	swin->ssthresh = rwinsz;
     }
 
     BOOL update_RTO = TRUE;
@@ -112,6 +166,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
         }
         if (swin->num_acks > 1) {
             update_RTO = FALSE;
+	    swindow_smelt_congestion(swin, REASON_DUPLICATE_ACK);
         }
 
         if (swin->num_acks == 4) {
@@ -159,7 +214,10 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
     if (rwinsz == 0) {
         rwinsz = 1;
     }
-    const int last_seq_no_we_can_send = ack + rwinsz - 1;
+
+    // Use cwnd & rwinsz to determine the effective window size.
+    const int effwinsz = imin(rwinsz, swin->cwnd);
+    const int last_seq_no_we_can_send = ack + effwinsz - 1;
 
     assert_le(treap_size(&swin->swin), swin->sbuffsz);
 
@@ -208,15 +266,14 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
 // We assume that the packet with SEQ # (seq) is available in swin->swin.
 void swindow_transmit_packet(swindow *swin, int seq) {
     INFO("swindow_transmit_packet(SEQ: %d)\n", seq);
-    swindow_dump(swin);
+    swindow_dump(swin, "");
     packet_t tp;
 
     int r = -1;
     tx_packet_info *txp = (tx_packet_info*)treap_get_value(&swin->swin, seq);
-    assert(txp);
+    ASSERT(txp);
     packet_hton(&tp, &txp->pkt);
     
-    // TODO: Set the SO_DONTROUTE flag on the socket to start off with if we need to use it.
     errno = EINTR;
     while (r < 0 && errno == EINTR) {
         r = send(swin->fd, &tp, sizeof(tp), 0);
@@ -244,8 +301,8 @@ void swindow_transmit_packet(swindow *swin, int seq) {
 }
 
 void swindow_timed_out(swindow *swin) {
-    INFO("swindow_timed_out()\n", "");
-    swindow_dump(swin);
+    INFO("swindow_timed_out()%s\n", "");
+    swindow_dump(swin, "");
 
     // Sending the packet with the seq # 'oldest_unacked_seq' timed out.
     ++swin->oas_num_time_outs;
@@ -255,6 +312,8 @@ void swindow_timed_out(swindow *swin) {
         swin->on_end(TX_FAILURE);
         return;
     }
+
+    swindow_smelt_congestion(swin, REASON_TIMEOUT);
 
     // Double the RTO value.
     swin->rtt._8rto *= 2;
