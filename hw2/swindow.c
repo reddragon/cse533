@@ -136,7 +136,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
 	swin->cwnd += 1;
 	swin->nacks_in_ca_mode = 0;
     } else {
-	if (++swin->nacks_in_ca_mode == swin->cwnd) {
+	if (++swin->nacks_in_ca_mode >= swin->cwnd) {
 	    swin->cwnd += 1;
 	    swin->nacks_in_ca_mode = 0;
 	}
