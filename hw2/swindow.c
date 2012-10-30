@@ -116,7 +116,7 @@ void swindow_smelt_congestion(swindow *swin, int reason) {
     } else {
 	if (swin->num_acks == 4) {
 	    swin->ssthresh = swin->ssthresh / 2;
-	    swin->cwnd = swin->ssthresh;
+	    swin->cwnd = max(1, swin->ssthresh);
 	}
     }
 }

@@ -5,6 +5,7 @@
 #include "algorithm.h"
 #include "swindow.h"
 #include <signal.h>
+#include <time.h>
 
 typedef struct connected_client {
   int fd;             // The fd of the socket on which the request arrived.
@@ -70,8 +71,9 @@ void on_server_child_exit(void) {
   Gettimeofday(&tv, NULL);
   time_t currtime;
   char str_time[40];
+  time(&currtime);
   strftime(str_time, 40, "%T", localtime(&currtime));
-  INFO("Server child exited at %s:%03u\n",
+  INFO("Server child exited at %s.%03u\n",
        str_time, (unsigned int)tv.tv_usec / 1000);
 }
 

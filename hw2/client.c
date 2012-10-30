@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <math.h>
+#include <time.h>
 #include "utils.h"
 #include "rwindow.h"
 #include "fdset.h"
@@ -42,6 +43,7 @@ void on_client_exit(void) {
   Gettimeofday(&tv, NULL);
   time_t currtime;
   char str_time[40];
+  time(&currtime);
   strftime(str_time, 40, "%T", localtime(&currtime));
   INFO("Client exited at %s.%03u\n", str_time, (unsigned int)tv.tv_usec/1000);
 }
@@ -304,7 +306,7 @@ void resend_fin_pkt(void *opaque) {
   fds.timeout.tv_usec = (time_av_ms % 1000) * 1000;
 
   send_packet(fin_pkt);
-  INFO("Waiting for %d more seconds in the FIN_WAIT state\n", time_av_ms/1000);
+  INFO("Waiting for %d more seconds in the TIME_WAIT state\n", time_av_ms/1000);
 }
 
 void fin_timeout(void *opaque) {

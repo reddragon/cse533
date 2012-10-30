@@ -2,6 +2,14 @@ Group Members:
 [1] Gaurav Menghani
 [2] Dhruv Matani
 
+Note: Before every line, we print something like:
+INFO[5498:73423] ....
+
+This means that the PID of the proces printing this data is '5498' and
+the time at which the line was printed was 73423ms since the process
+was started.
+
+
 Tasks:
 ------
 
