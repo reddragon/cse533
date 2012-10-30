@@ -510,6 +510,7 @@ void main_server_read_cb(void *opaque) {
   if (pid == 0) {
     // Child: Close all the sockets except the one that the
     // child owns.
+    utils_init();
     atexit(on_server_child_exit);
 
     int j;
