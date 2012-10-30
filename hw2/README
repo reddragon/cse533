@@ -13,12 +13,12 @@ was started.
 Tasks:
 ------
 
-[1] Modifications to Section 22.5
+[1] The code in section 22.6 does not provide the network masks for each
+of the interface addresses. This problem is resolved by the using the 
+get_ifi_info_plus() method which was provided to us.
 
-[2] Report, in a ReadMe file which you hand in with your code, on the
-modifications you had to introduce to ensure that only unicast
-addresses are bound, and on your implementation of the array of
-structures described above.
+[2] To bind to only the Unicast addresses, we had to bind to just the
+addresses in the ifi_addr field.
 
 [3] We implemented the following ARQ mechanisms:
     [a] RTT based RTO update on the server
