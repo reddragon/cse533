@@ -254,7 +254,6 @@ void on_sock_read_ready(void *opaque) {
   }
   VERBOSE("Successfully read %d bytes\n", r);
 
-  probe_timeout_ms = 1000;
   packet_ntoh(&pkt, &pkt);
 
   // Decrease timeout value by the amount of time spent in the
@@ -289,6 +288,8 @@ void on_sock_read_ready(void *opaque) {
     rto = imax(rto, 5000);
     rto = imin(rto, 60000);
     set_new_select_timeout(rto);
+  } else {
+    probe_timeout_ms = 1000;
   }
 }
 
