@@ -216,7 +216,7 @@ int data_producer(void *opaque, void *vbuff, int buffsz) {
 }
 
 void on_end_cb(int status) {
-  INFO("+---------------------------------+\n"
+  INFO("\n+---------------------------------+\n"
        "| State of Sending Window on EXIT |\n"
        "+---------------------------------+%s\n", ""
        );
@@ -512,10 +512,10 @@ void main_server_read_cb(void *opaque) {
 
   if (r < 0) {
     perror("recvfrom");
-    printf("Error getting file name from the client\n");
+    INFO("Error getting file name from the client%s\n", "");
     return;
   }
-  
+
   VERBOSE("Packet datalen: %d\n", pkt.datalen);
   assert(pkt.datalen < sizeof(pkt.data));
   pkt.data[pkt.datalen] = '\0';
@@ -564,7 +564,7 @@ void main_server_read_cb(void *opaque) {
 
     // Start the FTP transfer.
     start_ftp(fd, &cli_sa, file_name);
-    printf("Child process exiting\n");
+    INFO("Child process exiting%s\n", "");
     exit(0);
 
   } else {
