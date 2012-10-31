@@ -20,6 +20,9 @@ This line might be followed by lines that contain the text data of the
 file, so scrolling up a bit (specifically up to RWIN # of packets)
 will reveal that line when the transmission has completed.
 
+[3] The functions perhaps_send() and perhaps_recv() are the ones that
+probabilistically drop packets before send and after receiving them.
+
 
 Tasks:
 ------

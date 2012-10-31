@@ -27,10 +27,10 @@ int perhaps_rarely_send(int fd, const void *data, int len, int flags) {
     assert(perhaps_inited == TRUE);
     // ++send_total;
     double rn = drand48();
-    fprintf(stderr, "perhaps_rarely_send::rn = %.2f\n", rn);
+    INFO("perhaps_rarely_send::rn = %.2f\n", rn);
     if (rn <= 0.7) {
         // Silently drop the packet.
-        fprintf(stderr, "perhaps_rarely_send::Dropping packet.\n");
+        INFO("perhaps_rarely_send::Dropping packet.\n");
         // ++send_failed;
         return len;
     }
@@ -46,7 +46,7 @@ int perhaps_send(int fd, const void *data, int len, int flags) {
     double rn = drand48();
     if (rn <= cargs->p) {
         // Silently drop the packet.
-        fprintf(stderr, "perhaps_send::Dropping packet.\n");
+        INFO("perhaps_send::Dropping packet.%s\n", "");
         ++send_failed;
         return len;
     }
@@ -61,7 +61,7 @@ int perhaps_recv(int fd, void *data, int len, int flags) {
     ++recv_total;
     int r = recv(fd, data, len, flags);
     if (rn <= cargs->p) {
-        fprintf(stderr, "perhaps_recv::Dropping packet.\n");
+        INFO("perhaps_recv::Dropping packet.%s\n", "");
         // Silently discard the received data.
         ++recv_failed;
         errno = EINTR;
@@ -76,7 +76,7 @@ int perhaps_recvfrom(int fd, void *data, int len, int flags, struct sockaddr *sr
     ++recv_total;
     int r = recvfrom(fd, data, len, flags, src_addr, addrlen);
     if (rn <= cargs->p) {
-        fprintf(stderr, "perhaps_recvfrom::Dropping packet.\n");
+        INFO("perhaps_recvfrom::Dropping packet.%s\n", "");
         ++recv_failed;
         // Silently discard the received data.
         errno = EINTR;
