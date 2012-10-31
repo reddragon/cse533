@@ -39,7 +39,7 @@ void* my_malloc(size_t size);
           time_t rawtime;                      		 	\
           time(&rawtime);                       		\
           int my_pid = (int)getpid();           		\
-          fprintf(stderr, TYPE "[%d:%d]: " X,       \
+          fprintf(stdout, TYPE "[%d:%d]: " X,                   \
 		  my_pid, current_time_in_ms(), VARGS); }
 
 #ifdef DEBUG

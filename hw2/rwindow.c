@@ -146,8 +146,8 @@ packet_t *read_packet(rwindow *rwin) {
 }
 
 BOOL rwindow_received_all(rwindow *rwin) {
-    if (rwin->last_seq_in_stream != -1 &&
-        rwin->smallest_expected_seq == rwin->last_seq_in_stream + 1) {
+    if ((rwin->last_seq_in_stream != -1) &&
+        (rwin->smallest_expected_seq == rwin->last_seq_in_stream + 1)) {
         return TRUE;
     }
     return FALSE;
