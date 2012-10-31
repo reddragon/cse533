@@ -54,7 +54,7 @@ uint32_t last_select_timeout_ms = 0;
 
 // The amount of time we need to wait for a response from the client
 // while we are in the window-probe mode.
-uint32_t probe_timeout_ms = 1000;
+uint32_t probe_timeout_ms = 1500;
 
 // The server_conn struct
 struct server_conn conn;
@@ -241,16 +241,14 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
   // We reset the timeout value to the RTT based RTO when the oldest
   // unACKed sequence # is advanced ONLY if we are NOT in
   // Window-Probe-Mode.
-  probe_timeout_ms = 1000;
+  probe_timeout_ms = 1500;
   if (swin.rwinsz > 0) {
     uint32_t rto = rtt_get_RTO(&swin.rtt);
     INFO("on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
     set_new_select_timeout(rto);
   } else {
-    // If we are still in window probe mode, we just reset
-    // probe_timeout_ms to 1000 ms so that window-probe-mode re-starts
-    // with the smallest timeout value.
-    set_new_select_timeout(5000);
+    // We are still in the Window-Probe mode and the timer has been
+    // set appropriately.
   }
 }
 
@@ -286,7 +284,7 @@ void on_sock_read_ready(void *opaque) {
     // Decrease timeout value by the amount of time spent in the
     // select(2) system call.
     VERBOSE("Non-window-probe mode%s\n", "");
-    probe_timeout_ms = 1000;
+    probe_timeout_ms = 1500;
     uint32_t current_time = current_time_in_ms();
     uint32_t select_slept_for = current_time - last_call_to_select;
     last_call_to_select = current_time;
@@ -297,14 +295,14 @@ void on_sock_read_ready(void *opaque) {
     INFO("%s WINDOW-PROBE-MODE\n", (swin.rwinsz == 0 ? "IN" : "ENTERING"));
     rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
-    rto = imax(rto, 5000);
-    rto = imin(rto, 60000);
-    probe_timeout_ms = imin(probe_timeout_ms, 60000);
+    rto = imax(rto, 1000);
+    rto = imin(rto, 3000);
+    probe_timeout_ms = imin(probe_timeout_ms, 3000);
     set_new_select_timeout(rto);
   } else {
     // Leaving window probe mode.
     INFO("Leaving Window-Probe Mode%s\n", "");
-    probe_timeout_ms = 1000;
+    probe_timeout_ms = 1500;
     rto = (uint32_t)rtt_get_RTO(&swin.rtt);
   }
 
@@ -337,11 +335,11 @@ void on_select_timeout(void *opaque) {
     INFO("In Window Probe mode. Previous Timeout: %d ms\n", probe_timeout_ms);
     rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
-    probe_timeout_ms = imin(probe_timeout_ms, 60000);
-    rto = imax(rto, 5000);
-    rto = imin(rto, 60000);
+    probe_timeout_ms = imin(probe_timeout_ms, 3000);
+    rto = imax(rto, 1000);
+    rto = imin(rto, 3000);
   } else {
-    probe_timeout_ms = 1000;
+    probe_timeout_ms = 1500;
 
     // Double the timeout.
     rtt_scale_RTO(&swin.rtt, 2);
