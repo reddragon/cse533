@@ -152,7 +152,7 @@ void get_conn(client_conn *conn) {
 
   // We could not find any local interfaces that match. Let the kernel
   // choose the outgoing interface for us.
-  fprintf(stderr, "serv_sa: %s\n", Sock_ntop(serv_sa, sizeof(*serv_sa)));
+  VERBOSE("serv_sa: %s\n", Sock_ntop(serv_sa, sizeof(*serv_sa)));
   conn->cli_sa  = inet_pton_sa("0.0.0.0", 0);
   conn->serv_sa = serv_sa;
 }
