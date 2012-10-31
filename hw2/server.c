@@ -238,11 +238,12 @@ void set_new_select_timeout(uint32_t ms) {
 }
 
 void on_advanced_oldest_unACKed_seq(void *opaque) {
+  int *rwinsz = (int*)opaque;
   // We reset the timeout value to the RTT based RTO when the oldest
   // unACKed sequence # is advanced ONLY if we are NOT in
   // Window-Probe-Mode.
   probe_timeout_ms = 1500;
-  if (swin.rwinsz > 0) {
+  if (*rwinsz > 0) {
     uint32_t rto = rtt_get_RTO(&swin.rtt);
     INFO("on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
     set_new_select_timeout(rto);

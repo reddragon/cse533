@@ -204,7 +204,7 @@ void swindow_received_ACK_real(swindow *swin, int ack, int rwinsz) {
         swin->oldest_unacked_seq = ack;
         swin->num_acks           = 1;
         swin->oas_num_time_outs  = 0;
-        swin->advanced_ack_cb(NULL);
+        swin->advanced_ack_cb(&rwinsz);
 
     } // if (ack > swin->oldest_unacked_seq)
 
