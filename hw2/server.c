@@ -235,10 +235,12 @@ void set_new_select_timeout(uint32_t ms) {
 
 void on_advanced_oldest_unACKed_seq(void *opaque) {
   // We reset the timeout value when the oldest unACKed sequence # is
-  // advanced.
-  uint32_t rto = rtt_get_RTO(&swin.rtt);
-  INFO("on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
-  set_new_select_timeout(rto);
+  // advanced ONLY if we are NOT in Window-Probe-Mode.
+  if (swin.rwinsz > 0) {
+    uint32_t rto = rtt_get_RTO(&swin.rtt);
+    INFO("on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
+    set_new_select_timeout(rto);
+  }
 }
 
 void on_sock_read_ready(void *opaque) {
@@ -276,6 +278,7 @@ void on_sock_read_ready(void *opaque) {
     probe_timeout_ms *= 2;
     rto = imax(rto, 5000);
     rto = imin(rto, 60000);
+    probe_timeout_ms = imin(probe_timeout_ms, 60000);
     set_new_select_timeout(rto);
   } else {
     // Leaving window probe mode.
