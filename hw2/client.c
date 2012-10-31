@@ -11,27 +11,26 @@
 #include "algorithm.h"
 #include "email.h"
 
-client_args *cargs;       // The client args
-client_conn *conn;        // The client connection struct
-packet_t *file_name_pkt;  // The file name packet
-packet_t *fin_pkt;        // The final packet to be sent
-int sockfd;               // The socket used for communication 
-int cliport;              // The client ephemeral port
-int recv_total = 0;       // Total calls to recv(2) or recvfrom(2)
-int recv_failed = 0;      // # of calls to recv(2) or recvfrom(2) that failed
-int send_total = 0;       // Total calls to send(2)
-int send_failed = 0;      // # of calls to send(2) that failed
-fdset fds;                // fdset for the client socket
-uint32_t time_av_ms;      // Time available for select(2)    
-uint32_t at_select_ms;    // Time available for select(2)    
-rwindow rwin;             // The receiving window
-pthread_t tid;            // The consumer thread
-int syn_retries = 0;      // The # of times we re-tried sending the file name packet. We quit after successive 12 timeouts
-vector interfaces;        // Stores information for the interfaces in this machine
+client_args *cargs;            // The client args
+client_conn *conn;             // The client connection struct
+packet_t *file_name_pkt;       // The file name packet
+packet_t *fin_pkt;             // The final packet to be sent
+int sockfd;                    // The socket used for communication 
+int cliport;                   // The client ephemeral port
+int recv_total = 0;            // Total calls to recv(2) or recvfrom(2)
+int recv_failed = 0;           // # of calls to recv(2) or recvfrom(2) that failed
+int send_total = 0;            // Total calls to send(2)
+int send_failed = 0;           // # of calls to send(2) that failed
+fdset fds;                     // fdset for the client socket
+uint32_t time_av_ms;           // Time available for select(2)    
+uint32_t at_select_ms;         // Time available for select(2)    
+rwindow rwin;                  // The receiving window
+pthread_t tid;                 // The consumer thread
+int syn_retries = 0;           // The # of times we re-tried sending the file name packet. We quit after successive 12 timeouts
+vector interfaces;             // Stores information for the interfaces in this machine
+client_args *cargs = NULL;     // The arguments read from the client.in file
 
 
-// The arguments read from the client.in file
-struct client_args *cargs = NULL;
 
 void on_client_exit(void) {
   struct timeval tv;

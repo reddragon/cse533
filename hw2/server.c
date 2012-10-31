@@ -62,6 +62,10 @@ struct server_conn conn;
 // The file name
 char requested_file[200];
 
+// TRUE once some valid packet is received on the FD connected to the
+// client.
+BOOL got_packet_on_fd = FALSE;
+
 /* ===== END GLOBALS ===== */
 
 void on_got_SIGCHLD(int x);
@@ -257,13 +261,23 @@ void on_sock_read_ready(void *opaque) {
   // Warning: Do NOT use recv(2) here. It fails.
   memset(&pkt, 0, sizeof(pkt));
   int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
-  if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
-    perror("recvfrom");
-    return;
+  if (r < 0) {
+    if (got_packet_on_fd == TRUE && errno == ECONNREFUSED) {
+      // We got a connection failure on a socket on which we
+      // previously successfully received data.
+      // Signal error and exit(1) this process.
+      on_end_cb(TX_FAILURE);
+    }
+    if ((errno == EINTR) || (got_packet_on_fd == FALSE && errno == ECONNREFUSED)) {
+      // Ignore this error.
+      perror("recvfrom");
+      return;
+    }
   }
   VERBOSE("Successfully read %d bytes\n", r);
 
   packet_ntoh(&pkt, &pkt);
+  got_packet_on_fd = TRUE;
 
   uint32_t rto = 0;
   if (swin.rwinsz > 0 && pkt.rwinsz > 0) {
