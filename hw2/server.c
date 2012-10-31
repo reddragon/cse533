@@ -256,41 +256,45 @@ void on_sock_read_ready(void *opaque) {
 
   packet_ntoh(&pkt, &pkt);
 
-  // Decrease timeout value by the amount of time spent in the
-  // select(2) system call.
-  uint32_t current_time = current_time_in_ms();
-  uint32_t select_slept_for = current_time - last_call_to_select;
-  last_call_to_select = current_time;
-  uint32_t new_select_timeout_ms =   last_select_timeout_ms - select_slept_for;
-  if (new_select_timeout_ms > 500000) {
+  uint32_t rto = 0;
+  if (swin.rwinsz > 0 && pkt.rwinsz > 0) {
+    // We were NOT in window-probe mode, and we remain in that mode.
+    //
+    // Decrease timeout value by the amount of time spent in the
+    // select(2) system call.
+    VERBOSE("Non-window-probe mode%s\n", "");
+    probe_timeout_ms = 1000;
+    uint32_t current_time = current_time_in_ms();
+    uint32_t select_slept_for = current_time - last_call_to_select;
+    last_call_to_select = current_time;
+    rto = last_select_timeout_ms - select_slept_for;
+  } else if (pkt.rwinsz == 0) {
+    // Not in window-probe mode earlier, but entering window probe
+    // mode.
+    INFO("%s WINDOW-PROBE-MODE\n", (swin.rwinsz == 0 ? "IN" : "ENTERING"));
+    rto = probe_timeout_ms;
+    probe_timeout_ms *= 2;
+    rto = imax(rto, 5000);
+    rto = imin(rto, 60000);
+    set_new_select_timeout(rto);
+  } else {
+    // Leaving window probe mode.
+    INFO("Leaving Window-Probe Mode%s\n", "");
+    probe_timeout_ms = 1000;
+    rto = (uint32_t)rtt_get_RTO(&swin.rtt);
+  }
+
+  if (rto > 500000) {
     // Some unholy value (500sec).
-    new_select_timeout_ms = 0;
+    rto = 0;
   }
 
   // We set the updated timeout value here. If the ACK is for the
   // oldest unACKed SEQ#, then the on_advanced_oldest_unACKed_seq()
   // function will be called, which will update the timeout to the RTO
   // value.
-  set_new_select_timeout(new_select_timeout_ms);
+  set_new_select_timeout(rto);
   swindow_received_ACK(&swin, pkt.ack, pkt.rwinsz);
-
-  // Enter window probe mode HERE. We should know the value of
-  // rwinsz and enter window probe mode here itself instead of waiting
-  // for a timeout.
-  //
-  // Are we in window probe mode? (detected by the value of
-  // swin.rwinsz).
-  if (swin.rwinsz == 0) {
-    // We are in window probe mode.
-    INFO("Entering WINDOW-PROBE-MODE%s\n", "");
-    int rto = probe_timeout_ms;
-    probe_timeout_ms *= 2;
-    rto = imax(rto, 5000);
-    rto = imin(rto, 60000);
-    set_new_select_timeout(rto);
-  } else {
-    probe_timeout_ms = 1000;
-  }
 }
 
 void on_sock_error(void *opaque) {
