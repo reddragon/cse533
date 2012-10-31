@@ -216,8 +216,13 @@ int data_producer(void *opaque, void *vbuff, int buffsz) {
 }
 
 void on_end_cb(int status) {
-  INFO("Transfer of File '%s' to %s :: %s [%d sec]\n", 
-       requested_file, 
+  INFO("+---------------------------------+\n"
+       "| State of Sending Window on EXIT |\n"
+       "+---------------------------------+%s\n", ""
+       );
+  swindow_dump(&swin, "");
+  INFO("Transfer of File '%s' to %s :: %s [%d sec]\n",
+       requested_file,
        Sock_ntop(conn.cli_sa, sizeof(*conn.cli_sa)),
        (status == TX_SUCCESS ? "SUCCEEDED" : "FAILED"),
        current_time_in_ms() / 1000);
