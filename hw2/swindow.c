@@ -97,7 +97,6 @@ void swindow_init(swindow *swin, int fd, int fd2, struct sockaddr *csa,
 }
 
 void swindow_received_ACK(swindow *swin, int ack, int rwinsz) {
-    INFO("Got (ACK: %d, RWINSZ: %d) from client\n", ack, rwinsz);
     swindow_dump(swin, "[BEFORE] ");
     swindow_received_ACK_real(swin, ack, rwinsz);
     swindow_dump(swin, "[AFTER] ");
@@ -111,14 +110,15 @@ void swindow_smelt_congestion(swindow *swin, int reason) {
     // before doing anything.
 
     if (reason == REASON_TIMEOUT) {
-	swin->ssthresh = swin->ssthresh / 2;
+	swin->ssthresh = swin->cwnd / 2;
 	swin->cwnd = 1;
     } else {
 	if (swin->num_acks == 4) {
-	    swin->ssthresh = swin->ssthresh / 2;
+	    swin->ssthresh = swin->cwnd / 2;
 	    swin->cwnd = max(1, swin->ssthresh);
 	}
     }
+    swin->ssthresh = max(1, swin->ssthresh);
 }
 
 // This function also updates the receiving buffer and receiving

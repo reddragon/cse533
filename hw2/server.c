@@ -242,10 +242,9 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
   // We reset the timeout value to the RTT based RTO when the oldest
   // unACKed sequence # is advanced ONLY if we are NOT in
   // Window-Probe-Mode.
-  probe_timeout_ms = 1500;
   if (*rwinsz > 0) {
     uint32_t rto = rtt_get_RTO(&swin.rtt);
-    INFO("on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
+    INFO("on_advanced_oldest_unACKed_seq(%d)::Updating timeout to %d ms\n", *rwinsz, rto);
     set_new_select_timeout(rto);
   } else {
     // We are still in the Window-Probe mode and the timer has been
@@ -278,6 +277,8 @@ void on_sock_read_ready(void *opaque) {
   packet_ntoh(&pkt, &pkt);
   got_packet_on_fd = TRUE;
 
+  INFO("Got (ACK: %d, RWINSZ: %d) from client\n", pkt.ack, pkt.rwinsz);
+
   uint32_t rto = 0;
   if (swin.rwinsz > 0 && pkt.rwinsz > 0) {
     // We were NOT in window-probe mode, and we remain in that mode.
@@ -302,7 +303,7 @@ void on_sock_read_ready(void *opaque) {
     set_new_select_timeout(rto);
   } else {
     // Leaving window probe mode.
-    INFO("Leaving Window-Probe Mode%s\n", "");
+    INFO("LEAVING WINDOW-PROBE-MODE%s\n", "");
     probe_timeout_ms = 1500;
     rto = (uint32_t)rtt_get_RTO(&swin.rtt);
   }

@@ -23,20 +23,6 @@ will reveal that line when the transmission has completed.
 [3] The functions perhaps_send() and perhaps_recv() are the ones that
 probabilistically drop packets before send and after receiving them.
 
-[4] For congestion control we remember that in class, you mentioned
-that:
-  (a) ssthresh should be equal to ssthresh/2, but the documentation
-  says it should be cwnd/2. So, we are sticking with what you mentioned
-  in class.
-
-  (b) In our implementation the value of sshthresh can reach 0. However
-  the documentation says we should bound it to at least 2. 
-
-[5] We were not sure how to handle the case when we enter a window-probe
-mode and the probe that we send advances the next expected packet number 
-by 1, while the client's advertised window size remains zero. We are
-currently, thinking of this as leaving and entering the window probe
-mode again.
 
 Tasks:
 ------
