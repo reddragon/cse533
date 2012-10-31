@@ -442,6 +442,7 @@ void send_file(void *opaque) {
           time_av_ms = 60*1000;
           at_select_ms = current_time_in_ms();
           INFO("Entering the TIME_WAIT state%s\n", "");
+          INFO("File Transfer completed in %d sec\n", current_time_in_ms() / 1000);
           return;
       } 
       

@@ -2,12 +2,23 @@ Group Members:
 [1] Gaurav Menghani
 [2] Dhruv Matani
 
-Note: Before every line, we print something like:
+Notes:
+------
+
+[1] Before every line, we print something like:
 INFO[5498:73423] ....
 
 This means that the PID of the proces printing this data is '5498' and
 the time at which the line was printed was 73423ms since the process
 was started.
+
+[2] When the client is done (receives the FIN packet from the server),
+it enters the TIME_WAIT state, and prints the line:
+'Entering the TIME_WAIT state'
+
+This line might be followed by lines that contain the text data of the
+file, so scrolling up a bit (specifically up to RWIN # of packets)
+will reveal that line when the transmission has completed.
 
 
 Tasks:

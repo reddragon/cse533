@@ -212,10 +212,11 @@ int data_producer(void *opaque, void *vbuff, int buffsz) {
 }
 
 void on_end_cb(int status) {
-  INFO("Transfer of File '%s' to %s :: %s\n", 
-      requested_file, 
-      Sock_ntop(conn.cli_sa, sizeof(*conn.cli_sa)),
-      (status == TX_SUCCESS ? "SUCCEEDED" : "FAILED"));
+  INFO("Transfer of File '%s' to %s :: %s [%d sec]\n", 
+       requested_file, 
+       Sock_ntop(conn.cli_sa, sizeof(*conn.cli_sa)),
+       (status == TX_SUCCESS ? "SUCCEEDED" : "FAILED"),
+       current_time_in_ms() / 1000);
   if (status == TX_FAILURE) {
     exit(1);
   } else {
