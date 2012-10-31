@@ -237,6 +237,7 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
   // We reset the timeout value to the RTT based RTO when the oldest
   // unACKed sequence # is advanced ONLY if we are NOT in
   // Window-Probe-Mode.
+  probe_timeout_ms = 1000;
   if (swin.rwinsz > 0) {
     uint32_t rto = rtt_get_RTO(&swin.rtt);
     INFO("on_advanced_oldest_unACKed_seq::Updating timeout to %d ms\n", rto);
@@ -245,7 +246,6 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
     // If we are still in window probe mode, we just reset
     // probe_timeout_ms to 1000 ms so that window-probe-mode re-starts
     // with the smallest timeout value.
-    probe_timeout_ms = 1000;
     set_new_select_timeout(5000);
   }
 }
