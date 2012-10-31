@@ -10,6 +10,7 @@ void rwindow_init(rwindow *rwin, int rwinsz) {
   rwin->smallest_expected_seq = 1;
   rwin->rwinsz = rwinsz;
   rwin->last_read_seq = -1;
+  rwin->last_seq_in_stream = -1;
   rwin->mutex = MALLOC(pthread_mutex_t);
   pthread_mutex_init(rwin->mutex, NULL);
 }
@@ -59,7 +60,6 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
   VERBOSE("adv_rwinsz: %d\n", adv_rwinsz);
 
   if (adv_rwinsz == 0) {
-
     // This is basically saying to the server:
     // "I don't know what you are sending me, but I want
     //  ack_pkt->ack, and I don't have space yet"
@@ -98,6 +98,10 @@ packet_t *rwindow_received_packet(rwindow *rwin, packet_t *opkt) {
     VERBOSE("Inserting into treap the packet %d with datalen %d and flags %x\n",
 	    pkt->seq, pkt->datalen, pkt->flags);
     treap_insert(&rwin->t_rwin, pkt->seq, (void *)pkt);
+
+    if(pkt->flags & FLAG_FIN) {
+        rwin->last_seq_in_stream = pkt->seq;
+    }
 
     int *seq = &rwin->smallest_expected_seq;
     while (treap_find(&rwin->t_rwin, *seq)) {
@@ -141,4 +145,10 @@ packet_t *read_packet(rwindow *rwin) {
   return (packet_t *)(tn->data);
 }
 
-
+BOOL rwindow_received_all(rwindow *rwin) {
+    if (rwin->last_seq_in_stream != -1 &&
+        rwin->smallest_expected_seq == rwin->last_seq_in_stream + 1) {
+        return TRUE;
+    }
+    return FALSE;
+}

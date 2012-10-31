@@ -14,7 +14,6 @@
 client_args *cargs;            // The client args
 client_conn *conn;             // The client connection struct
 packet_t *file_name_pkt;       // The file name packet
-packet_t *fin_pkt;             // The final packet to be sent
 int sockfd;                    // The socket used for communication 
 int cliport;                   // The client ephemeral port
 int recv_total = 0;            // Total calls to recv(2) or recvfrom(2)
@@ -242,7 +241,7 @@ void send_packet(packet_t *pkt) {
   packet_hton(&tp, pkt);
 #ifdef DEBUG
   int r;
-  if (pkt == fin_pkt) {
+  if (rwindow_received_all(&rwin)) {
      r = perhaps_rarely_send(sockfd, (void *)&tp, packet_len, 0);
   } else {
      r = perhaps_send(sockfd, (void *)&tp, packet_len, 0);
@@ -304,7 +303,11 @@ void resend_fin_pkt(void *opaque) {
   fds.timeout.tv_sec = time_av_ms / 1000;
   fds.timeout.tv_usec = (time_av_ms % 1000) * 1000;
 
-  send_packet(fin_pkt);
+  memset(&pkt, 0, sizeof(pkt));
+  pkt.ack = rwin.smallest_expected_seq;
+  pkt.datalen = 0;
+  pkt.rwinsz = 0;
+  send_packet(&pkt);
   INFO("Waiting for %d more seconds in the TIME_WAIT state\n", time_av_ms/1000);
 }
 
@@ -424,14 +427,10 @@ void send_file(void *opaque) {
       INFO("Received packet with SEQ#: %u\n", pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
       INFO("ACK Packet will be sent with ACK: %u, Window Size: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
-      if (pkt.flags & FLAG_FIN) {
-        fin_pkt = ack_pkt;
-      } 
 
       send_packet(ack_pkt);
       
-      if (pkt.flags & FLAG_FIN) {
-          // Here goes the special logic for dealing with FIN
+      if (rwindow_received_all(&rwin)) {
           fdset_remove(&fds, &fds.rev, sockfd);
           fds.timeout_cb = fin_timeout;
           fdset_add(&fds, &fds.rev, sockfd, &sockfd, resend_fin_pkt);
@@ -444,7 +443,7 @@ void send_file(void *opaque) {
           INFO("File Transfer completed in %d sec\n", current_time_in_ms() / 1000);
           return;
       } 
-      
+
       free(ack_pkt);
       ack_pkt = NULL;
   } // while (1)
