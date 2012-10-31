@@ -285,7 +285,8 @@ void on_sock_read_ready(void *opaque) {
     INFO("Entering WINDOW-PROBE-MODE%s\n", "");
     int rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
-    probe_timeout_ms = imin(60000, imax(probe_timeout_ms, 5000));
+    rto = imax(rto, 5000);
+    rto = imin(rto, 60000);
     set_new_select_timeout(rto);
   }
 }
@@ -303,9 +304,11 @@ void on_select_timeout(void *opaque) {
   // swin.rwinsz).
   if (swin.rwinsz == 0) {
     // We are in window probe mode.
+    INFO("In Window Probe mode. Previous Timeout: %d ms\n", probe_timeout_ms);
     rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
-    probe_timeout_ms = imin(60000, imax(probe_timeout_ms, 5000));
+    rto = imax(rto, 5000);
+    rto = imin(rto, 60000);
   } else {
     probe_timeout_ms = 1000;
 
