@@ -421,7 +421,7 @@ void send_file(void *opaque) {
           exit(1);
         }
       }
-      VERBOSE("recv(2) read %d bytes. Packet seq#: %u\n", r, pkt.seq);
+      INFO("Receved packet with SEQ#: %u\n", r, pkt.seq);
       packet_t *ack_pkt = rwindow_received_packet(&rwin, &pkt);
       INFO("ACK Packet will be sent with ACK: %u, Window Size: %d\n", ack_pkt->ack, ack_pkt->rwinsz);
       if (pkt.flags & FLAG_FIN) {
