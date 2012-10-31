@@ -244,17 +244,18 @@ void on_advanced_oldest_unACKed_seq(void *opaque) {
 void on_sock_read_ready(void *opaque) {
   packet_t pkt;
   VERBOSE("on_sock_read_ready::Trying read from FD: %d\n", swin.fd);
-  probe_timeout_ms = 1000;
 
   // Warning: Do NOT use recv(2) here. It fails.
   memset(&pkt, 0, sizeof(pkt));
   int r = recvfrom(swin.fd, &pkt, PACKET_HEADER_SZ, 0, NULL, NULL);
-  packet_ntoh(&pkt, &pkt);
   if (r < 0 && (errno == EINTR || errno == ECONNREFUSED)) {
     perror("recvfrom");
     return;
   }
   VERBOSE("Successfully read %d bytes\n", r);
+
+  probe_timeout_ms = 1000;
+  packet_ntoh(&pkt, &pkt);
 
   // Decrease timeout value by the amount of time spent in the
   // select(2) system call.
