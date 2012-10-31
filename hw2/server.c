@@ -308,6 +308,7 @@ void on_select_timeout(void *opaque) {
     INFO("In Window Probe mode. Previous Timeout: %d ms\n", probe_timeout_ms);
     rto = probe_timeout_ms;
     probe_timeout_ms *= 2;
+    probe_timeout_ms = imin(probe_timeout_ms, 60000);
     rto = imax(rto, 5000);
     rto = imin(rto, 60000);
   } else {
