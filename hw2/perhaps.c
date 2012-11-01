@@ -4,7 +4,7 @@
 #include "perhaps.h"
 #include "utils.h"
 #include <stdlib.h>
-#include <assert.h>
+#include "myassert.h"
 
 // These functions are used only by the client since only the client
 // behaves erratically.
@@ -24,7 +24,7 @@ void perhaps_init(void) {
 
 #ifdef DEBUG
 int perhaps_rarely_send(int fd, const void *data, int len, int flags) {
-    assert(perhaps_inited == TRUE);
+    ASSERT(perhaps_inited == TRUE);
     // ++send_total;
     double rn = drand48();
     INFO("perhaps_rarely_send::rn = %.2f\n", rn);
@@ -41,7 +41,7 @@ int perhaps_rarely_send(int fd, const void *data, int len, int flags) {
 #endif
 
 int perhaps_send(int fd, const void *data, int len, int flags) {
-    assert(perhaps_inited == TRUE);
+    ASSERT(perhaps_inited == TRUE);
     ++send_total;
     double rn = drand48();
     if (rn <= cargs->p) {
@@ -56,7 +56,7 @@ int perhaps_send(int fd, const void *data, int len, int flags) {
 }
 
 int perhaps_recv(int fd, void *data, int len, int flags) {
-    assert(perhaps_inited == TRUE);
+    ASSERT(perhaps_inited == TRUE);
     double rn = drand48();
     ++recv_total;
     int r = recv(fd, data, len, flags);
@@ -71,7 +71,7 @@ int perhaps_recv(int fd, void *data, int len, int flags) {
 }
 
 int perhaps_recvfrom(int fd, void *data, int len, int flags, struct sockaddr *src_addr, socklen_t *addrlen) {
-    assert(perhaps_inited == TRUE);
+    ASSERT(perhaps_inited == TRUE);
     double rn = drand48();
     ++recv_total;
     int r = recvfrom(fd, data, len, flags, src_addr, addrlen);

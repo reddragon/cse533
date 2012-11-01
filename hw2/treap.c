@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "treap.h"
+#include "myassert.h"
 
 //#define TDEBUG(ARGS...) fprintf(stderr, ARGS);
 #define TDEBUG(ARGS...)
@@ -70,7 +71,7 @@ void treap_insert(treap *t, int key, const void *data) {
 
 void treap_rotate_right(treap_node *n) {
     treap_node *par = n->parent;
-    assert(par && par->left == n);
+    ASSERT(par && par->left == n);
     treap_node *parpar = par->parent;
 
     par->left = n->right;
@@ -93,7 +94,7 @@ void treap_rotate_right(treap_node *n) {
 
 void treap_rotate_left(treap_node *n) {
     treap_node *par = n->parent;
-    assert(par && par->right == n);
+    ASSERT(par && par->right == n);
     treap_node *parpar = par->parent;
 
     par->right = n->left;
@@ -160,7 +161,7 @@ treap_node* treap_lower_bound(treap *t, int key) {
 
 void treap_delete_leaf_or_single_child_node(treap *t, treap_node *n) {
     TDEBUG("del_leaf_or_single_child::key: %d; n->left: %p, n->right: %p\n", n->key, n->left, n->right);
-    assert(!(n->left && n->right));
+    ASSERT(!(n->left && n->right));
 
     if (n->left || n->right) {
         treap_node *child = n->left ? n->left : n->right;
@@ -274,13 +275,13 @@ void treap_delete_node(treap *t, treap_node *n) {
         // node is one with just a single child.
         treap_node *succ = treap_successor(n);
         if (succ) {
-            assert(!(succ->left && succ->right));
+            ASSERT(!(succ->left && succ->right));
             n->key  = succ->key;
             n->data = succ->data;
             treap_delete_leaf_or_single_child_node(t, succ);
         } else {
             treap_node *pred = treap_predecessor(n);
-            assert(pred && !(pred->left && pred->right));
+            ASSERT(pred && !(pred->left && pred->right));
             n->key  = pred->key;
             n->data = pred->data;
             treap_delete_leaf_or_single_child_node(t, pred);

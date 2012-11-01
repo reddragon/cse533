@@ -27,25 +27,25 @@ debug: targets
 
 targets: server client
 
-server: server.c utils.h $(ALLOBJDEPS)
+server: server.c utils.h $(ALLOBJDEPS) myassert.h
 	$(CC) $(CFLAGS) server.c $(ALLOBJDEPS) -o server $(LIBS)
-client: client.c utils.h perhaps.o $(ALLOBJDEPS)
+client: client.c utils.h perhaps.o $(ALLOBJDEPS) myassert.h
 	$(CC) $(CFLAGS) client.c perhaps.o $(ALLOBJDEPS) -o client $(LIBS)
-utils.o: utils.c utils.h email.h
+utils.o: utils.c utils.h email.h unpifiplus.h myassert.h
 	$(CC) $(CFLAGS) -c -o utils.o utils.c
-rwindow.o: rwindow.h rwindow.c utils.h treap.h
+rwindow.o: rwindow.h rwindow.c utils.h treap.h myassert.h
 	$(CC) $(CFLAGS) -c -o rwindow.o rwindow.c
-fdset.o: fdset.c fdset.h vector.h algorithm.h
+fdset.o: fdset.c fdset.h vector.h algorithm.h utils.o myassert.h
 	$(CC) $(CFLAGS) -c -o fdset.o fdset.c
-vector.o: vector.c vector.h
+vector.o: vector.c vector.h myassert.h
 	$(CC) $(CFLAGS) -c -o vector.o vector.c
-algorithm.o: algorithm.c algorithm.h vector.h
+algorithm.o: algorithm.c algorithm.h vector.h myassert.h
 	$(CC) $(CFLAGS) -c -o algorithm.o algorithm.c
-treap.o: treap.c treap.h
+treap.o: treap.c treap.h myassert.h
 	$(CC) $(CFLAGS) -c -o treap.o treap.c
-swindow.o: swindow.c swindow.h treap.h utils.h
+swindow.o: swindow.c swindow.h treap.h utils.h myassert.h
 	$(CC) $(CFLAGS) -c -o swindow.o swindow.c
-perhaps.o: perhaps.c perhaps.h utils.h
+perhaps.o: perhaps.c perhaps.h utils.h myassert.h
 	$(CC) $(CFLAGS) -c -o perhaps.o perhaps.c
 email.o: email.c email.h
 	$(CC) $(CFLAGS) -c -o email.o email.c

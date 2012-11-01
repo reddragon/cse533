@@ -4,6 +4,7 @@
 #include "fdset.h"
 #include "algorithm.h"
 #include "swindow.h"
+#include "myassert.h"
 #include <signal.h>
 #include <time.h>
 
@@ -405,7 +406,7 @@ start_ftp(int old_sockfd, struct sockaddr* cli_sa, const char *file_name) {
 
   sport = ntohs(sin.sin_port);
   FILE *pf = fopen(file_name, "r");
-  assert(pf);
+  ASSERT(pf);
 
   swindow_init(&swin, sockfd, old_sockfd, conn.cli_sa,
                sargs.sw_size, data_producer,
@@ -448,7 +449,7 @@ bind_udp(struct server_args *sargs, vector *v) {
   ifi_head = Get_ifi_info_plus(AF_INET, 1);
   
   for (ifi = ifi_head; ifi != NULL; ifi = ifi->ifi_next) {
-    assert(ifi->ifi_ntmaddr != NULL);
+    ASSERT(ifi->ifi_ntmaddr != NULL);
 
     sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
     Setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
@@ -517,7 +518,7 @@ void main_server_read_cb(void *opaque) {
   }
 
   VERBOSE("Packet datalen: %d\n", pkt.datalen);
-  assert(pkt.datalen < sizeof(pkt.data));
+  assert_lt(pkt.datalen, sizeof(pkt.data));
   pkt.data[pkt.datalen] = '\0';
   strcpy(file_name, pkt.data);
   INFO("%s:%u requested file '%s'\n", sa_data_str(&cli_sa), ntohs(cli_si->sin_port), file_name);
@@ -635,7 +636,7 @@ int main(int argc, char **argv) {
 
   if (r < 0) {
     perror("select");
-    assert(errno != EINTR);
+    ASSERT(errno != EINTR);
     return 1;
   }
 

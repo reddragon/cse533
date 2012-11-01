@@ -2,6 +2,7 @@
 #include <unp.h>
 #include <ctype.h>
 #include <sys/time.h>
+#include "myassert.h"
 
 struct timeval dob; // Date of Birth
 
@@ -33,9 +34,9 @@ int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval 
 }
 
 void* my_malloc(size_t size) {
-    assert(size < 32000);
+    // assert(size < 2 * 1048676); // 2MiB
     void *ptr = calloc(1, size);
-    assert(ptr);
+    ASSERT(ptr);
     return ptr;
 }
 
@@ -127,7 +128,7 @@ read_cargs(const char *cargs_file, struct client_args *cargs) {
                    &cargs->rand_seed,
                    &cargs->p,
                    &cargs->mean);
-    assert(r == 7);
+    ASSERT(r == 7);
     return 0;
 }
 
@@ -139,7 +140,7 @@ read_sargs(const char *sargs_file, struct server_args *sargs) {
         return 1;
     }
     int r = fscanf(fp, "%d%d", &sargs->serv_portno, &sargs->sw_size);
-    assert(r == 2);
+    ASSERT(r == 2);
     return 0;
 }
 
@@ -167,7 +168,7 @@ get_ntm_len(struct sockaddr *ntm) {
 char *
 sa_data_str(struct sockaddr *sa) {
     char *str = (char *)calloc(20, sizeof(char));
-    assert(str);
+    ASSERT(str);
     sprintf(str, "%u.%u.%u.%u", 
             sa->sa_data[2] & 0xFF, sa->sa_data[3] & 0xFF, 
             sa->sa_data[4] & 0xFF, sa->sa_data[5] & 0xFF);
@@ -177,7 +178,7 @@ sa_data_str(struct sockaddr *sa) {
 char *
 my_sock_ntop(struct sockaddr *sa) {
     char *str = (char *)calloc(40, sizeof(char));
-    assert(str);
+    ASSERT(str);
     strcpy(str, Sock_ntop(sa, sizeof(*sa)));
     return str;
 }
@@ -210,7 +211,7 @@ get_ifi_info_plus(int family, int doaliases)
     len = 100 * sizeof(struct ifreq);	/* initial buffer size guess */
     for ( ; ; ) {
         buf = calloc(len, 1);
-        assert(buf);
+        ASSERT(buf);
         ifc.ifc_len = len;
         ifc.ifc_buf = buf;
         if (ioctl(sockfd, SIOCGIFCONF, &ifc) < 0) {
