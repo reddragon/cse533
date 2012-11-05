@@ -313,6 +313,7 @@ void resend_fin_pkt(void *opaque) {
 
 void fin_timeout(void *opaque) {
   INFO("Timed out after waiting for 60 secs after getting a FIN%s\n", "");
+  INFO("http://memegenerator.net/instance/29608963%s\n", "");
 
   // We should exit only when the consumer thread has finished its job
   pthread_join(tid, NULL);
@@ -420,6 +421,9 @@ void send_file(void *opaque) {
           // Go back to waiting for a packet.
           continue;
         } else {
+          if (errno == ECONNREFUSED) {
+            INFO("http://memegenerator.net/instance/29609574%s\n", "");
+          }
           perror("recv");
           exit(1);
         }

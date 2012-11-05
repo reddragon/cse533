@@ -228,8 +228,10 @@ void on_end_cb(int status) {
        (status == TX_SUCCESS ? "SUCCEEDED" : "FAILED"),
        current_time_in_ms() / 1000);
   if (status == TX_FAILURE) {
+    INFO("http://memegenerator.net/instance/29609346%s\n", "");
     exit(1);
   } else {
+    INFO("http://memegenerator.net/instance/29609388%s\n", "");
     exit(0);
   }
 }
