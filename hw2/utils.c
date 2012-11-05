@@ -119,7 +119,7 @@ read_cargs(const char *cargs_file, struct client_args *cargs) {
     FILE *fp = fopen(cargs_file, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open file\n");
-        return 1;
+        exit(1);
     }
     int r = fscanf(fp, "%s%u%s%u%u%lf%lf", cargs->ip_addr,
                    &cargs->serv_portno,
@@ -137,7 +137,7 @@ read_sargs(const char *sargs_file, struct server_args *sargs) {
     FILE *fp = fopen(sargs_file, "r");
     if (fp == NULL) {
         fprintf(stderr, "Could not open file\n");
-        return 1;
+        exit(1);
     }
     int r = fscanf(fp, "%d%d", &sargs->serv_portno, &sargs->sw_size);
     ASSERT(r == 2);
