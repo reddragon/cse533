@@ -1,0 +1,71 @@
+The destination node builds a reverse route to the source node, when it receives the RREQ packet. 
+Start with a hop count of 0, and it is incremented on each node.
+
+If an RREQ packet is received with a small hop count is also replied using the RREP. Similarily, the source node,
+will keep track of the smaller hop-count RREP, and note that. Intermediate nodes will also do the
+same.
+
+Destination Seq # is also piggybacked on the RREP. It also signigies how fresh the route is. If we receive an
+RREP with a greater RREP, we choose that route.
+
+API-like facility that lets an Application talks to ODR layer. 
+The data link layer converts the ODR packet to an IP packet
+Unix domain sockets
+
+Ethernet Frame
+--------------
+Destination Addr (6 bytes)
+
+
+Payload:
+  - RREQ
+	- RREP
+	- Application Data
+
+1. Decide a protocol number for ODR which is not one of the standard numbers
+
+
+Max size of an ethernet frame = 1518 bytes. 18 bytes are for the header, and 4 bytes (IIRC)
+for the CRC. Payload can be maximum 1518 - 18 - 4 = 1496 bytes.
+
+/--------------------------------------------------------------------------------\
+| Destination Addr  |     Source Addr    |   Type  |  Payload           | CRC    |
+\--------------------------------------------------------------------------------/
+ (6 bytes / 48 bits)  (6 bytes / 48 bits) (2 bytes)
+
+
+PF_PACKET
+---------
+
+Requires root previleges.
+socket(PF_PACKET, int socket_type, int protocol)
+
+socket_type:
+SOCK_RAW => Writing out the raw ethernet frame.
+
+protocol:
+0x800 (Possibly): For IP packets
+0x806 (---"----): For ARP
+
+2. Some fields are network byte order, some are not.
+
+3. The Ethernet Addr in the packet supersedes the sockaddr_ll
+
+sockaddr_ll struct for address instead of sockaddr.
+sll_protocol in sockaddr_ll is the same as the protocol value we used while creating the socket.
+sll_pkttype is used only when we are reading a DGRAM packet. 
+sll_addr is an 8 byte address, but for ethernet frames, we will use only 6 (the first six, I assume).
+
+Types of Message:
+- ODR Message
+
+
+IPC on same node:
+- Pipes
+- Shared Memory
+- Unix Domain Sockets
+
+"God must love you because he brought on Sandy" 
+"Why can't you Google it for yourselves? I will become meaner and meaner as the semester passes"
+
+pcap & libnet to read and write packets in Linux
