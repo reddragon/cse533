@@ -38,6 +38,8 @@ main(int argc, char **argv) {
   tmp_fname = create_tempfile();
   VERBOSE("Client File Name: %s\n", tmp_fname);
 
+  prhwaddrs();
+
   create_cli_dsock(tmp_fname, &c);
   test_api();
   return 0;

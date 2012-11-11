@@ -45,7 +45,7 @@ main(int argc, char **argv) {
     fprintf(stderr, "Usage: ./odr <staleness>");
     exit(1);
   }
-  
+
   create_serv_dsock(&s);
   process_requests();
   return 0;
