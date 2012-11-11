@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "api.h"
 
 serv_dsock s;
 
@@ -8,8 +9,10 @@ process_requests(void) {
   char buff[512];
   struct sockaddr cliaddr;
   socklen_t clilen = sizeof(cliaddr);
-  int r = Recvfrom(s.sockfd, buff, 512, 0, &cliaddr, &clilen);
-  fprintf(stderr, "%d %s\n", r, buff);
+  
+  api_msg m;
+  int r = Recv(s.sockfd, (char *) &m, sizeof(api_msg), 0);
+  fprintf(stderr, "%d %s\n", m.rtype, m.msg);
 }
 
 int

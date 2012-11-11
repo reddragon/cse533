@@ -3,16 +3,19 @@
 #include <string.h>
 #include <stdlib.h>
 
+cli_dsock c;
+
+void
+test_api(void) {
+  msg_send(c.sockfd, "123.456.789.123", 1234, "Hello!", 0);
+}
+
 int
 main(int argc, char **argv) {
   char *file_name = create_tempfile();
   VERBOSE("Client File Name: %s\n", file_name);
   
-  cli_dsock c;
   create_cli_dsock(file_name, &c);
-  
-  char buff[512];
-  sprintf(buff, "Hello World");
-  Send(c.sockfd, buff, strlen(buff), 0);
+  test_api();
   return 0;
 }
