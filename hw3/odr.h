@@ -28,11 +28,6 @@ typedef struct odr_tentry {
   uint32_t last_heard_ms; 
 } odr_tentry;
 
-// After every few seconds, this thread is spawned and it
-// grabs a mutex, and cleans up all the tentries, for all
-// the nodes that haven't responded for 'TTL' ms. Or maybe
-// we can just call this whenever we are about to add an
-// entry, but that probably would be quite too expensive.
-void cleanup_tentries(vector *tentries);
-
+// Checks if the entry is stale now
+void is_stale_entry(odr_tentry *t);
 #endif

@@ -50,6 +50,8 @@ typedef struct serv_dsock {
 } serv_dsock;
 
 char * create_tempfile(void);
+void utils_init(void);
+uint32_t current_time_in_ms(void);
 void create_cli_dsock(char *file_name, cli_dsock *c);
 void create_serv_dsock(serv_dsock *s);
 struct hwa_info	*get_hw_addrs(void);
