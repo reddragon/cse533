@@ -6,6 +6,24 @@
 #include <errno.h>
 #include <sys/ioctl.h>      
 #include <net/if.h>           
+#include <assert.h>
+#include "unp.h"
+
+#define SRVDGPATH "/tmp/srv_dsock"
+
+#define TIMESTAMPMSG(TYPE, X, VARGS...) {     \
+  fprintf(stdout, TYPE ": " X, VARGS);        \
+}
+
+#if 1
+#define VERBOSE(X, VARGS...) TIMESTAMPMSG("VERBOSE", X, VARGS)
+#else
+#define VERBOSE(X...)
+#endif
+
+#define INFO(X, VARGS...) TIMESTAMPMSG("INFO", X, VARGS)
+#define MALLOC(X) (X *) malloc(sizeof(X))
+#define NMALLOC(X,N) (X *) malloc(sizeof(X) * N)
 
 #define	IF_NAME		16	/* same as IFNAMSIZ    in <net/if.h> */
 #define	IF_HADDR	 6	/* same as IFHWADDRLEN in <net/if.h> */

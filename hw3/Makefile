@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
-OBJ = odr utils.o
+OBJ = timecli odr utils.o
 
 LINKFLAGS = -lpthread
 INCFLAGS  = -I../unpv13e_linux/lib
@@ -10,8 +10,8 @@ CFLAGS += $(INCFLAGS)
 
 all: targets
 
-#debug: CFLAGS += -DDEBUG -g
-#debug: targets
+debug: CFLAGS += -DDEBUG -g
+debug: targets
 
 targets: $(OBJ)
 
@@ -20,6 +20,9 @@ odr: odr.c utils.o
 
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c -o utils.o utils.c
+
+timecli: timecli.c utils.o
+	$(CC) $(CFLAGS) timecli.c utils.o -o timecli $(LIBS)
 
 clean:
 	rm -f $(OBJ)
