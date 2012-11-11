@@ -24,7 +24,7 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   bzero(&m, sizeof(api_msg));
   m.rtype = MSG_RECV;
 
-  assert((api_msg*)(0)->msg == API_MSG_HDR_SZ);
+  assert(((api_msg*)(0))->msg == API_MSG_HDR_SZ);
   // Just send the header of the API Message
   Send(sockfd, (char *) &m, API_MSG_HDR_SZ, 0);
   
