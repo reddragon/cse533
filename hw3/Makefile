@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
-OBJ = timecli odr utils.o
+OBJ = timecli odr utils.o api.o
 
 LINKFLAGS = -lpthread
 INCFLAGS  = -I../unpv13e_linux/lib
@@ -17,6 +17,9 @@ targets: $(OBJ)
 
 odr: odr.c utils.o
 	$(CC) $(CFLAGS) odr.c utils.o -o odr $(LIBS)
+
+api.o: api.c api.h
+	$(CC) $(CFLAGS) -c -o api.o api.c
 
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c -o utils.o utils.c
