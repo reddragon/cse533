@@ -1,7 +1,7 @@
 #include "utils.h"
 
 struct hwa_info *
-get_hw_addrs()
+get_hw_addrs(void)
 {
 	struct hwa_info	*hwa, *hwahead, **hwapnext;
 	int		sockfd, len, lastlen, alias;
@@ -78,7 +78,7 @@ free_hwa_info(struct hwa_info *hwahead)
 /* end free_hwa_info */
 
 struct hwa_info *
-Get_hw_addrs()
+Get_hw_addrs(void)
 {
 	struct hwa_info	*hwa;
 
@@ -88,7 +88,7 @@ Get_hw_addrs()
 }
 
 void
-prhwaddrs() {
+prhwaddrs(void) {
   struct hwa_info *hwa, *hwahead;
   struct sockaddr *sa;
   char   *ptr;
