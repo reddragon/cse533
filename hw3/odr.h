@@ -3,9 +3,7 @@
 
 #include "vector.h"
 
-// TODO Change this to something appropriate
-#define TTL_MS 1000
-
+uint32_t staleness;
 // TODO Define ethernet_frame Type macros here
 // TODO Choose a type for ODR packets
 
@@ -25,7 +23,7 @@ typedef struct odr_tentry {
   unsigned short portno;
   char *sun_path;
   // Instead of having a TTL, we keep this
-  uint32_t last_heard_ms; 
+  uint32_t timestamp_ms; 
 } odr_tentry;
 
 // Checks if the entry is stale now
