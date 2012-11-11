@@ -4,6 +4,12 @@
 serv_dsock s;
 
 void
+odr_setup(void) {
+  // TODO
+  // Create the PF_PACKET socket
+}
+
+void
 odr_send(api_msg *m) {
   // TODO 
   // Actual sending of the message
@@ -24,7 +30,7 @@ process_requests(void) {
   socklen_t clilen = sizeof(*cliaddr);
   
   api_msg m;
-  int r = Recvfrom(s.sockfd, (char *) &m, sizeof(api_msg), 0, (SA *) cliaddr, &clilen);
+  Recvfrom(s.sockfd, (char *) &m, sizeof(api_msg), 0, (SA *) cliaddr, &clilen);
   VERBOSE("Received a request of type %d from Client with sun_path %s\n", m.rtype, cliaddr->sun_path);
   if (m.rtype == MSG_SEND) {
     odr_send(&m);
