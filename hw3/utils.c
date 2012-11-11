@@ -48,8 +48,8 @@ current_time_in_ms(void) {
 
 char *
 create_tempfile(void) {
-  int r = mkdir("/tmp/dynamic_duo/", 0644);
-  assert(r == 0);
+  int r = mkdir("/tmp/dynamic_duo/", 0755);
+  assert(r == 0 || (r == -1 && errno == EEXIST));
   char *file_name = NMALLOC(char, 64);
   strcpy(file_name, "/tmp/dynamic_duo/dsockXXXXXX");
   int fd = mkstemp(file_name);
