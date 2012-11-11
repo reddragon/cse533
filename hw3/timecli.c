@@ -30,6 +30,10 @@ test_api(void) {
   msg_recv(c.sockfd, ip, &src_port, msg);
 }
 
+void
+client_loop(void) {
+}
+
 int
 main(int argc, char **argv) {
   assert(((api_msg*)(0))->msg == (void *)API_MSG_HDR_SZ);
