@@ -2,13 +2,13 @@
 #include "api.h"
 
 void 
-msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int flag) {
+msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int msg_flag) {
   api_msg m;
   bzero(&m, sizeof(api_msg));
   m.rtype = MSG_SEND;
   m.port = dst_port;
   strcpy(m.ip, dst_ip);
-  m.flag = flag;
+  m.msg_flag = msg_flag;
   strncpy(m.msg, msg, sizeof(api_msg) - API_MSG_HDR_SZ);
   
   // Send the newly marshalled API message to the ODR.
