@@ -2,8 +2,8 @@
 #define _API_H_
 
 typedef enum request_type {
-  MSG_SEND,
-  MSG_RECV
+  MSG_SEND = 1,
+  MSG_RECV = 2
 } request_type;
 
 // The message which will be sent from the API to the ODR, or the other way round
