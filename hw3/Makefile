@@ -15,7 +15,7 @@ debug: targets
 
 targets: $(OBJ)
 
-odr: odr.c utils.o api.h
+odr: odr.c odr.h utils.o api.h
 	$(CC) $(CFLAGS) odr.c utils.o -o odr $(LIBS)
 
 api.o: api.c api.h
