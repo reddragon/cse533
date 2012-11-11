@@ -1,9 +1,4 @@
-#include <errno.h>		/* error numbers */
-#include <sys/ioctl.h>          /* ioctls */
-#include <net/if.h>             /* generic interface structures */
-
-#include "hw_addrs.h"
-
+#include "utils.h"
 
 struct hwa_info *
 get_hw_addrs()
@@ -92,3 +87,44 @@ Get_hw_addrs()
 	return(hwa);
 }
 
+void
+prhwaddrs() {
+  struct hwa_info *hwa, *hwahead;
+  struct sockaddr *sa;
+  char   *ptr;
+  int    i, prflag;
+
+  printf("\n");
+
+  for (hwahead = hwa = Get_hw_addrs(); hwa != NULL; hwa = hwa->hwa_next) {
+
+    printf("%s :%s", hwa->if_name, ((hwa->ip_alias) == IP_ALIAS) ? " (alias)\n" : "\n");
+
+    if ( (sa = hwa->ip_addr) != NULL)
+      printf("\t\tIP addr = %s\n", (char *)Sock_ntop_host(sa, sizeof(*sa)));
+
+    prflag = 0;
+    i = 0;
+    do {
+      if (hwa->if_haddr[i] != '\0') {
+        prflag = 1;
+        break;
+      }
+    } while (++i < IF_HADDR);
+
+    if (prflag) {
+      printf("\t\tHW addr = ");
+      ptr = hwa->if_haddr;
+      i = IF_HADDR;
+      do {
+        printf("%.2x%s", *ptr++ & 0xff, (i == 1) ? " " : ":");
+      } while (--i > 0);
+    }
+
+    printf("\n\t\tinterface index = %d\n\n", hwa->if_index);
+  }
+
+  free_hwa_info(hwahead);
+  exit(0);
+  return 0;
+}
