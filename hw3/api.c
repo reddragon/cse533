@@ -33,6 +33,7 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   VERBOSE("Waiting for a Recv\n%s", "");
   Recv(sockfd, (char *) &r, sizeof(api_msg), 0);
   VERBOSE("Came out of a Recv\n%s", "");
+  VERBOSE("Message: %s\n", r.msg);
   *src_port = r.port;
   strncpy(src_ip, r.ip, 20);
   strncpy(msg, r.msg, sizeof(r.msg));
