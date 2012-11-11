@@ -30,6 +30,8 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   // TODO Put a timeout here
   // The message which will have the response
   api_msg r;
-  // TODO Recvfrom here
-  // TODO Fill up the args from the message
+  Recv(sockfd, (char *) &r, sizeof(api_msg), 0);
+  *src_port = r.port;
+  strncpy(src_ip, r.ip, 20);
+  strncpy(msg, r.msg, sizeof(r.msg));
 }
