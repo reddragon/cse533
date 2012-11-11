@@ -26,6 +26,10 @@ create_cli_dsock(char *file_name, cli_dsock *c) {
   bzero(&c->servaddr, sizeof(c->servaddr));
   c->servaddr.sun_family = AF_LOCAL;
   strcpy(c->servaddr.sun_path, SRVDGPATH);
+  
+  // This is required since unlike normal TCP/UDP sockets, the
+  // kernel does not create an ephemeral port for us.
+  connect(c->sockfd, (SA *) &(c->servaddr), sizeof(c->servaddr));
 }
 
 void

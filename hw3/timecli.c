@@ -13,7 +13,6 @@ main(int argc, char **argv) {
   
   char buff[512];
   sprintf(buff, "Hello World");
-  connect(c.sockfd, (SA *) &(c.servaddr), sizeof(c.servaddr));
   Send(c.sockfd, buff, strlen(buff), 0);
   return 0;
 }
