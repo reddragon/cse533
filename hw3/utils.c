@@ -1,4 +1,7 @@
+// -*- tab-width: 2; c-basic-offset: 2 -*-
 #include "utils.h"
+#include <sys/stat.h>
+#include <sys/types.h>
 
 struct timeval dob; // Date of Birth
 
@@ -45,8 +48,10 @@ current_time_in_ms(void) {
 
 char *
 create_tempfile(void) {
-  char *file_name = NMALLOC(char, 15);
-  strcpy(file_name, "/tmp/dsockXXXXXX");
+  int r = mkdir("/tmp/dynamic_duo/", 0644);
+  assert(r == 0);
+  char *file_name = NMALLOC(char, 64);
+  strcpy(file_name, "/tmp/dynamic_duo/dsockXXXXXX");
   int fd = mkstemp(file_name);
   assert(fd > 0);
   return file_name;
