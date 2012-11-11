@@ -10,5 +10,10 @@ main(int argc, char **argv) {
   
   cli_dsock c;
   create_cli_dsock(file_name, &c);
+  
+  char buff[512];
+  sprintf(buff, "Hello World");
+  connect(c.sockfd, (SA *) &(c.servaddr), sizeof(c.servaddr));
+  Send(c.sockfd, buff, strlen(buff), 0);
   return 0;
 }
