@@ -28,6 +28,21 @@ create_cli_dsock(char *file_name, cli_dsock *c) {
   strcpy(c->servaddr.sun_path, SRVDGPATH);
 }
 
+void
+create_serv_dsock(serv_dsock *s) {
+  if (s == NULL) {
+    s = MALLOC(serv_dsock);
+  }
+  s->sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
+  unlink(SRVDGPATH);
+  bzero(&s->servaddr, sizeof(s->servaddr));
+  s->servaddr.sun_family = AF_LOCAL;
+  strcpy(s->servaddr.sun_path, SRVDGPATH);
+  
+  Bind(s->sockfd, (SA *) &s->servaddr, sizeof(s->servaddr));
+  VERBOSE("Successfully bound to the socket\n%s", "");
+}
+
 struct hwa_info *
 get_hw_addrs(void)
 {

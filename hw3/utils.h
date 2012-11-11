@@ -44,8 +44,14 @@ typedef struct cli_dsock {
   int sockfd;
 } cli_dsock;
 
+typedef struct serv_dsock {
+  struct sockaddr_un servaddr;
+  int sockfd;
+} serv_dsock;
+
 char * create_tempfile(void);
 void create_cli_dsock(char *file_name, cli_dsock *c);
+void create_serv_dsock(serv_dsock *s);
 struct hwa_info	*get_hw_addrs(void);
 struct hwa_info	*Get_hw_addrs(void);
 void free_hwa_info(struct hwa_info *);
