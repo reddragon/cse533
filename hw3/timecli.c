@@ -7,7 +7,10 @@ cli_dsock c;
 
 void
 test_api(void) {
-  msg_send(c.sockfd, "123.456.789.123", 1234, "Hello!", 0);
+  //msg_send(c.sockfd, "123.456.789.123", 1234, "Hello!", 0);
+  char ip[20], msg[500];
+  int src_port;
+  msg_recv(c.sockfd, ip, &src_port, msg);
 }
 
 int

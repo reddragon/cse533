@@ -7,12 +7,12 @@ void
 process_requests(void) {
   // TODO Fill this up 
   char buff[512];
-  struct sockaddr cliaddr;
+  struct sockaddr_un cliaddr;
   socklen_t clilen = sizeof(cliaddr);
   
   api_msg m;
-  int r = Recv(s.sockfd, (char *) &m, sizeof(api_msg), 0);
-  fprintf(stderr, "%d %s\n", m.rtype, m.msg);
+  int r = Recvfrom(s.sockfd, (char *) &m, sizeof(api_msg), 0, (SA *) &cliaddr, &clilen);
+  VERBOSE("%d %s %s\n", m.rtype, m.msg, cliaddr.sun_path);
 }
 
 int
