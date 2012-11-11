@@ -196,7 +196,7 @@ prhwaddrs(void) {
     printf("%s :%s", hwa->if_name, ((hwa->ip_alias) == IP_ALIAS) ? " (alias)\n" : "\n");
 
     if ( (sa = hwa->ip_addr) != NULL)
-      printf("\t\tIP addr = %s\n", (char *)Sock_ntop_host(sa, sizeof(*sa)));
+      printf("\tIP addr = %s\n", (char *)Sock_ntop_host(sa, sizeof(*sa)));
 
     prflag = 0;
     i = 0;
@@ -208,15 +208,16 @@ prhwaddrs(void) {
     } while (++i < IF_HADDR);
 
     if (prflag) {
-      printf("\t\tHW addr = ");
+      printf("\tHW addr = ");
       ptr = hwa->if_haddr;
       i = IF_HADDR;
       do {
         printf("%.2x%s", *ptr++ & 0xff, (i == 1) ? " " : ":");
       } while (--i > 0);
+      printf("\n");
     }
 
-    printf("\n\t\tinterface index = %d\n\n", hwa->if_index);
+    printf("\tinterface index = %d\n\n", hwa->if_index);
   }
 
   free_hwa_info(hwahead);
