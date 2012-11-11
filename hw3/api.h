@@ -12,7 +12,7 @@ typedef enum request_type {
 typedef struct api_msg {
   request_type rtype;
   int port;
-  char ip[20];
+  char ip[16];
   int msg_flag;
   char msg[API_MSG_SZ - API_MSG_HDR_SZ];
 } api_msg;

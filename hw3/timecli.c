@@ -1,13 +1,16 @@
 // -*- tab-width: 2; c-basic-offset: 2 -*-
 #include "utils.h"
 #include "api.h"
+#include "fdset.h"
+#include "myassert.h"
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
 
-cli_dsock c;
-char *tmp_fname = NULL;
+cli_dsock c;                   // client's domain socket
+char *tmp_fname = NULL;        // temp-file name
+fdset fds;                     // fdset for the client's domain socket
 
 void on_client_exit(void) {
   if (tmp_fname) {
@@ -30,8 +33,33 @@ test_api(void) {
   msg_recv(c.sockfd, ip, &src_port, msg);
 }
 
+void on_recv_timedout(void *opaque) {
+}
+
+void on_recv(void *opaque) {
+}
+
+void on_error(void *opaque) {
+}
+
 void
 client_loop(void) {
+  struct timeval timeout;
+  timeout.tv_sec = 10; // FIXME when we know better
+  timeout.tv_usec = 0;
+
+  fdset_init(&fds, timeout, NULL);
+
+  fdset_add(&fds, &fds.rev,  c.sockfd, &c.sockfd, on_recv);
+  fdset_add(&fds, &fds.exev, c.sockfd, &c.sockfd, on_error);
+
+  int r = fdset_poll(&fds, &timeout, on_recv_timedout);
+  if (r < 0) {
+    perror("select");
+    ASSERT(errno != EINTR);
+    exit(1);
+  }
+
 }
 
 int
