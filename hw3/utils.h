@@ -39,7 +39,13 @@ struct hwa_info {
   struct  hwa_info  *hwa_next;	/* next of these structures */
 };
 
+typedef struct cli_dsock {
+  struct sockaddr_un cliaddr, servaddr;
+  int sockfd;
+} cli_dsock;
 
+char * create_tempfile(void);
+void create_cli_dsock(char *file_name, cli_dsock *c);
 struct hwa_info	*get_hw_addrs(void);
 struct hwa_info	*Get_hw_addrs(void);
 void free_hwa_info(struct hwa_info *);
