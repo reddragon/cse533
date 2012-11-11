@@ -15,6 +15,7 @@ test_api(void) {
 
 int
 main(int argc, char **argv) {
+  assert(((api_msg*)(0))->msg == API_MSG_HDR_SZ);
   char *file_name = create_tempfile();
   VERBOSE("Client File Name: %s\n", file_name);
   
