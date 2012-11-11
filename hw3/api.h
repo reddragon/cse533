@@ -7,7 +7,7 @@ typedef struct api_msg {
   char dst_ip[4];
   short dst_port;
   char msg[512 - API_MSG_HDR_SZ];
-} outgoing_msg;
+} api_msg;
 
 void msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int flag);
 void msg_recv(int sockfd, char *src_ip, int *src_port, char *msg); 
