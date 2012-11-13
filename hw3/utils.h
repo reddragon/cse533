@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "unp.h"
 
+#define SRV_DGPATH "/tmp/srv_dsock"
 #define ODR_DGPATH "/tmp/odr_dsock"
 #define TIME_SERVER_PORT 1234
 
