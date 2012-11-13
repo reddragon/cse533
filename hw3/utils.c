@@ -73,7 +73,7 @@ create_cli_dsock(char *file_name, cli_dsock *c) {
   
   bzero(&c->servaddr, sizeof(c->servaddr));
   c->servaddr.sun_family = AF_LOCAL;
-  strcpy(c->servaddr.sun_path, SRVDGPATH);
+  strcpy(c->servaddr.sun_path, ODR_DGPATH);
   
   // This is required since unlike normal TCP/UDP sockets, the
   // kernel does not create an ephemeral port for us.
@@ -89,7 +89,7 @@ create_serv_dsock(serv_dsock *s) {
   unlink(SRVDGPATH);
   bzero(&s->servaddr, sizeof(s->servaddr));
   s->servaddr.sun_family = AF_LOCAL;
-  strcpy(s->servaddr.sun_path, SRVDGPATH);
+  strcpy(s->servaddr.sun_path, ODR_DGPATH);
   
   Bind(s->sockfd, (SA *) &s->servaddr, sizeof(s->servaddr));
   VERBOSE("Successfully bound to the socket\n%s", "");
