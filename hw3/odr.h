@@ -29,12 +29,13 @@ typedef struct odr_tentry {
   uint32_t timestamp_ms;  // Instead of having a TTL, we keep this
 } odr_tentry;
 
-// This will be a part of a vector of b_id, which will hold what
-// is the last used id for each dest_sun_path
-typedef struct b_id {
-  char *dest_sun_path;    // sun_path of the destination
-  uint32_t last_id;       // The last used broadcast id
-} b_id;
+// This is the entry used to forward messages from the 
+// ODR to the client
+typedef struct cli_entry {
+  struct sockaddr_un *cliaddr;  // The client's sockaddr_un
+  uint32_t last_id;             // The last used broadcast id
+  uint32_t e_portno;            // Ephemeral port number assigned
+} cli_entry;
 
 typedef enum odr_pkt_type {
   RREQ = 0,
