@@ -86,7 +86,7 @@ create_serv_dsock(serv_dsock *s) {
     s = MALLOC(serv_dsock);
   }
   s->sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
-  unlink(SRVDGPATH);
+  unlink(ODR_DGPATH);
   bzero(&s->servaddr, sizeof(s->servaddr));
   s->servaddr.sun_family = AF_LOCAL;
   strcpy(s->servaddr.sun_path, ODR_DGPATH);
