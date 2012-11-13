@@ -9,8 +9,12 @@
 #include <assert.h>
 #include "unp.h"
 
-#define ODR_DGPATH "/tmp/srv_dsock"
+#define ODR_DGPATH "/tmp/odr_dsock"
 #define TIME_SERVER_PORT 1234
+
+#define BOOL  unsigned int
+#define FALSE 0
+#define TRUE  1
 
 #define TIMESTAMPMSG(TYPE, X, VARGS...) {     \
   fprintf(stdout, TYPE ": " X, VARGS);        \
