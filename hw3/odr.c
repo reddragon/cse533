@@ -1,3 +1,4 @@
+// -*- tab-width: 2; c-basic-offset: 2 -*-
 #include "utils.h"
 #include "api.h"
 #include "odr.h"
@@ -74,6 +75,11 @@ odr_recv(api_msg *m, cli_entry *c) {
   // VERBOSE("Responding to client with sun_path: %s\n", cliaddr->sun_path);
   // api_msg resp;
   // Sendto(s.sockfd, (char *) &resp, sizeof(api_msg), 0, (SA *) &cliaddr, clilen);
+}
+
+void
+odr_pkt_init(odr_pkt *pkt) {
+    memset(pkt, 0, sizeof(odr_pkt));
 }
 
 void
