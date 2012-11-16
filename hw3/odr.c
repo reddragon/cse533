@@ -1,4 +1,3 @@
-// -*- tab-width: 2; c-basic-offset: 2 -*-
 #include "utils.h"
 #include "api.h"
 #include "odr.h"
@@ -78,12 +77,7 @@ odr_recv(api_msg *m, cli_entry *c) {
 }
 
 void
-odr_pkt_init(odr_pkt *pkt) {
-    memset(pkt, 0, sizeof(odr_pkt));
-}
-
-void
-process_requests(void) {
+process_dsock_requests(void) {
   struct sockaddr_un *cliaddr = MALLOC(struct sockaddr_un);
   socklen_t clilen = sizeof(*cliaddr);
   
@@ -98,6 +92,19 @@ process_requests(void) {
   }
 }
 
+void
+process_eth_pkts(void) {
+  // TODO
+  // There is a packet on the PF_PACKET sockfd
+  // Process it
+}
+
+void
+listen(void) {
+  // We never come out of this function
+    
+}
+
 int
 main(int argc, char **argv) {
   if (argc != 2) {
@@ -107,7 +114,6 @@ main(int argc, char **argv) {
   
   odr_setup();
   create_serv_dsock(&s);
-  // TODO Probably multi-thread this
-  // process_requests();
+  listen();
   return 0;
 }
