@@ -5,12 +5,29 @@
 serv_dsock s;           // Domain socket to listen for & serve requests
 vector cli_table;       // Table containing entries of all clients
 uint32_t next_e_portno; // Next Ephemeral Port Number to assign
+char my_ipaddr[16];     // My IP Address
 
 void
 odr_setup(void) {
   vector_init(&cli_table, sizeof(cli_entry));
   next_e_portno = 7700;
+  
+  struct hwa_info *h = Get_hw_addrs();
+  // TODO Find my IP Address
   // TODO Create the PF_PACKET socket
+
+  for (; h != NULL; h = h->hwa_next) {
+     
+    if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
+      struct sockaddr *sa = h->ip_addr;
+      strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
+      INFO("My IP Address: %s\n", my_ipaddr);
+    }
+    
+    if (strcmp(h->if_name, "lo") && strcmp(h->if_name, "eth0")) {
+      INFO("Discovered an interface: %s\n", h->if_name);
+    }
+  }
 }
 
 cli_entry *
@@ -74,8 +91,10 @@ main(int argc, char **argv) {
     fprintf(stderr, "Usage: ./odr <staleness>");
     exit(1);
   }
-
+  
+  odr_setup();
   create_serv_dsock(&s);
-  process_requests();
+  // TODO Probably multi-thread this
+  // process_requests();
   return 0;
 }
