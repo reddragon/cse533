@@ -1,6 +1,10 @@
 #ifndef _ODR_H_
 #define _ODR_H_
 
+#include <sys/socket.h>
+#include <netpacket/packet.h>
+#include <net/ethernet.h>
+
 #define ODR_PROTOCOL 0x8899 // This was not present in if_ether.h
 
 #include "api.h" // For the api_msg flags

@@ -6,6 +6,8 @@ serv_dsock s;           // Domain socket to listen for & serve requests
 vector cli_table;       // Table containing entries of all clients
 uint32_t next_e_portno; // Next Ephemeral Port Number to assign
 char my_ipaddr[16];     // My IP Address
+int pf_sockfd;          // Sockfd corresponding to the PF_PACKET socket
+
 
 void
 odr_setup(void) {
@@ -13,7 +15,6 @@ odr_setup(void) {
   next_e_portno = 7700;
   
   struct hwa_info *h = Get_hw_addrs();
-  // TODO Find my IP Address
   // TODO Create the PF_PACKET socket
 
   for (; h != NULL; h = h->hwa_next) {
@@ -28,6 +29,8 @@ odr_setup(void) {
       INFO("Discovered an interface: %s\n", h->if_name);
     }
   }
+  pf_sockfd = Socket(PF_PACKET, SOCK_DGRAM, ODR_PROTOCOL);
+  VERBOSE("Sucessfully created the PF_PACKET socket\n%s", "");
 }
 
 cli_entry *
