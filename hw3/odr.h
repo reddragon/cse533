@@ -1,6 +1,8 @@
 #ifndef _ODR_H_
 #define _ODR_H_
 
+#define ODR_PROTOCOL 0x8899 // This was not present in if_ether.h
+
 #include "api.h" // For the api_msg flags
 #include "vector.h"
 
