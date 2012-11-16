@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
 OBJDEPS = utils.o api.o algorithm.o vector.o \
-      fdset.o email.o
+      fdset.o email.o treap.o
 OBJ = timecli odr $(OBJDEPS)
 
 LINKFLAGS = -lpthread
@@ -40,6 +40,9 @@ algorithm.o: algorithm.c algorithm.h vector.h myassert.h
 
 email.o: email.c email.h
 	$(CC) $(CFLAGS) -c -o email.o email.c
+
+treap.o: treap.c treap.h myassert.h
+	$(CC) $(CFLAGS) -c -o treap.o treap.c
 
 clean:
 	rm -f $(OBJ)

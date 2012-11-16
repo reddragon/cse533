@@ -1,12 +1,15 @@
 #include "utils.h"
 #include "api.h"
 #include "odr.h"
+#include "treap.h"
 
-serv_dsock s;           // Domain socket to listen for & serve requests
+serv_dsock s;           // Domain socket to listen on & serve requests
 vector cli_table;       // Table containing entries of all clients
 uint32_t next_e_portno; // Next Ephemeral Port Number to assign
 char my_ipaddr[16];     // My IP Address
-int pf_sockfd;          // Sockfd corresponding to the PF_PACKET socket
+int pf_sockfd = -1;     // Sockfd corresponding to the PF_PACKET socket
+treap queue;            // treap<vector<packet>> which stores the queue of messages to be delivered to the client at socket keyed by the treap
+treap pendinf_recv;     // A list of clients that have sent ODR a msg_recv() call and are waiting for data to be delivered to them
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
@@ -22,17 +25,15 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
 cli_entry *
 get_cli_entry(struct sockaddr_un *cliaddr) {
   int i, nentries = vector_size(&cli_table);
-  BOOL found = FALSE;
-  cli_entry *e;
+  cli_entry *e = NULL;
   for (i = 0; i < nentries; i++) {
     cli_entry *t = (cli_entry *) vector_at(&cli_table, i);
     if (!strcmp(t->cliaddr->sun_path, cliaddr->sun_path)) {
-      found = TRUE;
       e = t;
       break;
     }
   }
-  if (!found) {
+  if (!e) {
     // Add an entry for this client
     e = add_cli_entry(cliaddr);
   }
@@ -56,7 +57,7 @@ odr_setup(void) {
     }
     
     if (strcmp(h->if_name, "lo") && strcmp(h->if_name, "eth0")) {
-      INFO("Discovered an interface: %s\n", h->if_name);
+      INFO("Discovered interface: %s\n", h->if_name);
     }
   }
   pf_sockfd = Socket(PF_PACKET, SOCK_DGRAM, ODR_PROTOCOL);
