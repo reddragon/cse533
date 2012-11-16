@@ -62,6 +62,7 @@ typedef struct odr_pkt {
   char dst_ip[20];        // Canonical IP address of the destination
   int src_port;           // Source Port Number
   int dst_port;           // Destination Port Number
+  uint16_t msg_size;      // The size of the 'msg' field.
   char msg[ODR_MSG_SZ];   // Message to be sent
 } odr_pkt;
 
