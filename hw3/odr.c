@@ -16,6 +16,7 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
   e->last_id = 0;
   e->cliaddr = cliaddr;
   e->e_portno = next_e_portno++;
+  vector_init(&e->pkt_queue, sizeof(odr_pkt *));
   vector_push_back(&cli_table, (void *)e);
   VERBOSE("Added an entry for client with sun_path: %s and port number: %d\n", cliaddr->sun_path, e->e_portno);
   return e;
