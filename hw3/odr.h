@@ -31,13 +31,13 @@ typedef struct eth_frame {
 // payload?
 
 // TODO This needs to be filled correctly
-typedef struct odr_tentry {
+typedef struct route_entry {
   char ip_addr[16];            // The IP address of the machine we are maintaining this entry for
   uint16_t iface_idx;          // The interface index through which we reach the next hop
   char next_hop[6];            // The ethernet address of the next hop
   uint16_t nhops_to_dest;      // Number of hops to destination
   uint32_t last_updated_at_ms; // When was this entry updated?
-} odr_tentry;
+} route_entry;
 
 // This is the entry used to forward messages from the 
 // ODR to the client

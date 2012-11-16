@@ -5,6 +5,7 @@
 
 serv_dsock s;           // Domain socket to listen on & serve requests
 vector cli_table;       // Table containing entries of all clients
+vector route_table;     // The Routing Table
 uint32_t next_e_portno; // Next Ephemeral Port Number to assign
 char my_ipaddr[16];     // My IP Address
 int pf_sockfd = -1;     // Sockfd corresponding to the PF_PACKET socket
@@ -43,6 +44,7 @@ get_cli_entry(struct sockaddr_un *cliaddr) {
 void
 odr_setup(void) {
   vector_init(&cli_table, sizeof(cli_entry));
+  vector_init(&route_table, sizeof(route_entry));
   next_e_portno = 7700;
   
   struct hwa_info *h = Get_hw_addrs();
@@ -72,6 +74,8 @@ void
 odr_send(api_msg *m) {
   // TODO 
   // Actual sending of the message
+
+  // Look up the routing table, to see if there is an entry
 }
 
 void
