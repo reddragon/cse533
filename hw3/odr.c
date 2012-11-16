@@ -8,6 +8,30 @@ uint32_t next_e_portno; // Next Ephemeral Port Number to assign
 char my_ipaddr[16];     // My IP Address
 int pf_sockfd;          // Sockfd corresponding to the PF_PACKET socket
 
+cli_entry *
+add_cli_entry(struct sockaddr_un *cliaddr) {
+  int i, nentries = vector_size(&cli_table);
+  BOOL found = FALSE;
+  cli_entry *e;
+  for (i = 0; i < nentries; i++) {
+    cli_entry *t = (cli_entry *) vector_at(&cli_table, i);
+    if (!strcmp(t->cliaddr->sun_path, cliaddr->sun_path)) {
+      found = TRUE;
+      e = t;
+      break;
+    }
+  }
+  if (!found) {
+    // Add an entry for this client
+    e = MALLOC(cli_entry);
+    e->last_id = 0;
+    e->cliaddr = cliaddr;
+    e->e_portno = next_e_portno++;
+    vector_push_back(&cli_table, (void *)e);
+    VERBOSE("Added an entry for client with sun_path: %s and port number: %d\n", cliaddr->sun_path, e->e_portno);
+  }
+  return e;
+}
 
 void
 odr_setup(void) {
@@ -31,30 +55,10 @@ odr_setup(void) {
   }
   pf_sockfd = Socket(PF_PACKET, SOCK_DGRAM, ODR_PROTOCOL);
   VERBOSE("Sucessfully created the PF_PACKET socket\n%s", "");
-}
-
-cli_entry *
-add_cli_entry(struct sockaddr_un *cliaddr) {
-  int i, nentries = vector_size(&cli_table);
-  BOOL found = FALSE;
-  cli_entry *e;
-  for (i = 0; i < nentries; i++) {
-    cli_entry *t = (cli_entry *) vector_at(&cli_table, i);
-    if (!strcmp(t->cliaddr->sun_path, cliaddr->sun_path)) {
-      found = TRUE;
-      e = t;
-      break;
-    }
-  }
-  if (!found) {
-    // Add an entry for this client
-    e = MALLOC(cli_entry);
-    e->last_id = 0;
-    e->cliaddr = cliaddr;
-    e->e_portno = next_e_portno++;
-    vector_push_back(&cli_table, (void *)e);
-  }
-  return e;
+  struct sockaddr_un *serv_addr = MALLOC(struct sockaddr_un);
+  strcpy(serv_addr->sun_path, SRV_DGPATH);
+  serv_addr->sun_family = AF_LOCAL;
+  add_cli_entry(serv_addr);
 }
 
 void
