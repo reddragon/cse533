@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
+#include <stdint.h>
 
 #define ODR_PROTOCOL 0x8899 // This was not present in if_ether.h
 
@@ -20,6 +21,7 @@ typedef struct eth_frame {
   char dst_eth_addr[6];
   // Protocol?
   // Type (2 bytes) ?
+  uint32_t type;
   // Payload (upto 1518 - (6+6+2) - 4 bytes) ?
 } eth_frame;
 
