@@ -10,6 +10,17 @@ int pf_sockfd;          // Sockfd corresponding to the PF_PACKET socket
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
+  cli_entry *e = MALLOC(cli_entry);
+  e->last_id = 0;
+  e->cliaddr = cliaddr;
+  e->e_portno = next_e_portno++;
+  vector_push_back(&cli_table, (void *)e);
+  VERBOSE("Added an entry for client with sun_path: %s and port number: %d\n", cliaddr->sun_path, e->e_portno);
+  return e;
+}
+
+cli_entry *
+get_cli_entry(struct sockaddr_un *cliaddr) {
   int i, nentries = vector_size(&cli_table);
   BOOL found = FALSE;
   cli_entry *e;
@@ -23,12 +34,7 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
   }
   if (!found) {
     // Add an entry for this client
-    e = MALLOC(cli_entry);
-    e->last_id = 0;
-    e->cliaddr = cliaddr;
-    e->e_portno = next_e_portno++;
-    vector_push_back(&cli_table, (void *)e);
-    VERBOSE("Added an entry for client with sun_path: %s and port number: %d\n", cliaddr->sun_path, e->e_portno);
+    e = add_cli_entry(cliaddr);
   }
   return e;
 }
@@ -84,7 +90,7 @@ process_dsock_requests(void) {
   api_msg m;
   Recvfrom(s.sockfd, (char *) &m, sizeof(api_msg), 0, (SA *) cliaddr, &clilen);
   VERBOSE("Received a request of type %d from Client with sun_path %s\n", m.rtype, cliaddr->sun_path);
-  cli_entry *c = add_cli_entry(cliaddr); 
+  cli_entry *c = get_cli_entry(cliaddr); 
   if (m.rtype == MSG_SEND) {
     odr_send(&m);
   } else if (m.rtype == MSG_RECV) {
@@ -100,7 +106,7 @@ process_eth_pkts(void) {
 }
 
 void
-listen(void) {
+serve(void) {
   // We never come out of this function
     
 }
@@ -114,6 +120,6 @@ main(int argc, char **argv) {
   
   odr_setup();
   create_serv_dsock(&s);
-  listen();
+  serve();
   return 0;
 }
