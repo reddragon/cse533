@@ -9,8 +9,6 @@ vector route_table;     // The Routing Table
 uint32_t next_e_portno; // Next Ephemeral Port Number to assign
 char my_ipaddr[16];     // My IP Address
 int pf_sockfd = -1;     // Sockfd corresponding to the PF_PACKET socket
-treap queue;            // treap<vector<packet>> which stores the queue of messages to be delivered to the client at socket keyed by the treap
-treap pending_recv;     // A list of clients that have sent ODR a msg_recv() call and are waiting for data to be delivered to them
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
