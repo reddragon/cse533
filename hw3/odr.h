@@ -22,7 +22,7 @@ typedef struct eth_frame {
   char dst_eth_addr[6];
   // Protocol?
   // Type (2 bytes) ?
-  uint32_t type;
+  uint16_t type;
   // Payload (upto 1518 - (6+6+2) - 4 bytes) ?
   char payload[1500];
   uint32_t length;
