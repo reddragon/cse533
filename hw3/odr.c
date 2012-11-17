@@ -229,8 +229,20 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
     return;
   }
 
-  // api_msg resp;
-  // Sendto(s.sockfd, (char *) &resp, sizeof(api_msg), 0, (SA *) &cliaddr, clilen);
+  api_msg resp;
+  memset(&resp, 0, sizeof(resp));
+  const socklen_t clilen = sizeof(cliaddr);
+  resp.rtype = MSG_RESPONSE;
+  resp.port = pkt->src_port;
+  strcpy(resp.ip, pkt->src_ip);
+  resp.msg_flag = 0;
+  memcpy(resp.msg, pkt->msg, API_MSG_SZ);
+
+  int r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
+  while (r < 0 && errno == EINTR) {
+    r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
+  }
+  ASSERT(r >= 0);
 }
 
 void
