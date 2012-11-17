@@ -9,6 +9,7 @@ vector route_table;     // The Routing Table
 uint32_t next_e_portno; // Next Ephemeral Port Number to assign
 char my_ipaddr[16];     // My IP Address
 int pf_sockfd = -1;     // Sockfd corresponding to the PF_PACKET socket
+uint32_t staleness;     // Staleness paramenter
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
@@ -38,6 +39,36 @@ get_cli_entry(struct sockaddr_un *cliaddr) {
     e = add_cli_entry(cliaddr);
   }
   return e;
+}
+
+BOOL
+is_stale_entry(route_entry *e) {
+  if (current_time_in_ms() - (e->last_updated_at_ms) >= staleness) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+route_entry *
+get_route_entry(char* target_ip_addr) {
+  int i, nentries = vector_size(&route_table);
+  route_entry *c = NULL;
+  for (i = 0; i < nentries; i++) {
+    route_entry *r = vector_at(&route_table, i);
+    if (!strcmp(r->ip_addr, target_ip_addr)) {
+      if (is_stale_entry(r)) {
+        // This is a stale entry
+        vector_erase(&route_table, i);
+        break;
+      }
+
+      // We have a potential match
+      c = r;
+      break;
+    }
+  }
+
+  return c;
 }
 
 void
@@ -121,7 +152,8 @@ main(int argc, char **argv) {
     fprintf(stderr, "Usage: ./odr <staleness>");
     exit(1);
   }
-  
+  sscanf(argv[1], "%u", &staleness);
+
   odr_setup();
   create_serv_dsock(&s);
   serve();

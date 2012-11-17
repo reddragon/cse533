@@ -68,7 +68,7 @@ typedef struct odr_pkt {
 } odr_pkt;
 
 // Checks if the entry is stale now
-void is_stale_entry(route_entry *e);
+BOOL is_stale_entry(route_entry *e);
 cli_entry * add_cli_entry(struct sockaddr_un *cliaddr);
 cli_entry * get_cli_entry(struct sockaddr_un *cliaddr);
 void odr_send(api_msg *m);
