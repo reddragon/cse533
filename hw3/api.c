@@ -9,8 +9,8 @@ msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int msg_flag) {
   m.port = dst_port;
   strcpy(m.ip, dst_ip);
   m.msg_flag = msg_flag;
-  strncpy(m.msg, msg, sizeof(api_msg) - API_MSG_HDR_SZ);
-  
+  strncpy(m.msg, msg, sizeof(api_msg) - API_MSG_HDR_SZ - 1);
+
   // Send the newly marshalled API message to the ODR.
   // The ODR will take care of the rest
   Send(sockfd, (char *) &m, sizeof(api_msg), 0);
@@ -36,5 +36,5 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   VERBOSE("Message: %s\n", r.msg);
   *src_port = r.port;
   strncpy(src_ip, r.ip, 20);
-  strncpy(msg, r.msg, sizeof(r.msg));
+  memcpy(msg, r.msg, sizeof(r.msg));
 }

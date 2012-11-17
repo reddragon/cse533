@@ -159,6 +159,7 @@ odr_route_message(odr_pkt *pkt) {
   // Look up the routing table, to see if there is an entry
   route_entry *r = get_route_entry(pkt);
   if (r == NULL) {
+    INFO("Could not find a route for IP Address: %s\n", pkt->src_ip);
     // We need to send an RREQ type ODR packet, wrapped
     // in an ethernet frame
 
@@ -188,6 +189,8 @@ odr_route_message(odr_pkt *pkt) {
 
     // TODO Handle when the hop count increases beyond a limit?
     struct hwa_info *h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
+    
+    INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
     eth_frame ef;
     
     memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
