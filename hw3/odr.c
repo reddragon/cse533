@@ -111,6 +111,30 @@ odr_setup(void) {
   add_cli_entry(serv_addr);
 }
 
+void
+odr_start_route_discovery(const char *dest_ip) {
+}
+
+#if 0
+  ++pkt->hop_count;
+  if (pkt->hop_count >= MAX_HOP_COUNT) {
+    INFO("Dropping packet from %s:%d -> %s:%d because hop count reached %d\n",
+         pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->hop_count);
+    free(pkt);
+    return;
+  }
+
+  // Look up the routing table, to see if there is an entry
+  route_entry *r = get_route_entry(pkt);
+  if (r == NULL) {
+    odr_start_route_discovery(pkt->dst_ip);
+    // Queue up the packet to be sent later.
+    vector_push_back(&odr_send_q, pkt);
+    return;
+  }
+  // TODO: Send out this ODR packet over the network.
+#endif
+
 /* Route the message 'pkt' to the appropriate recipient by computing
  * the next hop on the route. Also increment the hop_count. If the hop
  * count reaches MAX_HOP_COUNT, we silently drop this packet and print
