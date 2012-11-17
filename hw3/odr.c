@@ -56,11 +56,7 @@ is_stale_entry(route_entry *e) {
 }
 
 route_entry *
-<<<<<<< HEAD
 get_route_entry(api_msg *m) {
-=======
-get_route_entry(char* target_ip_addr) {
->>>>>>> Use vector_size() instead of caching the size of the vector.
   int i;
   route_entry *c = NULL;
   for (i = 0; i < vector_size(&route_table); i++) {
