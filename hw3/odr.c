@@ -125,7 +125,7 @@ odr_route_message(odr_pkt *pkt) {
   // Look up the routing table, to see if there is an entry
   // route_entry *r = get_route_entry(m);
   // if (r != NULL) {
-  route_entry *r = get_route_entry(o);
+  route_entry *r = get_route_entry(pkt);
 }
 
 /* Deliver the message 'pkt' received by the ODR to the client to
