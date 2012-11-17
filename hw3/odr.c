@@ -14,6 +14,7 @@ char my_ipaddr[16];       // My IP Address
 int pf_sockfd = -1;       // Sockfd corresponding to the PF_PACKET socket
 uint32_t staleness;       // Staleness paramenter
 fdset fds;                // fdset for the client's domain socket
+vector odr_send_q;        // A queue of outgoing packets to send to the other ODR
 struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping
 
@@ -79,11 +80,12 @@ get_route_entry(api_msg *m) {
 
 void
 odr_setup(void) {
-  vector_init(&cli_table, sizeof(cli_entry));
+  vector_init(&cli_table,   sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
   treap_init(&iface_treap);
+  vector_init(&odr_send_q,  sizeof(odr_pkt*));
   next_e_portno = 7700;
-  
+
   h_head = Get_hw_addrs();
 
   struct hwa_info *h;
@@ -109,24 +111,33 @@ odr_setup(void) {
   add_cli_entry(serv_addr);
 }
 
+/* Route the message 'pkt' to the appropriate recipient by computing
+ * the next hop on the route. Also increment the hop_count. If the hop
+ * count reaches MAX_HOP_COUNT, we silently drop this packet and print
+ * out an INFO statement.
+ *
+ */
 void
-odr_route_message(api_msg *m) {
-  // TODO 
+odr_route_message(odr_pkt *pkt) {
+  // TODO
   // Actual sending of the message
 
   // Look up the routing table, to see if there is an entry
-  route_entry *r = get_route_entry(m);
-  if (r != NULL) {
+  // route_entry *r = get_route_entry(m);
+  // if (r != NULL) {
     // Send the message on the interface corresponding to r->iface_idx
-  } else {
-             
-  }
+  // } else {
+  // }
 }
 
+/* Deliver the message 'pkt' received by the ODR to the client to
+ * which it is destined. In case the client was not found, we silently
+ * drop the message and print an INFO message.
+ *
+ */
 void
-odr_deliver_message_to_client(api_msg *m, cli_entry *c) {
+odr_deliver_message_to_client(odr_pkt *pkt) {
   // TODO
-  // Receive a message, and then respond to the client
   // VERBOSE("Responding to client with sun_path: %s\n", cliaddr->sun_path);
   // api_msg resp;
   // Sendto(s.sockfd, (char *) &resp, sizeof(api_msg), 0, (SA *) &cliaddr, clilen);
