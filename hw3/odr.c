@@ -6,15 +6,15 @@
 #include "fdset.h"
 #include "myassert.h"
 
-serv_dsock s;           // Domain socket to listen on & serve requests
-vector cli_table;       // Table containing entries of all clients
-vector route_table;     // The Routing Table
-uint32_t next_e_portno; // Next Ephemeral Port Number to assign
-char my_ipaddr[16];     // My IP Address
-int pf_sockfd = -1;     // Sockfd corresponding to the PF_PACKET socket
-uint32_t staleness;     // Staleness paramenter
-fdset fds;              // fdset for the client's domain socket
-struct hwa_info *h;     // The hardware interfaces
+serv_dsock s;             // Domain socket to listen on & serve requests
+vector cli_table;         // Table containing entries of all clients
+vector route_table;       // The Routing Table
+uint32_t next_e_portno;   // Next Ephemeral Port Number to assign
+char my_ipaddr[16];       // My IP Address
+int pf_sockfd = -1;       // Sockfd corresponding to the PF_PACKET socket
+uint32_t staleness;       // Staleness paramenter
+fdset fds;                // fdset for the client's domain socket
+struct hwa_info *h_head;  // The hardware interfaces
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
@@ -82,8 +82,9 @@ odr_setup(void) {
   vector_init(&route_table, sizeof(route_entry));
   next_e_portno = 7700;
   
-  h = Get_hw_addrs();
+  h_head = Get_hw_addrs();
 
+  struct hwa_info *h;
   for (; h != NULL; h = h->hwa_next) {
      
     if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
