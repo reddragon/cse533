@@ -74,7 +74,7 @@ cli_entry * get_cli_entry(struct sockaddr_un *cliaddr);
 void odr_route_message(odr_pkt *pkt);
 void odr_deliver_message_to_client(odr_pkt *pkt);
 
-void process_dsock_requests(void);
+void process_dsock_requests(api_msg *m, cli_entry *c);
 void process_eth_pkt(eth_frame *frame);
 void odr_loop(void);
 void on_odr_exit(void);

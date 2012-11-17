@@ -246,20 +246,15 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
 }
 
 void
-process_dsock_requests(void) {
-  struct sockaddr_un cliaddr;
-  socklen_t clilen = sizeof(cliaddr);
-  memset(&cliaddr, 0, sizeof(cliaddr));
-
-  api_msg m;
-  Recvfrom(s.sockfd, (char *) &m, sizeof(api_msg), 0, (SA *) &cliaddr, &clilen);
-  VERBOSE("Received a request of type %d from Client with sun_path %s\n", m.rtype, cliaddr.sun_path);
-  cli_entry *c = get_cli_entry(&cliaddr);
-  if (m.rtype == MSG_SEND) {
+process_dsock_requests(api_msg *m, cli_entry *c) {
+  VERBOSE("Received a request of type %d from Client with sun_path %s\n", m->rtype, c->cliaddr->sun_path);
+ if (m->rtype == MSG_SEND) {
       // odr_send(&m);
-  } else if (m.rtype == MSG_RECV) {
+  } else if (m->rtype == MSG_RECV) {
       // odr_recv(&m, c);
   }
+  // api_msg is no longer required
+  free(m);
 }
 
 void
@@ -282,6 +277,14 @@ on_pf_error(void *opaque) {
 
 void
 on_ud_recv(void *opaque) {
+  struct sockaddr_un cliaddr;
+  socklen_t clilen = sizeof(cliaddr);
+  memset(&cliaddr, 0, sizeof(cliaddr));
+
+  api_msg *m = MALLOC(api_msg);
+  Recvfrom(s.sockfd, (char *) m, sizeof(api_msg), 0, (SA *) &cliaddr, &clilen);
+  cli_entry *c = get_cli_entry(&cliaddr);
+  process_dsock_requests(m, c);
 }
 
 void
