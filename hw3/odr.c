@@ -1,7 +1,10 @@
+// -*- tab-width: 2; c-basic-offset: 2 -*-
 #include "utils.h"
 #include "api.h"
 #include "odr.h"
 #include "treap.h"
+#include "fdset.h"
+#include "myassert.h"
 
 serv_dsock s;           // Domain socket to listen on & serve requests
 vector cli_table;       // Table containing entries of all clients
@@ -10,6 +13,7 @@ uint32_t next_e_portno; // Next Ephemeral Port Number to assign
 char my_ipaddr[16];     // My IP Address
 int pf_sockfd = -1;     // Sockfd corresponding to the PF_PACKET socket
 uint32_t staleness;     // Staleness paramenter
+fdset fds;              // fdset for the client's domain socket
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
@@ -78,7 +82,6 @@ odr_setup(void) {
   next_e_portno = 7700;
   
   struct hwa_info *h = Get_hw_addrs();
-  // TODO Create the PF_PACKET socket
 
   for (; h != NULL; h = h->hwa_next) {
      
@@ -92,6 +95,8 @@ odr_setup(void) {
       INFO("Discovered interface: %s\n", h->if_name);
     }
   }
+
+  // Create the PF_PACKET socket
   pf_sockfd = Socket(PF_PACKET, SOCK_DGRAM, ODR_PROTOCOL);
   VERBOSE("Sucessfully created the PF_PACKET socket\n%s", "");
   struct sockaddr_un *serv_addr = MALLOC(struct sockaddr_un);
@@ -101,7 +106,7 @@ odr_setup(void) {
 }
 
 void
-odr_send(api_msg *m) {
+odr_route_message(api_msg *m) {
   // TODO 
   // Actual sending of the message
 
@@ -109,7 +114,7 @@ odr_send(api_msg *m) {
 }
 
 void
-odr_recv(api_msg *m, cli_entry *c) {
+odr_deliver_message_to_client(api_msg *m, cli_entry *c) {
   // TODO
   // Receive a message, and then respond to the client
   // VERBOSE("Responding to client with sun_path: %s\n", cliaddr->sun_path);
@@ -127,9 +132,9 @@ process_dsock_requests(void) {
   VERBOSE("Received a request of type %d from Client with sun_path %s\n", m.rtype, cliaddr->sun_path);
   cli_entry *c = get_cli_entry(cliaddr); 
   if (m.rtype == MSG_SEND) {
-    odr_send(&m);
+      // odr_send(&m);
   } else if (m.rtype == MSG_RECV) {
-    odr_recv(&m, c);
+      // odr_recv(&m, c);
   }
 }
 
@@ -141,13 +146,57 @@ process_eth_pkts(void) {
 }
 
 void
-serve(void) {
+on_pf_recv(void *opaque) {
+}
+
+void
+on_pf_error(void *opaque) {
+}
+
+void
+on_ud_recv(void *opaque) {
+}
+
+void
+on_ud_error(void *opaque) {
+}
+
+void
+odr_loop(void) {
   // We never come out of this function
-    
+  struct timeval timeout;
+  timeout.tv_sec = 10; // FIXME when we know better
+  timeout.tv_usec = 0;
+
+  fdset_init(&fds, timeout, NULL);
+
+  fdset_add(&fds, &fds.rev,  pf_sockfd, &pf_sockfd, on_pf_recv);
+  fdset_add(&fds, &fds.exev, pf_sockfd, &pf_sockfd, on_pf_error);
+
+  fdset_add(&fds, &fds.rev,  s.sockfd, &s.sockfd, on_ud_recv);
+  fdset_add(&fds, &fds.exev, s.sockfd, &s.sockfd, on_ud_error);
+
+  int r = fdset_poll(&fds, NULL, NULL);
+  if (r < 0) {
+    perror("select");
+    ASSERT(errno != EINTR);
+    exit(1);
+  }
+}
+
+void on_odr_exit(void) {
+  struct timeval tv;
+  Gettimeofday(&tv, NULL);
+  time_t currtime;
+  char str_time[40];
+  time(&currtime);
+  strftime(str_time, 40, "%T", localtime(&currtime));
+  INFO("ODR exited at %s.%03u\n", str_time, (unsigned int)tv.tv_usec/1000);
 }
 
 int
 main(int argc, char **argv) {
+  atexit(on_odr_exit);
   if (argc != 2) {
     fprintf(stderr, "Usage: ./odr <staleness>");
     exit(1);
@@ -156,6 +205,6 @@ main(int argc, char **argv) {
 
   odr_setup();
   create_serv_dsock(&s);
-  serve();
+  odr_loop();
   return 0;
 }

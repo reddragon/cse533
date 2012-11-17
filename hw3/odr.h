@@ -71,9 +71,18 @@ typedef struct odr_pkt {
 BOOL is_stale_entry(route_entry *e);
 cli_entry * add_cli_entry(struct sockaddr_un *cliaddr);
 cli_entry * get_cli_entry(struct sockaddr_un *cliaddr);
-void odr_send(api_msg *m);
-void odr_recv(api_msg *m, cli_entry *c);
+
+void odr_route_message(api_msg *m);
+void odr_deliver_message_to_client(api_msg *m, cli_entry *c);
+
 void process_dsock_requests(void);
 void process_eth_pkts(void);
-void process_eth_pkts(void);
+void odr_loop(void);
+void on_odr_exit(void);
+
+void on_pf_recv(void *opaque);
+void on_pf_error(void *opaque);
+void on_ud_recv(void *opaque);
+void on_ud_error(void *opaque);
+
 #endif
