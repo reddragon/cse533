@@ -29,9 +29,9 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
 
 cli_entry *
 get_cli_entry(struct sockaddr_un *cliaddr) {
-  int i, nentries = vector_size(&cli_table);
+  int i;
   cli_entry *e = NULL;
-  for (i = 0; i < nentries; i++) {
+  for (i = 0; i < vector_size(&cli_table); i++) {
     cli_entry *t = (cli_entry *) vector_at(&cli_table, i);
     if (!strcmp(t->cliaddr->sun_path, cliaddr->sun_path)) {
       e = t;
@@ -40,7 +40,9 @@ get_cli_entry(struct sockaddr_un *cliaddr) {
   }
   if (!e) {
     // Add an entry for this client
-    e = add_cli_entry(cliaddr);
+    struct sockaddr_un *caddr = MALLOC(struct sockaddr_un);
+    memcpy(caddr, cliaddr, sizeof(*cliaddr));
+    e = add_cli_entry(caddr);
   }
   return e;
 }
@@ -59,7 +61,8 @@ get_route_entry(api_msg *m) {
   route_entry *c = NULL;
   for (i = 0; i < vector_size(&route_table); i++) {
     route_entry *r = vector_at(&route_table, i);
-    if (is_stale_entry(r) || (!strcmp(r->ip_addr, m->ip) && (m->msg_flag & ROUTE_REDISCOVERY_FLG))) {
+    if (is_stale_entry(r) ||
+        (!strcmp(r->ip_addr, m->ip) && (m->msg_flag & ROUTE_REDISCOVERY_FLG))) {
       // This is a stale entry
       vector_erase(&route_table, i);
       i--;
@@ -127,13 +130,14 @@ odr_deliver_message_to_client(api_msg *m, cli_entry *c) {
 
 void
 process_dsock_requests(void) {
-  struct sockaddr_un *cliaddr = MALLOC(struct sockaddr_un);
-  socklen_t clilen = sizeof(*cliaddr);
-  
+  struct sockaddr_un cliaddr;
+  socklen_t clilen = sizeof(cliaddr);
+  memset(&cliaddr, 0, sizeof(cliaddr));
+
   api_msg m;
-  Recvfrom(s.sockfd, (char *) &m, sizeof(api_msg), 0, (SA *) cliaddr, &clilen);
-  VERBOSE("Received a request of type %d from Client with sun_path %s\n", m.rtype, cliaddr->sun_path);
-  cli_entry *c = get_cli_entry(cliaddr); 
+  Recvfrom(s.sockfd, (char *) &m, sizeof(api_msg), 0, (SA *) &cliaddr, &clilen);
+  VERBOSE("Received a request of type %d from Client with sun_path %s\n", m.rtype, cliaddr.sun_path);
+  cli_entry *c = get_cli_entry(&cliaddr);
   if (m.rtype == MSG_SEND) {
       // odr_send(&m);
   } else if (m.rtype == MSG_RECV) {
@@ -142,10 +146,11 @@ process_dsock_requests(void) {
 }
 
 void
-process_eth_pkts(void) {
+process_eth_pkt(eth_frame *frame) {
   // TODO
   // There is a packet on the PF_PACKET sockfd
   // Process it
+  VERBOSE("process_eth_pkt::Length: %d\n", frame->length);
 }
 
 void
@@ -154,6 +159,8 @@ on_pf_recv(void *opaque) {
 
 void
 on_pf_error(void *opaque) {
+  INFO("Error detected on the PF_PACKET socket. Exiting...%s\n", "");
+  exit(1);
 }
 
 void
@@ -162,6 +169,8 @@ on_ud_recv(void *opaque) {
 
 void
 on_ud_error(void *opaque) {
+  INFO("Error detected on the AF_UNIX socket. Exiting...%s\n", "");
+  exit(1);
 }
 
 void

@@ -24,7 +24,8 @@ typedef struct eth_frame {
   // Type (2 bytes) ?
   uint32_t type;
   // Payload (upto 1518 - (6+6+2) - 4 bytes) ?
-  char payload[0];
+  char payload[1500];
+  uint32_t length;
 } eth_frame;
 
 // TODO How do we figure out what is the length of the 
@@ -76,7 +77,7 @@ void odr_route_message(api_msg *m);
 void odr_deliver_message_to_client(api_msg *m, cli_entry *c);
 
 void process_dsock_requests(void);
-void process_eth_pkts(void);
+void process_eth_pkt(eth_frame *frame);
 void odr_loop(void);
 void on_odr_exit(void);
 
