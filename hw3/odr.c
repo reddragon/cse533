@@ -15,6 +15,7 @@ int pf_sockfd = -1;       // Sockfd corresponding to the PF_PACKET socket
 uint32_t staleness;       // Staleness paramenter
 fdset fds;                // fdset for the client's domain socket
 struct hwa_info *h_head;  // The hardware interfaces
+treap iface_treap;        // Interface Index to Interface Mapping
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
@@ -80,13 +81,14 @@ void
 odr_setup(void) {
   vector_init(&cli_table, sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
+  treap_init(&iface_treap);
   next_e_portno = 7700;
   
   h_head = Get_hw_addrs();
 
   struct hwa_info *h;
-  for (; h != NULL; h = h->hwa_next) {
-     
+  for (h = h_head; h != NULL; h = h->hwa_next) {
+    treap_insert(&iface_treap, h->if_index, h);     
     if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
       struct sockaddr *sa = h->ip_addr;
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
@@ -117,7 +119,7 @@ odr_route_message(api_msg *m) {
   if (r != NULL) {
     // Send the message on the interface corresponding to r->iface_idx
   } else {
-        
+             
   }
 }
 
