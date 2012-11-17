@@ -54,13 +54,14 @@ is_stale_entry(route_entry *e) {
 }
 
 route_entry *
-get_route_entry(char* target_ip_addr) {
+get_route_entry(api_msg *m) {
   int i, nentries = vector_size(&route_table);
   route_entry *c = NULL;
   for (i = 0; i < nentries; i++) {
     route_entry *r = vector_at(&route_table, i);
-    if (!strcmp(r->ip_addr, target_ip_addr)) {
-      if (is_stale_entry(r)) {
+    if (!strcmp(r->ip_addr, m->ip)) {
+      if ((m->msg_flag & ROUTE_REDISCOVERY_FLG) ||
+          is_stale_entry(r)) {
         // This is a stale entry
         vector_erase(&route_table, i);
         break;
@@ -111,6 +112,12 @@ odr_route_message(api_msg *m) {
   // Actual sending of the message
 
   // Look up the routing table, to see if there is an entry
+  route_entry *r = get_route_entry(m);
+  if (r != NULL) {
+    // Send the message on the interface corresponding to r->iface_idx
+  } else {
+        
+  }
 }
 
 void
