@@ -55,24 +55,20 @@ is_stale_entry(route_entry *e) {
 
 route_entry *
 get_route_entry(api_msg *m) {
-  int i, nentries = vector_size(&route_table);
+  int i;
   route_entry *c = NULL;
-  for (i = 0; i < nentries; i++) {
+  for (i = 0; i < vector_size(&route_table); i++) {
     route_entry *r = vector_at(&route_table, i);
-    if (!strcmp(r->ip_addr, m->ip)) {
-      if ((m->msg_flag & ROUTE_REDISCOVERY_FLG) ||
-          is_stale_entry(r)) {
-        // This is a stale entry
-        vector_erase(&route_table, i);
-        break;
-      }
-
+    if (is_stale_entry(r) || (!strcmp(r->ip_addr, m->ip) && (m->msg_flag & ROUTE_REDISCOVERY_FLG))) {
+      // This is a stale entry
+      vector_erase(&route_table, i);
+      i--;
+    } else if (!strcmp(r->ip_addr, m->ip)) {
       // We have a potential match
       c = r;
       break;
     }
   }
-
   return c;
 }
 
