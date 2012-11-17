@@ -59,17 +59,17 @@ is_stale_entry(route_entry *e) {
 }
 
 route_entry *
-get_route_entry(api_msg *m) {
+get_route_entry(odr_pkt *p) {
   int i;
   route_entry *c = NULL;
   for (i = 0; i < vector_size(&route_table); i++) {
     route_entry *r = vector_at(&route_table, i);
     if (is_stale_entry(r) ||
-        (!strcmp(r->ip_addr, m->ip) && (m->msg_flag & ROUTE_REDISCOVERY_FLG))) {
+        (!strcmp(r->ip_addr, p->dst_ip) && (p->flags & ROUTE_REDISCOVERY_FLG))) {
       // This is a stale entry
       vector_erase(&route_table, i);
       i--;
-    } else if (!strcmp(r->ip_addr, m->ip)) {
+    } else if (!strcmp(r->ip_addr, p->dst_ip)) {
       // We have a potential match
       c = r;
       break;
@@ -125,9 +125,7 @@ odr_route_message(odr_pkt *pkt) {
   // Look up the routing table, to see if there is an entry
   // route_entry *r = get_route_entry(m);
   // if (r != NULL) {
-    // Send the message on the interface corresponding to r->iface_idx
-  // } else {
-  // }
+  route_entry *r = get_route_entry(o);
 }
 
 /* Deliver the message 'pkt' received by the ODR to the client to
