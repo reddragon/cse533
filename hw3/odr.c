@@ -14,6 +14,7 @@ char my_ipaddr[16];     // My IP Address
 int pf_sockfd = -1;     // Sockfd corresponding to the PF_PACKET socket
 uint32_t staleness;     // Staleness paramenter
 fdset fds;              // fdset for the client's domain socket
+struct hwa_info *h;     // The hardware interfaces
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
@@ -81,7 +82,7 @@ odr_setup(void) {
   vector_init(&route_table, sizeof(route_entry));
   next_e_portno = 7700;
   
-  struct hwa_info *h = Get_hw_addrs();
+  h = Get_hw_addrs();
 
   for (; h != NULL; h = h->hwa_next) {
      
