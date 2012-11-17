@@ -7,16 +7,17 @@
 #include "myassert.h"
 
 serv_dsock s;             // Domain socket to listen on & serve requests
-vector cli_table;         // Table containing entries of all clients
-vector route_table;       // The Routing Table
+vector cli_table;         // Table containing entries of all clients. vector<cli_entry>
+vector route_table;       // The Routing Table. vector<route_entry>
 uint32_t next_e_portno;   // Next Ephemeral Port Number to assign
 char my_ipaddr[16];       // My IP Address
 int pf_sockfd = -1;       // Sockfd corresponding to the PF_PACKET socket
 uint32_t staleness;       // Staleness paramenter
 fdset fds;                // fdset for the client's domain socket
-vector odr_send_q;        // A queue of outgoing packets to send to the other ODR
+vector odr_send_q;        // A queue of outgoing packets to send to the other ODR. vector<odr_pkt*>
 struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping
+treap cli_port_map;       // Mapping from port # to cli_entry
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
@@ -25,7 +26,11 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
   e->cliaddr = cliaddr;
   e->e_portno = next_e_portno++;
   vector_init(&e->pkt_queue, sizeof(odr_pkt *));
+  e->is_blocked_on_recv = FALSE;
+
   vector_push_back(&cli_table, (void *)e);
+  treap_insert(&cli_port_map, e->e_portno, e);
+
   VERBOSE("Added an entry for client with sun_path: %s and port number: %d\n", cliaddr->sun_path, e->e_portno);
   return e;
 }
@@ -83,6 +88,7 @@ odr_setup(void) {
   vector_init(&cli_table,   sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
   treap_init(&iface_treap);
+  treap_init(&cli_port_map);
   vector_init(&odr_send_q,  sizeof(odr_pkt*));
   next_e_portno = 7700;
 
@@ -160,7 +166,24 @@ odr_route_message(odr_pkt *pkt) {
 void
 odr_deliver_message_to_client(odr_pkt *pkt) {
   // TODO
-  // VERBOSE("Responding to client with sun_path: %s\n", cliaddr->sun_path);
+  VERBOSE("odr_deliver_message_to_client:: (%s:%d) -> (%s:%d)\n",
+          pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port);
+  cli_entry *ce = (cli_entry*)treap_get_value(&cli_port_map, pkt->dst_port);
+  if (!ce) {
+    INFO("No entry for destination port #%d\n", pkt->dst_port);
+    return;
+  }
+
+  struct sockaddr_un *cliaddr = ce->cliaddr;
+  VERBOSE("odr_deliver_message_to_client::sun_path: %s\n", cliaddr->sun_path);
+
+  if (!ce->is_blocked_on_recv) {
+    INFO("Client %s:%d is NOT blocked on msg_recv()\n",
+         pkt->dst_ip, pkt->dst_port);
+    vector_push_back(&ce->pkt_queue, pkt);
+    return;
+  }
+
   // api_msg resp;
   // Sendto(s.sockfd, (char *) &resp, sizeof(api_msg), 0, (SA *) &cliaddr, clilen);
 }
