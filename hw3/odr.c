@@ -115,6 +115,7 @@ odr_setup(void) {
   strcpy(serv_addr->sun_path, SRV_DGPATH);
   serv_addr->sun_family = AF_LOCAL;
   add_cli_entry(serv_addr);
+  create_serv_dsock(&s);
 }
 
 void
@@ -317,7 +318,6 @@ main(int argc, char **argv) {
   sscanf(argv[1], "%u", &staleness);
 
   odr_setup();
-  create_serv_dsock(&s);
   odr_loop();
   return 0;
 }
