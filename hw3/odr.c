@@ -141,6 +141,11 @@ odr_start_route_discovery(const char *dest_ip) {
   // TODO: Send out this ODR packet over the network.
 #endif
 
+void
+send_eth_pkt(eth_frame *ef) {
+  Send(pf_sockfd, (void *)ef, sizeof(*ef), 0);     
+}
+
 /* Route the message 'pkt' to the appropriate recipient by computing
  * the next hop on the route. Also increment the hop_count. If the hop
  * count reaches MAX_HOP_COUNT, we silently drop this packet and print
@@ -149,13 +154,49 @@ odr_start_route_discovery(const char *dest_ip) {
  */
 void
 odr_route_message(odr_pkt *pkt) {
-  // TODO
-  // Actual sending of the message
-
+  // TODO Where are we handling RREQs and RREPs
   // Look up the routing table, to see if there is an entry
-  // route_entry *r = get_route_entry(m);
-  // if (r != NULL) {
   route_entry *r = get_route_entry(pkt);
+  if (r == NULL) {
+    // We need to send an RREQ type ODR packet, wrapped
+    // in an ethernet frame
+
+    // Make a new ODR Packet
+    odr_pkt rreq_pkt;
+    memcpy(&rreq_pkt, pkt, sizeof(odr_pkt));
+    rreq_pkt.type = RREQ;
+    memset(rreq_pkt.msg, 0, sizeof(rreq_pkt.msg));
+
+    eth_frame ef;
+    memset(ef.dst_eth_addr, 0xff, sizeof(ef.dst_eth_addr));
+    ef.protocol = ODR_PROTOCOL;
+      
+    // Copy the ODR packet 
+    memcpy(ef.payload, &rreq_pkt, sizeof(rreq_pkt));
+
+    struct hwa_info *h;
+    for (h = h_head; h != NULL; h = h->hwa_next) {
+      memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
+      send_eth_pkt(&ef);     
+    }
+
+    // Keeping the original ODR packet on the queue
+    vector_push_back(&odr_send_q, pkt);
+  } else {
+    // We have an entry to the destination, just route it
+
+    // TODO Handle when the hop count increases beyond a limit?
+    struct hwa_info *h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
+    eth_frame ef;
+    
+    memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
+    memcpy(ef.dst_eth_addr, r->next_hop, sizeof(r->next_hop));
+    ef.protocol = ODR_PROTOCOL;
+      
+    // Copy the ODR packet 
+    memcpy(ef.payload, pkt, sizeof(*pkt));
+    send_eth_pkt(&ef);
+  }
 }
 
 /* Deliver the message 'pkt' received by the ODR to the client to
@@ -210,7 +251,7 @@ process_eth_pkt(eth_frame *frame) {
   // TODO
   // There is a packet on the PF_PACKET sockfd
   // Process it
-  VERBOSE("process_eth_pkt::Length: %d\n", frame->length);
+  VERBOSE("process_eth_pkt::\n%s", "");
 }
 
 void

@@ -18,14 +18,10 @@ uint32_t staleness;
 
 typedef struct eth_frame {
   // TODO Fill this up here
-  char src_eth_addr[6];
-  char dst_eth_addr[6];
-  // Protocol?
-  // Type (2 bytes) ?
-  uint16_t type;
-  // Payload (upto 1518 - (6+6+2) - 4 bytes) ?
-  char payload[1500];
-  uint32_t length;
+  char src_eth_addr[6];   // Source Ethernet Address
+  char dst_eth_addr[6];   // Destination Ethernet Address
+  uint16_t protocol;      // Protocol
+  char payload[1500];     // Payload
 } eth_frame;
 
 // TODO How do we figure out what is the length of the 
@@ -58,7 +54,7 @@ typedef enum odr_pkt_type {
 
 #define ODR_MSG_SZ 256
 typedef struct odr_pkt {
-  odr_pkt_type ptype;     // Type of the ODR packet
+  odr_pkt_type type;      // Type of the ODR packet
   uint32_t broadcast_id;  // Broadcast ID of the packet 
   uint8_t hop_count;      // Hop Count of the packet
   char src_ip[20];        // Canonical IP address of the source
