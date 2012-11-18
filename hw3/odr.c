@@ -110,13 +110,13 @@ odr_setup(void) {
 
   for (h = h_head; h != NULL; h = h->hwa_next) {
     treap_insert(&iface_treap, h->if_index, h);     
-    if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
+    if (!strncmp(h->if_name, "eth0", 4) && h->ip_addr != NULL) {
       sa = h->ip_addr;
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
       INFO("My IP Address: %s\n", my_ipaddr);
     }
     
-    if (strcmp(h->if_name, "lo") && strcmp(h->if_name, "eth0")) {
+    if (strcmp(h->if_name, "lo") && strncmp(h->if_name, "eth0", 4)) {
       INFO("Discovered interface: %s\n", h->if_name);
     }
   }
@@ -167,6 +167,10 @@ odr_start_route_discovery(odr_pkt *pkt) {
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
 
   for (h = h_head; h != NULL; h = h->hwa_next) {
+    // We don't send the message on eth0 and its aliases, and lo
+    if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
+      continue;
+    }
     send_over_ethernet(h->if_haddr, dest_addr, &rreq_pkt, odr_pkt_hdr_sz, h->if_index);
   }
 }
