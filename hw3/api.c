@@ -5,6 +5,8 @@
 void 
 msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int msg_flag) {
   api_msg m;
+  struct sockaddr_un serv_addr;
+
   bzero(&m, sizeof(api_msg));
   m.rtype = MSG_SEND;
   m.port = dst_port;
@@ -12,7 +14,6 @@ msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int msg_flag) {
   m.msg_flag = msg_flag;
   strncpy(m.msg, msg, sizeof(api_msg) - API_MSG_HDR_SZ - 1);
   
-  struct sockaddr_un serv_addr;
   strcpy(serv_addr.sun_path, SRV_DGPATH);
   serv_addr.sun_family = AF_LOCAL;
   // Send the newly marshalled API message to the ODR.
@@ -25,10 +26,11 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   // In this, we need to send one API message, and then
   // receive another
   api_msg m, r;
+  struct sockaddr_un serv_addr;
+
   bzero(&m, sizeof(api_msg));
   m.rtype = MSG_RECV;
   
-  struct sockaddr_un serv_addr;
   strcpy(serv_addr.sun_path, SRV_DGPATH);
   serv_addr.sun_family = AF_LOCAL;
 
