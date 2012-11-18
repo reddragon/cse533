@@ -177,7 +177,8 @@ odr_start_route_discovery(odr_pkt *pkt) {
   memset(rreq_pkt.msg, 0,   sizeof(rreq_pkt.msg));
   memset(dst_addr.eth_addr, 0xff, sizeof(dst_addr));
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
-
+  
+  VERBOSE("Going to flood the packet destined to %s\n", pkt->src_ip);
   for (h = h_head; h != NULL; h = h->hwa_next) {
     // We don't send the message on eth0 and its aliases, and lo
     if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
