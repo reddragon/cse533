@@ -22,7 +22,7 @@ typedef struct eth_frame {
   char src_eth_addr[6];   // Source Ethernet Address
   char dst_eth_addr[6];   // Destination Ethernet Address
   uint16_t protocol;      // Protocol
-  char payload[1500];     // Payload
+  char payload[1400];     // Payload
 } eth_frame;
 
 // TODO How do we figure out what is the length of the 
