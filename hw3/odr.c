@@ -16,9 +16,12 @@ uint32_t staleness;       // Staleness paramenter
 fdset fds;                // fdset for the client's domain socket
 vector odr_send_q;        // A queue of outgoing packets to send to the other ODR. vector<odr_pkt*>
 struct hwa_info *h_head;  // The hardware interfaces
-treap iface_treap;        // Interface Index to Interface Mapping
-treap cli_port_map;       // Mapping from port # to cli_entry
+treap iface_treap;        // Interface Index to Interface Mapping. treap<int, struct hwa_info*>
+treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 
+/* Add an entry to the cli_table, which holds a list of cli_entry's
+ * for every client that has contacted us.
+ */
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
   cli_entry *e;
@@ -68,6 +71,9 @@ is_stale_entry(route_entry *e) {
   return FALSE;
 }
 
+/* Fetch the route_entry which will help us route the odr_pkt 'p' to
+ * its destination. Returns NULL if no such route is found.
+ */
 route_entry *
 get_route_entry(odr_pkt *p) {
   int i;
@@ -336,16 +342,46 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
 }
 
 void
-process_eth_pkt(eth_frame *frame) {
+process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   // TODO
   // There is a packet on the PF_PACKET sockfd
   // Process it
-  VERBOSE("process_eth_pkt::\n%s", "");
+  char src_addr[20];
+  char dst_addr[20];
+  odr_pkt *pkt;
+  pkt = (odr_pkt*)frame->payload;
+
+  if (frame->protocol != ODR_PROTOCOL) {
+    return;
+  }
+
+  pretty_print_eth_addr(frame->src_eth_addr, src_addr);
+  pretty_print_eth_addr(frame->dst_eth_addr, dst_addr);
+
+  VERBOSE("process_eth_pkt:: (%s -> %s)", src_addr, dst_addr);
+  if (should_process_packet(pkt) == FALSE) {
+    return;
+  }
+
+  update_routing_table(pkt, sa);
 }
 
 void
 on_pf_recv(void *opaque) {
-  
+  int r;
+  struct sockaddr_ll sa;
+  socklen_t addrlen = sizeof(sa);
+  eth_frame frame;
+  r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
+  if (r < 0 && errno == EINTR) {
+    return;
+  }
+  if (r < 0) {
+    perror("recvfrom");
+    exit(1);
+  }
+  assert_ge(r, 64);
+  process_eth_pkt(&frame, &sa);
 }
 
 void

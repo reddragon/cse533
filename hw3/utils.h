@@ -58,6 +58,7 @@ typedef struct serv_dsock {
   int sockfd;
 } serv_dsock;
 
+void pretty_print_eth_addr(char hwaddr[6], char *out);
 char * create_tempfile(void);
 void utils_init(void);
 uint32_t current_time_in_ms(void);

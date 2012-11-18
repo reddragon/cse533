@@ -77,8 +77,10 @@ BOOL is_stale_entry(route_entry *e);
 void odr_route_message(odr_pkt *pkt);
 void odr_deliver_message_to_client(odr_pkt *pkt);
 
+void update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from);
+BOOL should_process_packet(odr_pkt *pkt);
 void process_dsock_requests(api_msg *m, cli_entry *c);
-void process_eth_pkt(eth_frame *frame);
+void process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa);
 void odr_loop(void);
 void on_odr_exit(void);
 

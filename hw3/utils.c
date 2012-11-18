@@ -10,6 +10,18 @@ utils_init(void) {
   Gettimeofday(&dob, NULL);
 }
 
+void pretty_print_eth_addr(char hwaddr[6], char *out) {
+  char *ptr;
+  int i;
+
+  ptr = hwaddr;
+  i = IF_HADDR;
+
+  do {
+    out += sprintf(out, "%.2x%s", *ptr++ & 0xff, (i == 1) ? "" : ":");
+  } while (--i > 0);
+}
+
 void* my_malloc(size_t size) {
     // assert(size < 2 * 1048676); // 2MiB
     void *ptr = calloc(1, size);
