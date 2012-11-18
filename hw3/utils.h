@@ -39,6 +39,10 @@
 
 void* my_malloc(size_t size);
 
+typedef struct eth_addr_t {
+    char eth_addr[6];
+} eth_addr_t;
+
 struct hwa_info {
   char    if_name[IF_NAME];	/* interface name, null terminated */
   char    if_haddr[IF_HADDR];	/* hardware address */
@@ -57,6 +61,9 @@ typedef struct serv_dsock {
   struct sockaddr_un servaddr;
   int sockfd;
 } serv_dsock;
+
+eth_addr_t hton6(eth_addr_t addr);
+eth_addr_t ntoh6(eth_addr_t addr);
 
 void pretty_print_eth_addr(char hwaddr[6], char *out);
 char * create_tempfile(void);

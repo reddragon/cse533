@@ -53,6 +53,18 @@ timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y) 
   return x->tv_sec < y->tv_sec;
 }
 
+eth_addr_t hton6(eth_addr_t addr) {
+  eth_addr_t ret;
+  int i;
+  for (i = 0; i < 6; ++i) {
+    ret.eth_addr[0] = addr.eth_addr[5-i];
+  }
+  return ret;
+}
+
+eth_addr_t ntoh6(eth_addr_t addr) {
+  return hton6(addr);
+}
 
 uint32_t 
 current_time_in_ms(void) {
