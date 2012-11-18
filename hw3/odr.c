@@ -420,7 +420,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
 
   VERBOSE("process_eth_pkt:: (%s -> %s)", src_addr, dst_addr);
 
-  if (frame->protocol != ODR_PROTOCOL) {
+  if (ntohs(frame->protocol) != ODR_PROTOCOL) {
     return;
   }
 
