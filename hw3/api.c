@@ -14,7 +14,7 @@ msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int msg_flag) {
   m.msg_flag = msg_flag;
   strncpy(m.msg, msg, sizeof(api_msg) - API_MSG_HDR_SZ - 1);
   
-  strcpy(serv_addr.sun_path, SRV_DGPATH);
+  strcpy(serv_addr.sun_path, ODR_DGPATH);
   serv_addr.sun_family = AF_LOCAL;
   // Send the newly marshalled API message to the ODR.
   // The ODR will take care of the rest
@@ -31,7 +31,7 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   bzero(&m, sizeof(api_msg));
   m.rtype = MSG_RECV;
   
-  strcpy(serv_addr.sun_path, SRV_DGPATH);
+  strcpy(serv_addr.sun_path, ODR_DGPATH);
   serv_addr.sun_family = AF_LOCAL;
 
   // Just send the header of the API Message
