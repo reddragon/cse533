@@ -314,9 +314,10 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   VERBOSE("odr_deliver_message_to_client::sun_path: %s\n", cliaddr->sun_path);
 
   if (!ce->is_blocked_on_recv) {
+    odr_pkt *p = NULL;
     INFO("Client %s:%d is NOT blocked on msg_recv()\n",
          pkt->dst_ip, pkt->dst_port);
-    odr_pkt *p = MALLOC(odr_pkt);
+    p = MALLOC(odr_pkt);
     memcpy(p, pkt, sizeof(odr_pkt));
     vector_push_back(&ce->pkt_queue, p);
     return;
