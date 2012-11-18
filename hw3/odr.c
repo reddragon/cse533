@@ -21,7 +21,8 @@ treap cli_port_map;       // Mapping from port # to cli_entry
 
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
-  cli_entry *e = MALLOC(cli_entry);
+  cli_entry *e;
+  e = MALLOC(cli_entry);
   e->last_id = 0;
   e->cliaddr = cliaddr;
   e->e_portno = next_e_portno++;
@@ -38,9 +39,10 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
 cli_entry *
 get_cli_entry(struct sockaddr_un *cliaddr) {
   int i;
-  cli_entry *e = NULL;
+  cli_entry *e, *t;
+  e = NULL;
   for (i = 0; i < vector_size(&cli_table); i++) {
-    cli_entry *t = (cli_entry *) vector_at(&cli_table, i);
+    t = (cli_entry *) vector_at(&cli_table, i);
     if (!strcmp(t->cliaddr->sun_path, cliaddr->sun_path)) {
       e = t;
       break;
@@ -66,9 +68,9 @@ is_stale_entry(route_entry *e) {
 route_entry *
 get_route_entry(odr_pkt *p) {
   int i;
-  route_entry *c = NULL;
+  route_entry *c = NULL, *r;
   for (i = 0; i < vector_size(&route_table); i++) {
-    route_entry *r = vector_at(&route_table, i);
+    r = vector_at(&route_table, i);
     if (is_stale_entry(r) ||
         (!strcmp(r->ip_addr, p->dst_ip) && (p->flags & ROUTE_REDISCOVERY_FLG))) {
       // This is a stale entry
@@ -85,6 +87,9 @@ get_route_entry(odr_pkt *p) {
 
 void
 odr_setup(void) {
+  struct hwa_info *h;
+  struct sockaddr *sa;
+  struct sockaddr_un *serv_addr;
   vector_init(&cli_table,   sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
   treap_init(&iface_treap);
@@ -94,11 +99,10 @@ odr_setup(void) {
 
   h_head = Get_hw_addrs();
 
-  struct hwa_info *h;
   for (h = h_head; h != NULL; h = h->hwa_next) {
     treap_insert(&iface_treap, h->if_index, h);     
     if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
-      struct sockaddr *sa = h->ip_addr;
+      sa = h->ip_addr;
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
       INFO("My IP Address: %s\n", my_ipaddr);
     }
@@ -111,7 +115,7 @@ odr_setup(void) {
   // Create the PF_PACKET socket
   pf_sockfd = Socket(PF_PACKET, SOCK_DGRAM, ODR_PROTOCOL);
   VERBOSE("Sucessfully created the PF_PACKET socket\n%s", "");
-  struct sockaddr_un *serv_addr = MALLOC(struct sockaddr_un);
+  serv_addr = MALLOC(struct sockaddr_un);
   strcpy(serv_addr->sun_path, SRV_DGPATH);
   serv_addr->sun_family = AF_LOCAL;
   add_cli_entry(serv_addr);
@@ -182,10 +186,32 @@ odr_route_message(odr_pkt *pkt) {
   }
 
   // Look up the routing table, to see if there is an entry
-  route_entry *r = get_route_entry(pkt);
+  route_entry *r;
+  odr_pkt rreq_pkt;
+  eth_frame ef;
+  struct hwa_info *h;
 
+  r = get_route_entry(pkt);
   if (r == NULL) {
     INFO("Could not find a route for IP Address: %s\n", pkt->src_ip);
+    // We need to send an RREQ type ODR packet, wrapped
+    // in an ethernet frame
+
+    // Make a new ODR Packet
+    memcpy(&rreq_pkt, pkt, sizeof(odr_pkt));
+    rreq_pkt.type = RREQ;
+    memset(rreq_pkt.msg, 0, sizeof(rreq_pkt.msg));
+
+    memset(ef.dst_eth_addr, 0xff, sizeof(ef.dst_eth_addr));
+    ef.protocol = ODR_PROTOCOL;
+      
+    // Copy the ODR packet 
+    memcpy(ef.payload, &rreq_pkt, sizeof(rreq_pkt));
+
+    for (h = h_head; h != NULL; h = h->hwa_next) {
+      memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
+      send_eth_pkt(&ef);     
+    }
 
     odr_start_route_discovery(pkt);
 
@@ -194,10 +220,7 @@ odr_route_message(odr_pkt *pkt) {
     return;
   }
 
-  // Send out this ODR packet over the network. We have an entry to
-  // the destination, just route it
-
-  struct hwa_info *h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
+  h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
     
   INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
     
@@ -212,15 +235,20 @@ odr_route_message(odr_pkt *pkt) {
 void
 odr_deliver_message_to_client(odr_pkt *pkt) {
   // TODO
+  cli_entry *ce;
+  struct sockaddr_un *cliaddr;
+  api_msg resp;
+  socklen_t clilen;
+  int r;
   VERBOSE("odr_deliver_message_to_client:: (%s:%d) -> (%s:%d)\n",
           pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port);
-  cli_entry *ce = (cli_entry*)treap_get_value(&cli_port_map, pkt->dst_port);
+  ce = (cli_entry*)treap_get_value(&cli_port_map, pkt->dst_port);
   if (!ce) {
     INFO("No entry for destination port #%d\n", pkt->dst_port);
     return;
   }
 
-  struct sockaddr_un *cliaddr = ce->cliaddr;
+  cliaddr = ce->cliaddr;
   VERBOSE("odr_deliver_message_to_client::sun_path: %s\n", cliaddr->sun_path);
 
   if (!ce->is_blocked_on_recv) {
@@ -230,16 +258,15 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
     return;
   }
 
-  api_msg resp;
   memset(&resp, 0, sizeof(resp));
-  const socklen_t clilen = sizeof(cliaddr);
+  clilen = sizeof(cliaddr);
   resp.rtype = MSG_RESPONSE;
   resp.port = pkt->src_port;
   strcpy(resp.ip, pkt->src_ip);
   resp.msg_flag = 0;
   memcpy(resp.msg, pkt->msg, API_MSG_SZ);
 
-  int r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
+  r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
   while (r < 0 && errno == EINTR) {
     r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
   }
@@ -280,12 +307,16 @@ on_pf_error(void *opaque) {
 void
 on_ud_recv(void *opaque) {
   struct sockaddr_un cliaddr;
-  socklen_t clilen = sizeof(cliaddr);
+  socklen_t clilen;
+  api_msg *m;
+  cli_entry *c;
+
+  clilen = sizeof(cliaddr);
   memset(&cliaddr, 0, sizeof(cliaddr));
 
-  api_msg *m = MALLOC(api_msg);
+  m = MALLOC(api_msg);
   Recvfrom(s.sockfd, (char *) m, sizeof(api_msg), 0, (SA *) &cliaddr, &clilen);
-  cli_entry *c = get_cli_entry(&cliaddr);
+  c = get_cli_entry(&cliaddr);
   process_dsock_requests(m, c);
 }
 
@@ -299,6 +330,7 @@ void
 odr_loop(void) {
   // We never come out of this function
   struct timeval timeout;
+  int r;
   timeout.tv_sec = 10; // FIXME when we know better
   timeout.tv_usec = 0;
 
@@ -310,7 +342,7 @@ odr_loop(void) {
   fdset_add(&fds, &fds.rev,  s.sockfd, &s.sockfd, on_ud_recv);
   fdset_add(&fds, &fds.exev, s.sockfd, &s.sockfd, on_ud_error);
 
-  int r = fdset_poll(&fds, NULL, NULL);
+  r = fdset_poll(&fds, NULL, NULL);
   if (r < 0) {
     perror("select");
     ASSERT(errno != EINTR);
@@ -320,9 +352,9 @@ odr_loop(void) {
 
 void on_odr_exit(void) {
   struct timeval tv;
-  Gettimeofday(&tv, NULL);
   time_t currtime;
   char str_time[40];
+  Gettimeofday(&tv, NULL);
   time(&currtime);
   strftime(str_time, 40, "%T", localtime(&currtime));
   INFO("ODR exited at %s.%03u\n", str_time, (unsigned int)tv.tv_usec/1000);
