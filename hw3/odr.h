@@ -55,7 +55,7 @@ typedef enum odr_pkt_type {
 
 #define ODR_MSG_SZ 256
 typedef struct odr_pkt {
-  odr_pkt_type type;      // Type of the ODR packet
+  uint16_t type;          // Type of the ODR packet
   uint32_t broadcast_id;  // Broadcast ID of the packet 
   uint8_t hop_count;      // Hop Count of the packet
   char src_ip[20];        // Canonical IP address of the source
