@@ -73,15 +73,18 @@ cli_entry * add_cli_entry(struct sockaddr_un *cliaddr);
 cli_entry * get_cli_entry(struct sockaddr_un *cliaddr);
 route_entry *get_route_entry(odr_pkt *p);
 BOOL is_stale_entry(route_entry *e);
+odr_pkt *create_odr_pkt(api_msg *m);
 
+void odr_setup(void);
 void odr_route_message(odr_pkt *pkt);
 void odr_deliver_message_to_client(odr_pkt *pkt);
+void odr_start_route_discovery(odr_pkt *pkt);
+void odr_loop(void);
 
 void update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from);
 BOOL should_process_packet(odr_pkt *pkt);
 void process_dsock_requests(api_msg *m, cli_entry *c);
 void process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa);
-void odr_loop(void);
 void on_odr_exit(void);
 
 void on_pf_recv(void *opaque);
@@ -89,6 +92,8 @@ void on_pf_error(void *opaque);
 void on_ud_recv(void *opaque);
 void on_ud_error(void *opaque);
 
+void send_over_ethernet(char from[6], char to[6],
+                        void *data, int len, int iface_idx);
 void send_eth_pkt(eth_frame *ef, int iface_idx);
 
 #endif
