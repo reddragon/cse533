@@ -122,7 +122,7 @@ odr_setup(void) {
   }
 
   // Create the PF_PACKET socket
-  pf_sockfd = Socket(PF_PACKET, SOCK_DGRAM, ODR_PROTOCOL);
+  pf_sockfd = Socket(PF_PACKET, SOCK_RAW, ODR_PROTOCOL);
   VERBOSE("Sucessfully created the PF_PACKET socket\n%s", "");
   serv_addr = MALLOC(struct sockaddr_un);
   strcpy(serv_addr->sun_path, SRV_DGPATH);
@@ -197,7 +197,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   sa.sll_halen = 6; // TODO Looks right?
   memcpy(sa.sll_addr, ef->dst_eth_addr, 6);
   VERBOSE("Sending an eth_frame of size: %d\n", sizeof(eth_frame));
-  Sendto(pf_sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(sa));
+  Sendto(pf_sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
 }
 
 /* Update the routing table based on the type of the packet and the
