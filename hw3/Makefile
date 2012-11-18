@@ -23,7 +23,7 @@ ODR_gmenghani: odr.c odr.h api.h myassert.h $(OBJDEPS)
 client_gmenghani: timecli.c utils.o $(OBJDEPS)
 	$(CC) $(CFLAGS) timecli.c $(OBJDEPS) -o client_gmenghani $(LIBS)
 
-api.o: api.c api.h
+api.o: api.c api.h utils.h
 	$(CC) $(CFLAGS) -c -o api.o api.c
 
 utils.o: utils.c utils.h
