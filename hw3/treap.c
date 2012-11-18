@@ -244,7 +244,8 @@ treap_node* treap_predecessor(treap_node *n) {
 
 void treap_delete(treap *t, int key) {
     TDEBUG("treap_delete(%d)\n", key);
-    treap_node *n = treap_find(t, key);
+    treap_node *n = NULL;
+    n = treap_find(t, key);
     if (!n) { return; }
     treap_delete_node(t, n);
 }
@@ -258,7 +259,8 @@ int treap_empty(treap *t) {
 }
 
 treap_node* treap_largest(treap *t) {
-    treap_node *n = t->root;
+    treap_node *n = NULL;
+    n = t->root;
     while (n && n->right) {
         n = n->right;
     }
@@ -266,7 +268,8 @@ treap_node* treap_largest(treap *t) {
 }
 
 treap_node* treap_smallest(treap *t) {
-    treap_node *n = t->root;
+    treap_node *n = NULL;
+    n = t->root;
     while (n && n->left) {
         n = n->left;
     }
