@@ -80,7 +80,7 @@ client_loop(void) {
   ask_for_user_input();
   msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
 
-  fdset_poll(&fds, &timeout, on_recv_timedout);
+  r = fdset_poll(&fds, &timeout, on_recv_timedout);
   if (r < 0) {
     perror("select");
     ASSERT(errno != EINTR);
