@@ -220,12 +220,12 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   struct sockaddr_ll sa;
 
   memset(&sa, 0, sizeof(sa));
-  sa.sll_family = PF_PACKET;
-  sa.sll_hatype = ARPHRD_ETHER;
-  sa.sll_pkttype = PACKET_BROADCAST; // FIXME
+  sa.sll_family   = PF_PACKET;
+  sa.sll_hatype   = ARPHRD_ETHER;
+  sa.sll_pkttype  = PACKET_BROADCAST; // FIXME
   sa.sll_protocol = ef->protocol;
-  sa.sll_ifindex = iface_idx;
-  sa.sll_halen = 6; // TODO Looks right?
+  sa.sll_ifindex  = iface_idx;
+  sa.sll_halen    = 6; // TODO Looks right?
   memcpy(sa.sll_addr, ef->dst_eth_addr.eth_addr, 6);
   Sendto(pf_sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
 }

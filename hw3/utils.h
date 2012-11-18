@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <sys/ioctl.h>      
-#include <net/if.h>           
+#include <linux/if.h>
 #include <assert.h>
 #include "myassert.h"
 #include "unp.h"

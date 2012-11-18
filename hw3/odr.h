@@ -2,12 +2,8 @@
 #ifndef _ODR_H_
 #define _ODR_H_
 
-#include <linux/if_packet.h>
-#include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <sys/socket.h>
-#include <netpacket/packet.h>
-#include <net/ethernet.h>
 #include <stdint.h>
 #include "utils.h"
 
