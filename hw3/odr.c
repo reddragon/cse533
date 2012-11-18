@@ -126,7 +126,7 @@ odr_setup(void) {
 }
 
 void
-send_over_ethernet(char from[6], char to[6], void *data, int len) {
+send_over_ethernet(char from[6], char to[6], void *data, int len, int iface_idx) {
   eth_frame ef;
   memcpy(ef.dst_eth_addr, to,   sizeof(ef.dst_eth_addr));
   memcpy(ef.src_eth_addr, from, sizeof(ef.src_eth_addr));
@@ -134,7 +134,7 @@ send_over_ethernet(char from[6], char to[6], void *data, int len) {
 
   // Copy the payload
   memcpy(ef.payload, &data, len);
-  send_eth_pkt(&ef);
+  send_eth_pkt(&ef, iface_idx);
 }
 
 /* Start the process of route discovery. This function floods all the
@@ -179,14 +179,14 @@ should_process_packet(odr_pkt *pkt) {
 }
 
 void
-send_eth_pkt(eth_frame *ef, uint16_t iface_idx) {
+send_eth_pkt(eth_frame *ef, int iface_idx) {
   struct sockaddr_ll sa;
   sa.sll_family = AF_PACKET;
   sa.sll_protocol = ef->protocol;
   sa.sll_ifindex = iface_idx;
   sa.sll_halen = 6; // TODO Looks right?
-  sa.sll_addr = ef->dst_eth_addr;
-  Send(pf_sockfd, (void *)ef, sizeof(*ef), 0);
+  memcpy(sa.sll_addr, ef->dst_eth_addr, 6);
+  Sendto(pf_sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(struct sockaddr_ll));
 }
 
 /* Update the routing table based on the type of the packet and the

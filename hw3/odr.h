@@ -87,6 +87,6 @@ void on_pf_error(void *opaque);
 void on_ud_recv(void *opaque);
 void on_ud_error(void *opaque);
 
-void send_eth_pkt(eth_frame *ef);
+void send_eth_pkt(eth_frame *ef, int iface_idx);
 
 #endif
