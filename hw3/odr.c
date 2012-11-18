@@ -36,6 +36,9 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
   return e;
 }
 
+/* Fetch a cli_entry from the cli_table given a 'struct sockaddr_un'
+ * for that client address.
+ */
 cli_entry *
 get_cli_entry(struct sockaddr_un *cliaddr) {
   int i;
@@ -177,8 +180,6 @@ void
 odr_route_message(odr_pkt *pkt) {
   // TODO Where are we handling RREQs and RREPs
   route_entry *r;
-  odr_pkt rreq_pkt;
-  eth_frame ef;
   struct hwa_info *h;
 
   ++pkt->hop_count;
@@ -193,24 +194,6 @@ odr_route_message(odr_pkt *pkt) {
   r = get_route_entry(pkt);
   if (r == NULL) {
     INFO("Could not find a route for IP Address: %s\n", pkt->src_ip);
-    // We need to send an RREQ type ODR packet, wrapped
-    // in an ethernet frame
-
-    // Make a new ODR Packet
-    memcpy(&rreq_pkt, pkt, sizeof(odr_pkt));
-    rreq_pkt.type = RREQ;
-    memset(rreq_pkt.msg, 0, sizeof(rreq_pkt.msg));
-
-    memset(ef.dst_eth_addr, 0xff, sizeof(ef.dst_eth_addr));
-    ef.protocol = ODR_PROTOCOL;
-      
-    // Copy the ODR packet 
-    memcpy(ef.payload, &rreq_pkt, sizeof(rreq_pkt));
-
-    for (h = h_head; h != NULL; h = h->hwa_next) {
-      memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
-      send_eth_pkt(&ef);     
-    }
 
     odr_start_route_discovery(pkt);
 
@@ -219,10 +202,10 @@ odr_route_message(odr_pkt *pkt) {
     return;
   }
 
-  h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
-    
+  h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
+
   INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
-    
+
   send_over_ethernet(h->if_haddr, r->next_hop, pkt, sizeof(*pkt));
 }
 
