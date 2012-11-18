@@ -1,3 +1,4 @@
+// -*- tab-width: 2; c-basic-offset: 2 -*-
 #include "utils.h"
 #include "api.h"
 
@@ -20,7 +21,7 @@ void
 msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   // In this, we need to send one API message, and then
   // receive another
-  api_msg m;
+  api_msg m, r;
   bzero(&m, sizeof(api_msg));
   m.rtype = MSG_RECV;
   
@@ -29,7 +30,6 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   
   // TODO Put a timeout here
   // The message which will have the response
-  api_msg r;
   VERBOSE("Waiting for a Recv\n%s", "");
   Recv(sockfd, (char *) &r, sizeof(api_msg), 0);
   VERBOSE("Came out of a Recv\n%s", "");
