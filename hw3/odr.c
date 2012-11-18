@@ -165,9 +165,56 @@ odr_start_route_discovery(odr_pkt *pkt) {
   }
 }
 
+BOOL
+should_process_packet(odr_pkt *pkt) {
+  ++pkt->hop_count;
+  if (pkt->hop_count >= MAX_HOP_COUNT) {
+    INFO("Dropping packet from %s:%d -> %s:%d because hop count reached %d\n",
+         pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->hop_count);
+    // TODO: Caller free(3)s packet.
+    // free(pkt);
+    return FALSE;
+  }
+  return TRUE;
+}
+
 void
 send_eth_pkt(eth_frame *ef) {
   Send(pf_sockfd, (void *)ef, sizeof(*ef), 0);
+}
+
+/* Update the routing table based on the type of the packet and the
+ * source & destination addresses.
+ */
+void
+update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
+  if (pkt->type != RREQ && pkt->type != RREP) {
+    // Ignore this packet since it is neither an RREQ nor is it an
+    // RREP.
+    return;
+  }
+
+  // We got a request packet from someone. Update the reverse path
+  // to that host as via the host we got this packet from.
+  route_entry *e = get_route_entry(pkt);
+  if (!e) {
+    // We have a new routing table entry.
+    e = MALLOC(route_entry);
+    memcpy(e->ip_addr, pkt->src_ip, sizeof(e->ip_addr));
+    // e->iface_idx = TODO.
+    // memcpy(e->next_hop, BLAH, sizeof(e->next_hop));
+    e->nhops_to_dest = pkt->hop_count;
+    e->last_updated_at_ms = current_time_in_ms();
+    vector_push_back(&route_table, e);
+    free(e);
+  } else {
+    if (e->nhops_to_dest > pkt->hop_count) {
+      // Replace the older entry.
+      int index = (e - (route_entry*)vector_at(&route_table, 0)) / sizeof(route_entry);
+      vector_erase(&route_table, index);
+      update_routing_table(pkt, from);
+    }
+  }
 }
 
 /* Route the message 'pkt' to the appropriate recipient by computing
@@ -181,14 +228,6 @@ odr_route_message(odr_pkt *pkt) {
   // TODO Where are we handling RREQs and RREPs
   route_entry *r;
   struct hwa_info *h;
-
-  ++pkt->hop_count;
-  if (pkt->hop_count >= MAX_HOP_COUNT) {
-    INFO("Dropping packet from %s:%d -> %s:%d because hop count reached %d\n",
-         pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->hop_count);
-    free(pkt);
-    return;
-  }
 
   // Look up the routing table, to see if there is an entry
   r = get_route_entry(pkt);

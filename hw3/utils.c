@@ -10,7 +10,14 @@ utils_init(void) {
   Gettimeofday(&dob, NULL);
 }
 
-int 
+void* my_malloc(size_t size) {
+    // assert(size < 2 * 1048676); // 2MiB
+    void *ptr = calloc(1, size);
+    ASSERT(ptr);
+    return ptr;
+}
+
+int
 timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y) {
   /* Perform the carry for the later subtraction by updating y. */
   int nsec;

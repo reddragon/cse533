@@ -71,6 +71,8 @@ typedef struct odr_pkt {
 BOOL is_stale_entry(route_entry *e);
 cli_entry * add_cli_entry(struct sockaddr_un *cliaddr);
 cli_entry * get_cli_entry(struct sockaddr_un *cliaddr);
+route_entry *get_route_entry(odr_pkt *p);
+BOOL is_stale_entry(route_entry *e);
 
 void odr_route_message(odr_pkt *pkt);
 void odr_deliver_message_to_client(odr_pkt *pkt);

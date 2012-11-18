@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>      
 #include <net/if.h>           
 #include <assert.h>
+#include "myassert.h"
 #include "unp.h"
 
 #define SRV_DGPATH "/tmp/srv_dsock"
@@ -28,13 +29,15 @@
 #endif
 
 #define INFO(X, VARGS...) TIMESTAMPMSG("INFO", X, VARGS)
-#define MALLOC(X) (X *) malloc(sizeof(X))
-#define NMALLOC(X,N) (X *) malloc(sizeof(X) * N)
+#define MALLOC(X) (X *) my_malloc(sizeof(X))
+#define NMALLOC(X,N) (X *) my_malloc(sizeof(X) * N)
 
 #define	IF_NAME		16	/* same as IFNAMSIZ    in <net/if.h> */
 #define	IF_HADDR	 6	/* same as IFHWADDRLEN in <net/if.h> */
 
 #define	IP_ALIAS  	 1	/* hwa_addr is an alias */
+
+void* my_malloc(size_t size);
 
 struct hwa_info {
   char    if_name[IF_NAME];	/* interface name, null terminated */
