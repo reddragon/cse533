@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
 OBJDEPS = utils.o api.o algorithm.o vector.o \
       fdset.o email.o treap.o
-OBJ = timecli odr $(OBJDEPS)
+OBJ = client_gmenghani ODR_gmenghani $(OBJDEPS)
 
 LINKFLAGS = -lpthread
 INCFLAGS  = -I../unpv13e_linux/lib
@@ -17,11 +17,11 @@ debug: targets
 
 targets: $(OBJ)
 
-odr: odr.c odr.h api.h $(OBJDEPS)
-	$(CC) $(CFLAGS) odr.c  $(OBJDEPS) -o odr $(LIBS)
+ODR_gmenghani: odr.c odr.h api.h $(OBJDEPS)
+	$(CC) $(CFLAGS) odr.c  $(OBJDEPS) -o ODR_gmenghani $(LIBS)
 
-timecli: timecli.c utils.o $(OBJDEPS)
-	$(CC) $(CFLAGS) timecli.c $(OBJDEPS) -o timecli $(LIBS)
+client_gmenghani: timecli.c utils.o $(OBJDEPS)
+	$(CC) $(CFLAGS) timecli.c $(OBJDEPS) -o client_gmenghani $(LIBS)
 
 api.o: api.c api.h
 	$(CC) $(CFLAGS) -c -o api.o api.c

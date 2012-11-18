@@ -205,9 +205,17 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
 void
 update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
   route_entry *e;
+  char via_eth_addr[20];
+
+  pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
+
+  VERBOSE("update_routing_table:: (%s -> %s); hop_count: %d; via: %s\n",
+          pkt->src_ip, pkt->dst_ip, pkt->hop_count, via_eth_addr);
+
   if (pkt->type != RREQ && pkt->type != RREP) {
     // Ignore this packet since it is neither an RREQ nor is it an
     // RREP.
+    VERBOSE("Ignoring packet since it is of type: %d\n", pkt->type);
     return;
   }
 
@@ -215,6 +223,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
   // to that host as via the host we got this packet from.
   e = get_route_entry(pkt);
   if (!e) {
+    INFO("New routing table entry to %s via %s\n", pkt->src_ip, via_eth_addr);
     // We have a new routing table entry.
     e = MALLOC(route_entry);
     memcpy(e->ip_addr, pkt->src_ip, sizeof(e->ip_addr));
