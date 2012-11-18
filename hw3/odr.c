@@ -176,6 +176,10 @@ send_eth_pkt(eth_frame *ef) {
 void
 odr_route_message(odr_pkt *pkt) {
   // TODO Where are we handling RREQs and RREPs
+  route_entry *r;
+  odr_pkt rreq_pkt;
+  eth_frame ef;
+  struct hwa_info *h;
 
   ++pkt->hop_count;
   if (pkt->hop_count >= MAX_HOP_COUNT) {
@@ -186,11 +190,6 @@ odr_route_message(odr_pkt *pkt) {
   }
 
   // Look up the routing table, to see if there is an entry
-  route_entry *r;
-  odr_pkt rreq_pkt;
-  eth_frame ef;
-  struct hwa_info *h;
-
   r = get_route_entry(pkt);
   if (r == NULL) {
     INFO("Could not find a route for IP Address: %s\n", pkt->src_ip);
