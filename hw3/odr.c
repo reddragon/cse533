@@ -127,36 +127,34 @@ send_over_ethernet(char from[6], char to[6], void *data, int len) {
 
   // Copy the payload
   memcpy(ef.payload, &data, len);
-
-  struct hwa_info *h;
-  for (h = h_head; h != NULL; h = h->hwa_next) {
-    memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
-    send_eth_pkt(&ef);     
-  }
+  send_eth_pkt(&ef);
 }
 
+/* Start the process of route discovery. This function floods all the
+ * interfaces with an RREQ packet with the destination address set as
+ * 0xff:ff:ff:ff:ff:ff.
+ *
+ */
 void
 odr_start_route_discovery(odr_pkt *pkt) {
   // We need to send an RREQ type ODR packet, wrapped
   // in an ethernet frame
 
   // Make a new ODR Packet
-  odr_pkt rreq_pkt = *pkt;
+  odr_pkt rreq_pkt;
+  char dest_addr[6];
+  struct hwa_info *h;
+  int odr_pkt_hdr_sz;
+
+  rreq_pkt = *pkt;
   rreq_pkt.type = RREQ;
   // Zero out the data.
   memset(rreq_pkt.msg, 0, sizeof(rreq_pkt.msg));
+  memset(dest_addr, 0xff, sizeof(dest_addr));
+  odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
 
-  eth_frame ef;
-  memset(ef.dst_eth_addr, 0xff, sizeof(ef.dst_eth_addr));
-  ef.protocol = ODR_PROTOCOL;
-      
-  // Copy the ODR packet 
-  memcpy(ef.payload, &rreq_pkt, sizeof(rreq_pkt));
-
-  struct hwa_info *h;
   for (h = h_head; h != NULL; h = h->hwa_next) {
-    memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
-    send_eth_pkt(&ef);     
+    send_over_ethernet(h->if_haddr, dest_addr, &rreq_pkt, odr_pkt_hdr_sz);
   }
 }
 
@@ -202,15 +200,8 @@ odr_route_message(odr_pkt *pkt) {
   struct hwa_info *h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
     
   INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
-  eth_frame ef;
     
-  memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
-  memcpy(ef.dst_eth_addr, r->next_hop, sizeof(r->next_hop));
-  ef.protocol = ODR_PROTOCOL;
-      
-  // Copy the ODR packet 
-  memcpy(ef.payload, pkt, sizeof(*pkt));
-  send_eth_pkt(&ef);
+  send_over_ethernet(h->if_haddr, r->next_hop, pkt, sizeof(*pkt));
 }
 
 /* Deliver the message 'pkt' received by the ODR to the client to
