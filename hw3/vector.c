@@ -6,9 +6,9 @@
 #include "myassert.h"
 
 void overlapping_memcpy_ltor(char *dest, const char *src, int len) {
+    int i;
     assert_ge(len, 0);
     // fprintf(stderr, "overlapping_memcpy_ltor(%d)\n", len);
-    int i;
     for (i = 0; i < len; ++i) {
         dest[i] = src[i];
     }
@@ -34,11 +34,12 @@ void *vector_at(vector *v, int i) {
 }
 
 void vector_reserve(vector *v, int n) {
+    char *repr;
     ASSERT(v);
     assert_ge(n, 0);
     if (n <= v->mem_len) return;
 
-    char *repr = malloc((n) * v->obj_size);
+    repr = malloc((n) * v->obj_size);
     ASSERT(repr);
     if (v->repr) {
         memcpy(repr, v->repr, v->obj_size * v->size);
