@@ -282,6 +282,13 @@ odr_route_message(odr_pkt *pkt) {
   // TODO We can free pkt here?
 }
 
+/* Is this ODR packet meant for some client on this machine?
+ */
+BOOL
+is_my_packet(odr_pkt *pkt) {
+  return strcmp(pkt->dst_ip, my_ipaddr) == 0;
+}
+
 /* Deliver the message 'pkt' received by the ODR to the client to
  * which it is destined. In case the client was not found, we silently
  * drop the message and print an INFO message.
@@ -309,10 +316,13 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   if (!ce->is_blocked_on_recv) {
     INFO("Client %s:%d is NOT blocked on msg_recv()\n",
          pkt->dst_ip, pkt->dst_port);
-    vector_push_back(&ce->pkt_queue, pkt);
+    odr_pkt *p = MALLOC(odr_pkt);
+    memcpy(p, pkt, sizeof(odr_pkt));
+    vector_push_back(&ce->pkt_queue, p);
     return;
   }
 
+  INFO("Delivering message to client at sun_path: %s\n", cliaddr->sun_path);
   memset(&resp, 0, sizeof(resp));
   clilen = sizeof(cliaddr);
   resp.rtype = MSG_RESPONSE;
@@ -325,7 +335,8 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   while (r < 0 && errno == EINTR) {
     r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
   }
-  ASSERT(r >= 0);
+  ce->is_blocked_on_recv = FALSE;
+  ASSERT(r == sizeof(api_msg));
 }
 
 odr_pkt *
@@ -382,6 +393,10 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   VERBOSE("process_eth_pkt:: (%s -> %s)", src_addr, dst_addr);
   if (should_process_packet(pkt) == FALSE) {
     return;
+  }
+
+  if (is_my_packet(pkt) == TRUE) {
+    odr_deliver_message_to_client(pkt);
   }
 
   update_routing_table(pkt, sa);
