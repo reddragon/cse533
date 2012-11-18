@@ -7,7 +7,8 @@
 #include <net/ethernet.h>
 #include <stdint.h>
 
-#define ODR_PROTOCOL 0x8899 // This was not present in if_ether.h
+#define ODR_PROTOCOL  0x8899 // This was not present in if_ether.h
+#define MAX_HOP_COUNT 16
 
 #include "api.h" // For the api_msg flags
 #include "vector.h"
@@ -83,5 +84,7 @@ void on_pf_recv(void *opaque);
 void on_pf_error(void *opaque);
 void on_ud_recv(void *opaque);
 void on_ud_error(void *opaque);
+
+void send_eth_pkt(eth_frame *ef);
 
 #endif
