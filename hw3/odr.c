@@ -205,7 +205,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
 void
 update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
   route_entry *e;
-  char via_eth_addr[20];
+  char via_eth_addr[20], via_eth_addr_old[20];
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
@@ -227,18 +227,26 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     // We have a new routing table entry.
     e = MALLOC(route_entry);
     memcpy(e->ip_addr, pkt->src_ip, sizeof(e->ip_addr));
-    // e->iface_idx = TODO.
-    // memcpy(e->next_hop, BLAH, sizeof(e->next_hop));
-    e->nhops_to_dest = pkt->hop_count;
+    memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
+    e->iface_idx          = from->sll_ifindex;
+    e->nhops_to_dest      = pkt->hop_count;
     e->last_updated_at_ms = current_time_in_ms();
     vector_push_back(&route_table, e);
     free(e);
   } else {
     if (e->nhops_to_dest > pkt->hop_count) {
+      pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
+      INFO("Replacing older routing table entry to (%s via %s with "
+           "hop count %d) with (%s via %s with hop count %d)\n",
+           e->ip_addr, via_eth_addr_old, e->nhops_to_dest,
+           pkt->src_ip, via_eth_addr, pkt->hop_count);
+
       // Replace the older entry.
-      int index = (e - (route_entry*)vector_at(&route_table, 0)) / sizeof(route_entry);
-      vector_erase(&route_table, index);
-      update_routing_table(pkt, from);
+      memcpy(e->ip_addr, pkt->src_ip, sizeof(e->ip_addr));
+      memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
+      e->iface_idx          = from->sll_ifindex;
+      e->nhops_to_dest      = pkt->hop_count;
+      e->last_updated_at_ms = current_time_in_ms();
     }
   }
 }
