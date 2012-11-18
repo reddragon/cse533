@@ -95,6 +95,15 @@ get_route_entry(odr_pkt *p) {
 }
 
 void
+odr_packet_print(odr_pkt *pkt) {
+  INFO("Type: %d, bcast_id: %d, hop_count: %d, src: %s:%d, "
+       "dst: %s:%d, size: %d\n",
+       pkt->type, pkt->broadcast_id, pkt->hop_count,
+       pkt->src_ip, pkt->src_port,
+       pkt->dst_ip, pkt->dst_port, pkt->msg_size);
+}
+
+void
 odr_setup(void) {
   struct hwa_info *h;
   struct sockaddr *sa;
@@ -385,14 +394,15 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   odr_pkt *pkt;
   pkt = (odr_pkt*)frame->payload;
 
-  if (frame->protocol != ODR_PROTOCOL) {
-    return;
-  }
-
   pretty_print_eth_addr(frame->src_eth_addr, src_addr);
   pretty_print_eth_addr(frame->dst_eth_addr, dst_addr);
 
   VERBOSE("process_eth_pkt:: (%s -> %s)", src_addr, dst_addr);
+
+  if (frame->protocol != ODR_PROTOCOL) {
+    return;
+  }
+
   if (should_process_packet(pkt) == FALSE) {
     return;
   }
@@ -420,6 +430,7 @@ on_pf_recv(void *opaque) {
     exit(1);
   }
   assert_ge(r, 64);
+  // memcpy(sa.if_haddr, frame.src_eth_addr, sizeof(sa.if_haddr));
   process_eth_pkt(&frame, &sa);
 }
 

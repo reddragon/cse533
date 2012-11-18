@@ -17,7 +17,7 @@ debug: targets
 
 targets: $(OBJ)
 
-ODR_gmenghani: odr.c odr.h api.h $(OBJDEPS)
+ODR_gmenghani: odr.c odr.h api.h myassert.h $(OBJDEPS)
 	$(CC) $(CFLAGS) odr.c  $(OBJDEPS) -o ODR_gmenghani $(LIBS)
 
 client_gmenghani: timecli.c utils.o $(OBJDEPS)
@@ -43,6 +43,9 @@ email.o: email.c email.h
 
 treap.o: treap.c treap.h myassert.h
 	$(CC) $(CFLAGS) -c -o treap.o treap.c
+
+scp:
+	./scp.sh
 
 clean:
 	rm -f $(OBJ)
