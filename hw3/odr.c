@@ -233,7 +233,6 @@ odr_route_message(odr_pkt *pkt) {
   r = get_route_entry(pkt);
   if (r == NULL) {
     INFO("Could not find a route for IP Address: %s\n", pkt->src_ip);
-
     odr_start_route_discovery(pkt);
 
     // Queue up the packet to be sent later.
@@ -246,6 +245,7 @@ odr_route_message(odr_pkt *pkt) {
   INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
 
   send_over_ethernet(h->if_haddr, r->next_hop, pkt, sizeof(*pkt));
+  // TODO We can free pkt here?
 }
 
 /* Deliver the message 'pkt' received by the ODR to the client to
@@ -294,13 +294,35 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   ASSERT(r >= 0);
 }
 
+odr_pkt *
+create_odr_pkt(api_msg *m) {
+  odr_pkt *o;
+  o = MALLOC(odr_pkt);
+  o->type = DATA;
+  // FIXME
+  // What do we put here? 
+  // Is the broadcast_id a number which increases everytime we
+  // get a send request? Or is it a client specific count?
+  o->broadcast_id = 0; 
+  o->hop_count = 0;
+  if (m->rtype == MSG_SEND) {
+    strcpy(o->src_ip, my_ipaddr);
+    strcpy(o->dst_ip, m->ip);
+  }
+  o->flags = m->msg_flag;
+  strcpy(o->msg, m->msg);
+  return o;
+}
+
 void
 process_dsock_requests(api_msg *m, cli_entry *c) {
   VERBOSE("Received a request of type %d from Client with sun_path %s\n", m->rtype, c->cliaddr->sun_path);
- if (m->rtype == MSG_SEND) {
-      // odr_send(&m);
+  if (m->rtype == MSG_SEND) {
+    odr_pkt *o = create_odr_pkt(m);
+    odr_route_message(o);
+    // odr_send(&m);
   } else if (m->rtype == MSG_RECV) {
-      // odr_recv(&m, c);
+    // odr_recv(&m, c);
   }
   // api_msg is no longer required
   free(m);
