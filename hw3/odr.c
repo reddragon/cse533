@@ -196,7 +196,8 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   sa.sll_ifindex = iface_idx;
   sa.sll_halen = 6; // TODO Looks right?
   memcpy(sa.sll_addr, ef->dst_eth_addr, 6);
-  Sendto(pf_sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(eth_frame));
+  VERBOSE("Sending an eth_frame of size: %d\n", sizeof(eth_frame));
+  Sendto(pf_sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(sa));
 }
 
 /* Update the routing table based on the type of the packet and the
