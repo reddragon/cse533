@@ -122,7 +122,7 @@ odr_setup(void) {
   }
 
   // Create the PF_PACKET socket
-  pf_sockfd = Socket(PF_PACKET, SOCK_RAW, ODR_PROTOCOL);
+  pf_sockfd = Socket(PF_PACKET, SOCK_RAW, htons(ODR_PROTOCOL));
   VERBOSE("Sucessfully created the PF_PACKET socket\n%s", "");
   serv_addr = MALLOC(struct sockaddr_un);
   strcpy(serv_addr->sun_path, SRV_DGPATH);
