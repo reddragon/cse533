@@ -70,6 +70,7 @@ int find_by_fd(const void *lhs, const void *rhs) {
 
 int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
     struct timeval to;
+    int r, i;
     if (timeout) {
         to = *timeout;
     }
@@ -91,7 +92,7 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
             *timeout = to;
         }
 
-        int r = select(fds->max_fd+1, &fds->rfds, 0, &fds->exfds, timeout);
+        r = select(fds->max_fd+1, &fds->rfds, 0, &fds->exfds, timeout);
         if (r < 0) {
             if (errno != EINTR) {
                 perror("select");
@@ -104,7 +105,6 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
             timeout_cb(NULL);
             continue;
         }
-        int i;
         for (i = 0; i < vector_size(&fds->rev); ++i) {
             select_event_t *pse = (select_event_t*)vector_at(&fds->rev, i);
             if (FD_ISSET(pse->fd, &fds->rfds)) {
@@ -113,6 +113,7 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
             }
         }
         for (i = 0; i < vector_size(&fds->exev); ++i) {
+            int rev_pos;
             select_event_t se = *(select_event_t*)vector_at(&fds->exev, i);
             if (FD_ISSET(se.fd, &fds->exfds)) {
                 INFO("FD %d is in ERROR\n", se.fd);
@@ -121,7 +122,7 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
                 vector_erase(&fds->exev, i);
                 --i;
                 // Remove from read events list as well.
-                int rev_pos = algorithm_find(&fds->rev, &se.fd, find_by_fd);
+                rev_pos = algorithm_find(&fds->rev, &se.fd, find_by_fd);
                 if (rev_pos != -1) {
                     vector_erase(&fds->rev, rev_pos);
                 }
