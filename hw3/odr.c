@@ -119,32 +119,50 @@ odr_setup(void) {
 }
 
 void
-odr_start_route_discovery(const char *dest_ip) {
+send_over_ethernet(char from[6], char to[6], void *data, int len) {
+  eth_frame ef;
+  memcpy(ef.dst_eth_addr, to,   sizeof(ef.dst_eth_addr));
+  memcpy(ef.src_eth_addr, from, sizeof(ef.src_eth_addr));
+  ef.protocol = ODR_PROTOCOL;
+
+  // Copy the payload
+  memcpy(ef.payload, &data, len);
+
+  struct hwa_info *h;
+  for (h = h_head; h != NULL; h = h->hwa_next) {
+    memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
+    send_eth_pkt(&ef);     
+  }
 }
 
-#if 0
-  ++pkt->hop_count;
-  if (pkt->hop_count >= MAX_HOP_COUNT) {
-    INFO("Dropping packet from %s:%d -> %s:%d because hop count reached %d\n",
-         pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->hop_count);
-    free(pkt);
-    return;
-  }
+void
+odr_start_route_discovery(odr_pkt *pkt) {
+  // We need to send an RREQ type ODR packet, wrapped
+  // in an ethernet frame
 
-  // Look up the routing table, to see if there is an entry
-  route_entry *r = get_route_entry(pkt);
-  if (r == NULL) {
-    odr_start_route_discovery(pkt->dst_ip);
-    // Queue up the packet to be sent later.
-    vector_push_back(&odr_send_q, pkt);
-    return;
+  // Make a new ODR Packet
+  odr_pkt rreq_pkt = *pkt;
+  rreq_pkt.type = RREQ;
+  // Zero out the data.
+  memset(rreq_pkt.msg, 0, sizeof(rreq_pkt.msg));
+
+  eth_frame ef;
+  memset(ef.dst_eth_addr, 0xff, sizeof(ef.dst_eth_addr));
+  ef.protocol = ODR_PROTOCOL;
+      
+  // Copy the ODR packet 
+  memcpy(ef.payload, &rreq_pkt, sizeof(rreq_pkt));
+
+  struct hwa_info *h;
+  for (h = h_head; h != NULL; h = h->hwa_next) {
+    memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
+    send_eth_pkt(&ef);     
   }
-  // TODO: Send out this ODR packet over the network.
-#endif
+}
 
 void
 send_eth_pkt(eth_frame *ef) {
-  Send(pf_sockfd, (void *)ef, sizeof(*ef), 0);     
+  Send(pf_sockfd, (void *)ef, sizeof(*ef), 0);
 }
 
 /* Route the message 'pkt' to the appropriate recipient by computing
@@ -156,51 +174,43 @@ send_eth_pkt(eth_frame *ef) {
 void
 odr_route_message(odr_pkt *pkt) {
   // TODO Where are we handling RREQs and RREPs
+
+  ++pkt->hop_count;
+  if (pkt->hop_count >= MAX_HOP_COUNT) {
+    INFO("Dropping packet from %s:%d -> %s:%d because hop count reached %d\n",
+         pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->hop_count);
+    free(pkt);
+    return;
+  }
+
   // Look up the routing table, to see if there is an entry
   route_entry *r = get_route_entry(pkt);
+
   if (r == NULL) {
     INFO("Could not find a route for IP Address: %s\n", pkt->src_ip);
-    // We need to send an RREQ type ODR packet, wrapped
-    // in an ethernet frame
 
-    // Make a new ODR Packet
-    odr_pkt rreq_pkt;
-    memcpy(&rreq_pkt, pkt, sizeof(odr_pkt));
-    rreq_pkt.type = RREQ;
-    memset(rreq_pkt.msg, 0, sizeof(rreq_pkt.msg));
+    odr_start_route_discovery(pkt);
 
-    eth_frame ef;
-    memset(ef.dst_eth_addr, 0xff, sizeof(ef.dst_eth_addr));
-    ef.protocol = ODR_PROTOCOL;
-      
-    // Copy the ODR packet 
-    memcpy(ef.payload, &rreq_pkt, sizeof(rreq_pkt));
-
-    struct hwa_info *h;
-    for (h = h_head; h != NULL; h = h->hwa_next) {
-      memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
-      send_eth_pkt(&ef);     
-    }
-
-    // Keeping the original ODR packet on the queue
+    // Queue up the packet to be sent later.
     vector_push_back(&odr_send_q, pkt);
-  } else {
-    // We have an entry to the destination, just route it
-
-    // TODO Handle when the hop count increases beyond a limit?
-    struct hwa_info *h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
-    
-    INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
-    eth_frame ef;
-    
-    memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
-    memcpy(ef.dst_eth_addr, r->next_hop, sizeof(r->next_hop));
-    ef.protocol = ODR_PROTOCOL;
-      
-    // Copy the ODR packet 
-    memcpy(ef.payload, pkt, sizeof(*pkt));
-    send_eth_pkt(&ef);
+    return;
   }
+
+  // Send out this ODR packet over the network. We have an entry to
+  // the destination, just route it
+
+  struct hwa_info *h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);  
+    
+  INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
+  eth_frame ef;
+    
+  memcpy(ef.src_eth_addr, h->if_haddr, sizeof(h->if_haddr));
+  memcpy(ef.dst_eth_addr, r->next_hop, sizeof(r->next_hop));
+  ef.protocol = ODR_PROTOCOL;
+      
+  // Copy the ODR packet 
+  memcpy(ef.payload, pkt, sizeof(*pkt));
+  send_eth_pkt(&ef);
 }
 
 /* Deliver the message 'pkt' received by the ODR to the client to
