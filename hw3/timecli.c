@@ -15,13 +15,14 @@ int ntimeouts = 0;             // # of timeouts for this msg_send()
 char server_ip[40];            // The IP address of the server as entered by the user
 
 void on_client_exit(void) {
+  struct timeval tv;
+  time_t currtime;
+  char str_time[40];
+
   if (tmp_fname) {
     unlink(tmp_fname);
   }
-  struct timeval tv;
   Gettimeofday(&tv, NULL);
-  time_t currtime;
-  char str_time[40];
   time(&currtime);
   strftime(str_time, 40, "%T", localtime(&currtime));
   INFO("Client exited at %s.%03u\n", str_time, (unsigned int)tv.tv_usec/1000);
@@ -67,6 +68,7 @@ void on_error(void *opaque) {
 void
 client_loop(void) {
   struct timeval timeout;
+  int r;
   timeout.tv_sec = 10; // FIXME when we know better
   timeout.tv_usec = 0;
 
@@ -78,7 +80,7 @@ client_loop(void) {
   ask_for_user_input();
   msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
 
-  int r = fdset_poll(&fds, &timeout, on_recv_timedout);
+  fdset_poll(&fds, &timeout, on_recv_timedout);
   if (r < 0) {
     perror("select");
     ASSERT(errno != EINTR);

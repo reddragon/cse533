@@ -13,9 +13,10 @@ void treap_init(treap *t) {
 }
 
 void treap_clear(treap *t, void (*deletr)(void*)) {
-    treap_node *n = treap_smallest(t);
+    treap_node *n = NULL, *nn = NULL;
+    n = treap_smallest(t);
     while (n) {
-        treap_node *nn = treap_successor(n);
+        nn = treap_successor(n);
         deletr((void*)n->data);
         treap_delete_node(t, n);
         n = nn;
@@ -24,8 +25,11 @@ void treap_clear(treap *t, void (*deletr)(void*)) {
 
 void treap_insert(treap *t, int key, const void *data) {
     int heapkey = rand() % 1000;
+    treap_node *n = NULL;
+    treap_node *r = NULL, *prev = NULL;
+
     TDEBUG("treap_insert(%d, %d)\n", key, heapkey);
-    treap_node *n = calloc(1, sizeof(treap_node));
+    n = calloc(1, sizeof(treap_node));
     n->key = key;
     n->heapkey = heapkey;
     n->data = data;
@@ -36,7 +40,8 @@ void treap_insert(treap *t, int key, const void *data) {
         return;
     }
 
-    treap_node *r = t->root, *prev = NULL;
+    r = t->root;
+    prev = NULL;
     while (r) {
         prev = r;
         if (n->key == r->key) {
@@ -70,9 +75,10 @@ void treap_insert(treap *t, int key, const void *data) {
 }
 
 void treap_rotate_right(treap_node *n) {
-    treap_node *par = n->parent;
+    treap_node *par, *parpar;
+    par = n->parent;
     ASSERT(par && par->left == n);
-    treap_node *parpar = par->parent;
+    parpar = par->parent;
 
     par->left = n->right;
     if (n->right) {
@@ -93,9 +99,10 @@ void treap_rotate_right(treap_node *n) {
 }
 
 void treap_rotate_left(treap_node *n) {
-    treap_node *par = n->parent;
+    treap_node *par, *parpar;
+    par = n->parent;
     ASSERT(par && par->right == n);
-    treap_node *parpar = par->parent;
+    parpar = par->parent;
 
     par->right = n->left;
     if (n->left) {
@@ -129,8 +136,9 @@ void treap_rotate_up(treap *t, treap_node *n) {
 }
 
 const void* treap_get_value(treap *t, int key) {
+    treap_node *n;
     TDEBUG("treap_get_value(%d)\n", key);
-    treap_node *n = treap_find(t, key);
+    n = treap_find(t, key);
     if (n) {
         return n->data;
     }
@@ -300,10 +308,13 @@ void treap_print(treap_node *n) {
 #ifdef TEST
 int main(int argc, char *argv[]) {
     treap t;
-    treap_init(&t);
+    treap_node *lb;
 
     int i;
     int n[ ] = { 100, 50, 200, 400, 250, 25, 55, 10 };
+    int q[ ] = { 50, 16, 82, 81, 251, 249, 501, 500, 200, 25, 56, 55, 33, 0, 1000 };
+
+    treap_init(&t);
 
     printf("-- Testing Treap Insertion --\n");
     printf("-----------------------------\n");
@@ -319,8 +330,6 @@ int main(int argc, char *argv[]) {
     printf("-- Testing Treap Lower Bound --\n");
     printf("-------------------------------\n");
 
-    treap_node *lb;
-    int q[ ] = { 50, 16, 82, 81, 251, 249, 501, 500, 200, 25, 56, 55, 33, 0, 1000 };
     for (i = 0; i < sizeof(q)/sizeof(int); ++i) {
         lb = treap_lower_bound(&t, q[i]);
         printf("%d is the lower bound on %d\n", (lb ? lb->key : -1), q[i]);
