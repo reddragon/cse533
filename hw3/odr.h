@@ -14,15 +14,17 @@
 #include "api.h" // For the api_msg flags
 #include "vector.h"
 
+#define ETHERNET_PAYLOAD_SIZE 80
+
 uint32_t staleness;
 // TODO Define ethernet_frame Type macros here
 // TODO Choose a type for ODR packets
 
 typedef struct eth_frame {
-  eth_addr_t src_eth_addr;  // Source Ethernet Address
   eth_addr_t dst_eth_addr;  // Destination Ethernet Address
+  eth_addr_t src_eth_addr;  // Source Ethernet Address
   uint16_t protocol;        // Protocol
-  char payload[1400];       // Payload
+  char payload[ETHERNET_PAYLOAD_SIZE];       // Payload
 } eth_frame;
 
 // TODO How do we figure out what is the length of the 
@@ -53,7 +55,7 @@ typedef enum odr_pkt_type {
   DATA = 2  // Application Payload
 } odr_pkt_type;
 
-#define ODR_MSG_SZ 256
+#define ODR_MSG_SZ 50
 typedef struct odr_pkt {
   uint16_t type;          // Type of the ODR packet
   uint32_t broadcast_id;  // Broadcast ID of the packet 

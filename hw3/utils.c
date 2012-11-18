@@ -57,7 +57,7 @@ eth_addr_t hton6(eth_addr_t addr) {
   eth_addr_t ret;
   int i;
   for (i = 0; i < 6; ++i) {
-    ret.eth_addr[0] = addr.eth_addr[5-i];
+    ret.eth_addr[i] = addr.eth_addr[5-i];
   }
   return ret;
 }
