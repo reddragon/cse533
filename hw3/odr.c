@@ -196,7 +196,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   sa.sll_ifindex = iface_idx;
   sa.sll_halen = 6; // TODO Looks right?
   memcpy(sa.sll_addr, ef->dst_eth_addr, 6);
-  Sendto(pf_sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(struct sockaddr_ll));
+  Sendto(pf_sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(eth_frame));
 }
 
 /* Update the routing table based on the type of the packet and the
@@ -410,6 +410,7 @@ on_pf_recv(void *opaque) {
   socklen_t addrlen = sizeof(sa);
   eth_frame frame;
   r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
+  VERBOSE("Received an eth_frame of size %d\n", addrlen);
   if (r < 0 && errno == EINTR) {
     return;
   }
