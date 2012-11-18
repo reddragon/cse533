@@ -243,8 +243,8 @@ treap_node* treap_predecessor(treap_node *n) {
 }
 
 void treap_delete(treap *t, int key) {
-    TDEBUG("treap_delete(%d)\n", key);
     treap_node *n = NULL;
+    TDEBUG("treap_delete(%d)\n", key);
     n = treap_find(t, key);
     if (!n) { return; }
     treap_delete_node(t, n);
