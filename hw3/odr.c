@@ -194,6 +194,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
  */
 void
 update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
+  route_entry *e;
   if (pkt->type != RREQ && pkt->type != RREP) {
     // Ignore this packet since it is neither an RREQ nor is it an
     // RREP.
@@ -202,7 +203,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
 
   // We got a request packet from someone. Update the reverse path
   // to that host as via the host we got this packet from.
-  route_entry *e = get_route_entry(pkt);
+  e = get_route_entry(pkt);
   if (!e) {
     // We have a new routing table entry.
     e = MALLOC(route_entry);
