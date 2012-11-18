@@ -152,9 +152,11 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
   pretty_print_eth_addr(to.eth_addr, dst_addr);
 
   memset(&ef, 0, sizeof(ef));
-  ef.src_eth_addr = hton6(from);
+  // memset(&ef.preamble, 0xaa, sizeof(ef.preamble));
+  // ef.delimiter = 0xab;
   ef.dst_eth_addr = hton6(to);
-  ef.protocol = ODR_PROTOCOL;
+  ef.src_eth_addr = hton6(from);
+  ef.protocol = htonl(ODR_PROTOCOL);
 
   VERBOSE("Sending an eth_frame (%s -> %s) of size: %d. Payload size: %d\n",
           src_addr, dst_addr, sizeof(eth_frame), len);
@@ -218,7 +220,9 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   struct sockaddr_ll sa;
 
   memset(&sa, 0, sizeof(sa));
-  sa.sll_family = AF_PACKET;
+  sa.sll_family = PF_PACKET;
+  sa.sll_hatype = ARPHRD_ETHER;
+  sa.sll_pkttype = PACKET_BROADCAST; // FIXME
   sa.sll_protocol = ef->protocol;
   sa.sll_ifindex = iface_idx;
   sa.sll_halen = 6; // TODO Looks right?
