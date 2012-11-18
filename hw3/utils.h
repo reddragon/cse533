@@ -10,8 +10,8 @@
 #include "myassert.h"
 #include "unp.h"
 
-#define SRV_DGPATH "/tmp/srv_dsock"
-#define ODR_DGPATH "/tmp/odr_dsock"
+#define SRV_DGPATH "/tmp/dynamic_duo/srv_dsock"
+#define ODR_DGPATH "/tmp/dynamic_duo/odr_dsock"
 #define TIME_SERVER_PORT 1234
 
 #define BOOL  unsigned int

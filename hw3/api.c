@@ -11,10 +11,13 @@ msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int msg_flag) {
   strcpy(m.ip, dst_ip);
   m.msg_flag = msg_flag;
   strncpy(m.msg, msg, sizeof(api_msg) - API_MSG_HDR_SZ - 1);
-
+  
+  struct sockaddr_un serv_addr;
+  strcpy(serv_addr.sun_path, SRV_DGPATH);
+  serv_addr.sun_family = AF_LOCAL;
   // Send the newly marshalled API message to the ODR.
   // The ODR will take care of the rest
-  Send(sockfd, (char *) &m, sizeof(api_msg), 0);
+  Sendto(sockfd, (char *) &m, sizeof(api_msg), 0, (SA *)&serv_addr, sizeof(serv_addr));
 }
 
 void 
@@ -25,8 +28,12 @@ msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   bzero(&m, sizeof(api_msg));
   m.rtype = MSG_RECV;
   
+  struct sockaddr_un serv_addr;
+  strcpy(serv_addr.sun_path, SRV_DGPATH);
+  serv_addr.sun_family = AF_LOCAL;
+
   // Just send the header of the API Message
-  Send(sockfd, (char *) &m, API_MSG_HDR_SZ, 0);
+  Sendto(sockfd, (char *) &m, API_MSG_HDR_SZ, 0, (SA *)&serv_addr, sizeof(serv_addr));
   
   // TODO Put a timeout here
   // The message which will have the response
