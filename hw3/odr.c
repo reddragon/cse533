@@ -120,7 +120,7 @@ odr_setup(void) {
 
   for (h = h_head; h != NULL; h = h->hwa_next) {
     treap_insert(&iface_treap, h->if_index, h);     
-    if (!strncmp(h->if_name, "eth0", 4) && h->ip_addr != NULL) {
+    if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
       sa = h->ip_addr;
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
       INFO("My IP Address: %s\n", my_ipaddr);
