@@ -239,7 +239,7 @@ odr_route_message(odr_pkt *pkt) {
   // Look up the routing table, to see if there is an entry
   r = get_route_entry(pkt);
   if (r == NULL) {
-    INFO("Could not find a route for IP Address: %s\n", pkt->src_ip);
+    INFO("Could not find a route for IP Address: %s\n", pkt->dst_ip);
     odr_start_route_discovery(pkt);
 
     // Queue up the packet to be sent later.
@@ -249,7 +249,7 @@ odr_route_message(odr_pkt *pkt) {
 
   h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
 
-  INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
+  INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->dst_ip, h->if_name);
 
   send_over_ethernet(h->if_haddr, r->next_hop, pkt, sizeof(*pkt), h->if_index);
   // TODO We can free pkt here?
