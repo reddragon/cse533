@@ -161,7 +161,7 @@ odr_start_route_discovery(odr_pkt *pkt) {
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
 
   for (h = h_head; h != NULL; h = h->hwa_next) {
-    send_over_ethernet(h->if_haddr, dest_addr, &rreq_pkt, odr_pkt_hdr_sz);
+    send_over_ethernet(h->if_haddr, dest_addr, &rreq_pkt, odr_pkt_hdr_sz, h->if_index);
   }
 }
 
@@ -179,7 +179,13 @@ should_process_packet(odr_pkt *pkt) {
 }
 
 void
-send_eth_pkt(eth_frame *ef) {
+send_eth_pkt(eth_frame *ef, uint16_t iface_idx) {
+  struct sockaddr_ll sa;
+  sa.sll_family = AF_PACKET;
+  sa.sll_protocol = ef->protocol;
+  sa.sll_ifindex = iface_idx;
+  sa.sll_halen = 6; // TODO Looks right?
+  sa.sll_addr = ef->dst_eth_addr;
   Send(pf_sockfd, (void *)ef, sizeof(*ef), 0);
 }
 
@@ -244,7 +250,7 @@ odr_route_message(odr_pkt *pkt) {
 
   INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->src_ip, h->if_name);
 
-  send_over_ethernet(h->if_haddr, r->next_hop, pkt, sizeof(*pkt));
+  send_over_ethernet(h->if_haddr, r->next_hop, pkt, sizeof(*pkt), h->if_index);
   // TODO We can free pkt here?
 }
 
