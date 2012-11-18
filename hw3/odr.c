@@ -108,6 +108,7 @@ odr_setup(void) {
   struct hwa_info *h;
   struct sockaddr *sa;
   struct sockaddr_un *serv_addr;
+  int r;
   vector_init(&cli_table,   sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
   treap_init(&iface_treap);
@@ -134,6 +135,7 @@ odr_setup(void) {
   pf_sockfd = Socket(PF_PACKET, SOCK_RAW, htons(ODR_PROTOCOL));
   VERBOSE("Sucessfully created the PF_PACKET socket\n%s", "");
   serv_addr = MALLOC(struct sockaddr_un);
+  r = mkdir("/tmp/dynamic_duo/", 0755);
   strcpy(serv_addr->sun_path, SRV_DGPATH);
   serv_addr->sun_family = AF_LOCAL;
   add_cli_entry(serv_addr);
