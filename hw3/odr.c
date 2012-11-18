@@ -423,6 +423,7 @@ on_pf_recv(void *opaque) {
   r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
   VERBOSE("Received an eth_frame of size %d, r = %d\n", addrlen, r);
   if (r < 0 && errno == EINTR) {
+    VERBOSE("recvfrom got EINTR%s\n", "");
     return;
   }
   if (r < 0) {
