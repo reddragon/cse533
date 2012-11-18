@@ -143,10 +143,11 @@ odr_setup(void) {
 }
 
 void
-send_over_ethernet(char from[6], char to[6], void *data, int len, int iface_idx) {
+send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
+                   int len, int iface_idx) {
   eth_frame ef;
-  memcpy(ef.dst_eth_addr, to,   sizeof(ef.dst_eth_addr));
-  memcpy(ef.src_eth_addr, from, sizeof(ef.src_eth_addr));
+  ef.src_eth_addr = hton6(from);
+  ef.dst_eth_addr = hton6(to);
   ef.protocol = ODR_PROTOCOL;
 
   // Copy the payload
@@ -166,15 +167,15 @@ odr_start_route_discovery(odr_pkt *pkt) {
 
   // Make a new ODR Packet
   odr_pkt rreq_pkt;
-  char dest_addr[6];
+  eth_addr_t src_addr, dst_addr;
   struct hwa_info *h;
   int odr_pkt_hdr_sz;
 
   rreq_pkt = *pkt;
   rreq_pkt.type = RREQ;
   // Zero out the data.
-  memset(rreq_pkt.msg, 0, sizeof(rreq_pkt.msg));
-  memset(dest_addr, 0xff, sizeof(dest_addr));
+  memset(rreq_pkt.msg, 0,   sizeof(rreq_pkt.msg));
+  memset(dst_addr.eth_addr, 0xff, sizeof(dst_addr));
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
 
   for (h = h_head; h != NULL; h = h->hwa_next) {
@@ -182,7 +183,10 @@ odr_start_route_discovery(odr_pkt *pkt) {
     if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
       continue;
     }
-    send_over_ethernet(h->if_haddr, dest_addr, &rreq_pkt, odr_pkt_hdr_sz, h->if_index);
+
+    memcpy(src_addr.eth_addr, h->if_haddr, sizeof(h->if_haddr));
+    send_over_ethernet(src_addr, dst_addr, &rreq_pkt,
+                       odr_pkt_hdr_sz, h->if_index);
   }
 }
 
@@ -206,7 +210,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   sa.sll_protocol = ef->protocol;
   sa.sll_ifindex = iface_idx;
   sa.sll_halen = 6; // TODO Looks right?
-  memcpy(sa.sll_addr, ef->dst_eth_addr, 6);
+  memcpy(sa.sll_addr, ef->dst_eth_addr.eth_addr, 6);
   VERBOSE("Sending an eth_frame of size: %d\n", sizeof(eth_frame));
   Sendto(pf_sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
 }
@@ -274,6 +278,7 @@ odr_route_message(odr_pkt *pkt) {
   // TODO Where are we handling RREQs and RREPs
   route_entry *r;
   struct hwa_info *h;
+  eth_addr_t src_addr, dst_addr;
 
   // Look up the routing table, to see if there is an entry
   r = get_route_entry(pkt);
@@ -290,7 +295,10 @@ odr_route_message(odr_pkt *pkt) {
 
   INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->dst_ip, h->if_name);
 
-  send_over_ethernet(h->if_haddr, r->next_hop, pkt, sizeof(*pkt), h->if_index);
+  memcpy(src_addr.eth_addr, h->if_haddr, sizeof(h->if_haddr));
+  memcpy(dst_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
+
+  send_over_ethernet(src_addr, dst_addr, pkt, sizeof(*pkt), h->if_index);
   // TODO We can free pkt here?
 }
 
@@ -396,8 +404,8 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   odr_pkt *pkt;
   pkt = (odr_pkt*)frame->payload;
 
-  pretty_print_eth_addr(frame->src_eth_addr, src_addr);
-  pretty_print_eth_addr(frame->dst_eth_addr, dst_addr);
+  pretty_print_eth_addr(frame->src_eth_addr.eth_addr, src_addr);
+  pretty_print_eth_addr(frame->dst_eth_addr.eth_addr, dst_addr);
 
   VERBOSE("process_eth_pkt:: (%s -> %s)", src_addr, dst_addr);
 

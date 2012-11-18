@@ -6,6 +6,7 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <stdint.h>
+#include "utils.h"
 
 #define ODR_PROTOCOL  0x8899 // This was not present in if_ether.h
 #define MAX_HOP_COUNT 16
@@ -18,11 +19,10 @@ uint32_t staleness;
 // TODO Choose a type for ODR packets
 
 typedef struct eth_frame {
-  // TODO Fill this up here
-  char src_eth_addr[6];   // Source Ethernet Address
-  char dst_eth_addr[6];   // Destination Ethernet Address
-  uint16_t protocol;      // Protocol
-  char payload[1400];     // Payload
+  eth_addr_t src_eth_addr;  // Source Ethernet Address
+  eth_addr_t dst_eth_addr;  // Destination Ethernet Address
+  uint16_t protocol;        // Protocol
+  char payload[1400];       // Payload
 } eth_frame;
 
 // TODO How do we figure out what is the length of the 
@@ -94,8 +94,9 @@ void on_pf_error(void *opaque);
 void on_ud_recv(void *opaque);
 void on_ud_error(void *opaque);
 
-void send_over_ethernet(char from[6], char to[6],
-                        void *data, int len, int iface_idx);
+void
+send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
+                   int len, int iface_idx);
 void send_eth_pkt(eth_frame *ef, int iface_idx);
 
 #endif
