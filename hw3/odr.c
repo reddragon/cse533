@@ -361,21 +361,22 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
  *
  */
 void
-odr_route_message(odr_pkt *pkt) {
+odr_route_message(odr_pkt *pkt, route_entry *r) {
   // TODO Where are we handling RREQs and RREPs
-  route_entry *r;
   struct hwa_info *h;
   eth_addr_t src_addr, dst_addr;
 
-  // Look up the routing table, to see if there is an entry
-  r = get_route_entry(pkt);
-  if (r == NULL) {
-    INFO("Could not find a route for IP Address: %s\n", pkt->dst_ip);
-    odr_start_route_discovery(pkt);
+  if (!r) {
+    // Look up the routing table, to see if there is an entry
+    r = get_route_entry(pkt);
+    if (r == NULL) {
+      INFO("Could not find a route for IP Address: %s\n", pkt->dst_ip);
+      odr_start_route_discovery(pkt);
 
-    // Queue up the packet to be sent later.
-    vector_push_back(&odr_send_q, pkt);
-    return;
+      // Queue up the packet to be sent later.
+      vector_push_back(&odr_send_q, pkt);
+      return;
+    }
   }
 
   h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
@@ -386,7 +387,7 @@ odr_route_message(odr_pkt *pkt) {
   memcpy(dst_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
 
   send_over_ethernet(src_addr, dst_addr, pkt, sizeof(*pkt), h->if_index);
-  // TODO We can free pkt here?
+  // Don't free(3) the packet here, since the caller will free it.
 }
 
 /* Is this ODR packet meant for some client on this machine?
@@ -477,7 +478,7 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
 
   if (m->rtype == MSG_SEND) {
     pkt = create_odr_pkt(m);
-    odr_route_message(pkt);
+    odr_route_message(pkt, NULL);
   } else if (m->rtype == MSG_RECV) {
     assert(c->is_blocked_on_recv == FALSE);
     c->is_blocked_on_recv = TRUE;
@@ -505,8 +506,8 @@ maybe_flush_queued_data_packets(void) {
     // FIXME This would be slow, since everytime we want to push out
     // packets, we would need to iterate through the routing table.
     // Lets use the Treap for that.
-    r = get_route_entry(p);
-    
+    r = get_route_entry(pkt);
+
     // If a routing entry exists, flush the packet out
     if (r != NULL) {
       // Even though we are erasing the packet from the vector, it is
@@ -514,7 +515,8 @@ maybe_flush_queued_data_packets(void) {
       // can reuse it.
       vector_erase(&odr_send_q, i);
       i--;
-      odr_route_message(pkt);
+      odr_route_message(pkt, r);
+      free(pkt);
     }
   }
 }
