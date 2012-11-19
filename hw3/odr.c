@@ -6,6 +6,11 @@
 #include "fdset.h"
 #include "myassert.h"
 
+/* TODO: We also need to time out older clients that don't exist. We
+ * can possibly do this by checking if the socket file for that client
+ * exists or not.
+ */
+
 serv_dsock s;             // Domain socket to listen on & serve requests
 vector cli_table;         // Table containing entries of all clients. vector<cli_entry>
 vector route_table;       // The Routing Table. vector<route_entry>
