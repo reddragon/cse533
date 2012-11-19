@@ -47,8 +47,6 @@ typedef struct cli_entry {
   struct sockaddr_un *cliaddr;  // The client's sockaddr_un
   uint32_t last_id;             // The last used broadcast id
   uint32_t e_portno;            // Ephemeral port number assigned
-  vector pkt_queue;             // Packet Queue for this Client
-  BOOL is_blocked_on_recv;      // Is this client expecting to receive a packet?
 } cli_entry;
 
 typedef enum odr_pkt_type {

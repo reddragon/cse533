@@ -30,8 +30,6 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
   e->last_id = 0;
   e->cliaddr = cliaddr;
   e->e_portno = next_e_portno++;
-  vector_init(&e->pkt_queue, sizeof(odr_pkt *));
-  e->is_blocked_on_recv = FALSE;
 
   vector_push_back(&cli_table, (void *)e);
   treap_insert(&cli_port_map, e->e_portno, e);
@@ -430,16 +428,6 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   cliaddr = ce->cliaddr;
   VERBOSE("odr_deliver_message_to_client::sun_path: %s\n", cliaddr->sun_path);
 
-  if (!ce->is_blocked_on_recv) {
-    odr_pkt *p = NULL;
-    INFO("Client %s:%d is NOT blocked on msg_recv()\n",
-         pkt->dst_ip, pkt->dst_port);
-    p = MALLOC(odr_pkt);
-    memcpy(p, pkt, sizeof(odr_pkt));
-    vector_push_back(&ce->pkt_queue, p);
-    return;
-  }
-
   INFO("Delivering message to client at sun_path: %s\n", cliaddr->sun_path);
   memset(&resp, 0, sizeof(resp));
   clilen = sizeof(cliaddr);
@@ -453,7 +441,6 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   while (r < 0 && errno == EINTR) {
     r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
   }
-  ce->is_blocked_on_recv = FALSE;
   ASSERT(r == sizeof(api_msg));
 }
 
@@ -485,21 +472,15 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
   odr_pkt *pkt;
   VERBOSE("Received a request of type %d from Client with sun_path %s\n", m->rtype, c->cliaddr->sun_path);
 
-  if (m->rtype == MSG_SEND) {
+  if (m->rtype == MSG_CONNECT) {
+    // TODO: Add entry to cli_table
+  } else if (m->rtype == MSG_SEND) {
     pkt = create_odr_pkt(m);
     odr_route_message(pkt, NULL);
   } else if (m->rtype == MSG_RECV) {
-    assert(c->is_blocked_on_recv == FALSE);
-    c->is_blocked_on_recv = TRUE;
-    if (!vector_empty(&c->pkt_queue)) {
-      pkt = (odr_pkt*)vector_at(&c->pkt_queue, vector_size(&c->pkt_queue) - 1);
-      vector_pop_back(&c->pkt_queue);
-      odr_deliver_message_to_client(pkt);
-      free(pkt);
-    }
+    odr_deliver_message_to_client(pkt);
+    free(pkt);
   }
-  // api_msg is no longer required
-  free(m);
 }
 
 /* Check the queue of pending data packets to be routed, and send out
@@ -608,16 +589,16 @@ void
 on_ud_recv(void *opaque) {
   struct sockaddr_un cliaddr;
   socklen_t clilen;
-  api_msg *m;
+  api_msg m;
   cli_entry *c;
 
   clilen = sizeof(cliaddr);
   memset(&cliaddr, 0, sizeof(cliaddr));
+  memset(&m, 0, sizeof(m));
 
-  m = MALLOC(api_msg);
-  Recvfrom(s.sockfd, (char *) m, sizeof(api_msg), 0, (SA *) &cliaddr, &clilen);
+  Recvfrom(s.sockfd, (char*)&m, sizeof(api_msg), 0, (SA *) &cliaddr, &clilen);
   c = get_cli_entry(&cliaddr);
-  process_dsock_requests(m, c);
+  process_dsock_requests(&m, c);
 }
 
 void
