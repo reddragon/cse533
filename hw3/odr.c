@@ -473,7 +473,10 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
   VERBOSE("Received a request of type %d from Client with sun_path %s\n", m->rtype, c->cliaddr->sun_path);
 
   if (m->rtype == MSG_CONNECT) {
-    // TODO: Add entry to cli_table
+    // Add entry to cli_table. However, we don't need to since
+    // get_cli_entry() already did that for us. Yes, the API is a bit
+    // weird that way. In general, no get_*() function should add
+    // anything to the table since it is totally counter-intuitive.
   } else if (m->rtype == MSG_SEND) {
     pkt = create_odr_pkt(m);
     odr_route_message(pkt, NULL);
