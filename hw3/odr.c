@@ -492,6 +492,9 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
   free(m);
 }
 
+/* Check the queue of pending data packets to be routed, and send out
+ * as many as we can.
+ */
 void
 maybe_flush_queued_data_packets(void) {
 }
