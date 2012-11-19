@@ -265,7 +265,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
-  VERBOSE("update_routing_table:: (%s -> %s); hop_count: %d; via: %s\n",
+  VERBOSE("update_routing_table::(%s -> %s); hop_count: %d; via: %s\n",
           pkt->src_ip, pkt->dst_ip, pkt->hop_count, via_eth_addr);
 
   if (pkt->type != PKT_RREQ && pkt->type != PKT_RREP) {
@@ -314,27 +314,44 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->broadcast_id       = pkt->broadcast_id;
     }
   }
+}
 
-  // All the code below is mostly wrong.
+void
+act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
+  route_entry *e;
+  char via_eth_addr[20], via_eth_addr_old[20];
 
-  // TODO: Check if this packet's destination IP is our IP. If so,
-  // don't re-broadcast the PKT_RREQ (if pkt->type ==
-  // PKT_RREQ). Instead send back a PKT_RREP to the sender of this
-  // packet. If pkt->type == PKT_RREP, propagate this RREP packet to
-  // the next hop on the path to the destination. This is complex,
-  // since the reverse path entry may have timed out.
-  if (is_my_packet(pkt)) {
-    VERBOSE("This packet is for me.%s\n", "");
+  pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
-    if (pkt->type == PKT_RREQ) {
-      // TODO: Send back an RREP.
-    }
+  VERBOSE("act_on_packet::(%s -> %s); hop_count: %d; via: %s\n",
+          pkt->src_ip, pkt->dst_ip, pkt->hop_count, via_eth_addr);
+
+  if (pkt->type != PKT_RREQ && pkt->type != PKT_RREP) {
+    // Ignore this packet since it is neither an RREQ nor is it an
+    // RREP.
+    VERBOSE("Ignoring packet since it is of type: %d\n", pkt->type);
     return;
   }
 
-  // TODO: Re-broadcast this packet to other interfaces on this
-  // machine.
-  odr_start_route_discovery(pkt);
+  if (pkt->type == PKT_RREQ) {
+    // TODO: If this packet's destination IP is our IP OR we have an
+    // un-expired route to the destination, we reply with a
+    // PKT_RREP. Otherwise, we re-broadcast this RREQ.
+    e = get_route_entry(pkt);
+    if (is_my_packet(pkt) || e) {
+      VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
+      // TODO: Fill up.
+    } else {
+      odr_start_route_discovery(pkt);
+    }
+  } else {
+    // PKT_RREP
+    //
+    // Propagate this RREP packet to the next hop on the path to the
+    // destination if a path to the destination is available. If such
+    // a path isn't available, we flood the interfaces of this machine
+    // with an RREQ to try and discover a path to the destination.
+  }
 }
 
 /* Route the message 'pkt' to the appropriate recipient by computing
@@ -468,6 +485,10 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
 }
 
 void
+maybe_flush_queued_data_packets(void) {
+}
+
+void
 process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   // TODO
   // There is a packet on the PF_PACKET sockfd
@@ -500,7 +521,16 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     }
   }
 
-  update_routing_table(pkt, sa);
+  if (pkt->type == PKT_RREQ || pkt->type == PKT_RREP) {
+    update_routing_table(pkt, sa);
+    act_on_packet(pkt, sa);
+  } else {
+    // Add this data packet to the queue.
+    odr_pkt *p = MALLOC(odr_pkt);
+    memcpy(p, pkt, sizeof(odr_pkt));
+    vector_push_back(&odr_send_q, p);
+  }
+  maybe_flush_queued_data_packets();
 }
 
 void
