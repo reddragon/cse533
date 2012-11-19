@@ -472,13 +472,21 @@ create_odr_pkt(api_msg *m) {
 
 void
 process_dsock_requests(api_msg *m, cli_entry *c) {
+  odr_pkt *pkt;
   VERBOSE("Received a request of type %d from Client with sun_path %s\n", m->rtype, c->cliaddr->sun_path);
+
   if (m->rtype == MSG_SEND) {
-    odr_pkt *o = create_odr_pkt(m);
-    odr_route_message(o);
-    // odr_send(&m);
+    pkt = create_odr_pkt(m);
+    odr_route_message(pkt);
   } else if (m->rtype == MSG_RECV) {
-    // odr_recv(&m, c);
+    assert(c->is_blocked_on_recv == FALSE);
+    c->is_blocked_on_recv = TRUE;
+    if (!vector_empty(&c->pkt_queue)) {
+      pkt = (odr_pkt*)vector_at(&c->pkt_queue, vector_size(&c->pkt_queue) - 1);
+      vector_pop_back(&c->pkt_queue);
+      odr_deliver_message_to_client(pkt);
+      free(pkt);
+    }
   }
   // api_msg is no longer required
   free(m);
