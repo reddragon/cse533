@@ -5,7 +5,8 @@
 typedef enum request_type {
   MSG_SEND = 1,
   MSG_RECV = 2,
-  MSG_RESPONSE = 3
+  MSG_RESPONSE = 3,
+  MSG_CONNECT = 4
 } request_type;
 
 // #define-s for msg_flag in api_msg
@@ -24,7 +25,8 @@ typedef struct api_msg { // MSG_SEND                   | MSG_RECV
   char msg[API_MSG_STRUCT_SZ - API_MSG_HDR_SZ];
 } api_msg;
 
-void msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int flag);
-void msg_recv(int sockfd, char *src_ip, int *src_port, char *msg); 
+int msg_connect_to_odr(int sockfd);
+int msg_send(int sockfd, char *dst_ip, int dst_port, char *msg, int flag);
+int msg_recv(int sockfd, char *src_ip, int *src_port, char *msg);
 
 #endif 

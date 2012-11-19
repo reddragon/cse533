@@ -42,18 +42,23 @@ void ask_for_user_input(void) {
 }
 
 void on_recv_timedout(void *opaque) {
-  if (++ntimeouts >= 2) {
-    // Reset. TODO: Print timed out 2 times.
+  ++ntimeouts;
+  INFO("msg_recv() timed out %d times\n", ntimeouts);
+  if (ntimeouts >= 2) {
+    // Reset. Print timed out 2 times.
     ask_for_user_input();
     msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
   }
   // Resend message to 'server_ip' with the route re-discovery flag
   // set.
+  INFO("Re-sending request to %s:%d\n", server_ip, TIME_SERVER_PORT);
   msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 1);
 }
 
 void on_recv(void *opaque) {
-  // Received a message. TODO: Print it.
+  // Received a message.
+
+  INFO("Received message: %s\n", "");
   ask_for_user_input();
   msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
 
@@ -77,8 +82,20 @@ client_loop(void) {
   fdset_add(&fds, &fds.rev,  c.sockfd, &c.sockfd, on_recv);
   fdset_add(&fds, &fds.exev, c.sockfd, &c.sockfd, on_error);
 
+  VERBOSE("Connecting to ODR...%s\n", "");
+  r = msg_connect_to_odr(c.sockfd);
+  while (r < 0 && errno == EINTR) {
+    r = msg_connect_to_odr(c.sockfd);
+  }
+  assert_ge(r, 0);
+
   ask_for_user_input();
-  msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+
+  r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+  while (r < 0 && errno == EINTR) {
+    r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+  }
+  assert_ge(r, 0);
 
   r = fdset_poll(&fds, &timeout, on_recv_timedout);
   if (r < 0) {
