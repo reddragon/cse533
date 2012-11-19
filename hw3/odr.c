@@ -18,6 +18,7 @@ vector odr_send_q;        // A queue of outgoing packets to send to the other OD
 struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping. treap<int, struct hwa_info*>
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
+int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets. Remember to initialize to a random value.
 
 /* Add an entry to the cli_table, which holds a list of cli_entry's
  * for every client that has contacted us.
@@ -96,8 +97,8 @@ get_route_entry(odr_pkt *p) {
 
 void
 odr_packet_print(odr_pkt *pkt) {
-  INFO("Type: %d, bcast_id: %d, hop_count: %d, src: %s:%d, "
-       "dst: %s:%d, size: %d\n",
+  INFO("ODR Packet { Type: %d, bcast_id: %d, hop_count: %d, src: %s:%d, "
+       "dst: %s:%d, size: %d }\n",
        pkt->type, pkt->broadcast_id, pkt->hop_count,
        pkt->src_ip, pkt->src_port,
        pkt->dst_ip, pkt->dst_port, pkt->msg_size);
@@ -109,6 +110,9 @@ odr_setup(void) {
   struct sockaddr *sa;
   struct sockaddr_un *serv_addr;
   int r;
+  unsigned int seed;
+  FILE *pf;
+
   vector_init(&cli_table,   sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
   treap_init(&iface_treap);
@@ -116,10 +120,20 @@ odr_setup(void) {
   vector_init(&odr_send_q,  sizeof(odr_pkt*));
   next_e_portno = 7700;
 
+  pf = fopen("/dev/urandom", "r");
+  assert(pf);
+  r = fread(&seed, sizeof(seed), 1, pf);
+  assert(r == sizeof(seed));
+  srand(seed);
+  fclose(pf);
+  pf = NULL;
+
+  broadcast_id = rand() % 10000;
+
   h_head = Get_hw_addrs();
 
   for (h = h_head; h != NULL; h = h->hwa_next) {
-    treap_insert(&iface_treap, h->if_index, h);     
+    treap_insert(&iface_treap, h->if_index, h);
     if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
       sa = h->ip_addr;
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
@@ -156,7 +170,7 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
   // ef.delimiter = 0xab;
   ef.dst_eth_addr = hton6(to);
   ef.src_eth_addr = hton6(from);
-  ef.protocol = htonl(ODR_PROTOCOL);
+  ef.protocol = htons(ODR_PROTOCOL);
 
   VERBOSE("Sending an eth_frame (%s -> %s) of size: %d. Payload size: %d\n",
           src_addr, dst_addr, sizeof(eth_frame), len);
@@ -167,13 +181,13 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
 }
 
 /* Start the process of route discovery. This function floods all the
- * interfaces with an RREQ packet with the destination address set as
- * 0xff:ff:ff:ff:ff:ff.
+ * interfaces with a PKT_RREQ packet with the destination address set
+ * as 0xff:ff:ff:ff:ff:ff.
  *
  */
 void
 odr_start_route_discovery(odr_pkt *pkt) {
-  // We need to send an RREQ type ODR packet, wrapped
+  // We need to send a PKT_RREQ type ODR packet, wrapped
   // in an ethernet frame
 
   // Make a new ODR Packet
@@ -183,13 +197,13 @@ odr_start_route_discovery(odr_pkt *pkt) {
   int odr_pkt_hdr_sz;
 
   rreq_pkt = *pkt;
-  rreq_pkt.type = RREQ;
+  rreq_pkt.type = PKT_RREQ;
   // Zero out the data.
   memset(rreq_pkt.msg, 0,   sizeof(rreq_pkt.msg));
   memset(dst_addr.eth_addr, 0xff, sizeof(dst_addr));
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
   
-  VERBOSE("odr_start_route_discovery::Flooding the network with an RREQ for destination IP: %s\n", pkt->dst_ip);
+  VERBOSE("odr_start_route_discovery::Flooding the network with a PKT_RREQ for destination IP: %s\n", pkt->dst_ip);
   for (h = h_head; h != NULL; h = h->hwa_next) {
     // We don't send the message on eth0 and its aliases, and lo
     if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
@@ -243,7 +257,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
   VERBOSE("update_routing_table:: (%s -> %s); hop_count: %d; via: %s\n",
           pkt->src_ip, pkt->dst_ip, pkt->hop_count, via_eth_addr);
 
-  if (pkt->type != RREQ && pkt->type != RREP) {
+  if (pkt->type != PKT_RREQ && pkt->type != PKT_RREP) {
     // Ignore this packet since it is neither an RREQ nor is it an
     // RREP.
     VERBOSE("Ignoring packet since it is of type: %d\n", pkt->type);
@@ -262,9 +276,17 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     e->iface_idx          = from->sll_ifindex;
     e->nhops_to_dest      = pkt->hop_count;
     e->last_updated_at_ms = current_time_in_ms();
+    e->broadcast_id       = pkt->broadcast_id;
     vector_push_back(&route_table, e);
     free(e);
   } else {
+    // Check if the broadcast ID is the same.
+    if (e->broadcast_id == pkt->broadcast_id) {
+      // Ignore this packet.
+      VERBOSE("broadcast_id [%d] matches. Stopping RREQ propagation.\n", e->broadcast_id);
+      return;
+    }
+
     if (e->nhops_to_dest > pkt->hop_count) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
       INFO("Replacing older routing table entry to (%s via %s with "
@@ -278,6 +300,18 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
+      e->broadcast_id       = pkt->broadcast_id;
+
+      // TODO: Check if this packet's destination IP is our IP. If so,
+      // don't re-broadcast the PKT_RREQ.
+      if (is_my_packet(pkt)) {
+        VERBOSE("This packet is for me.%s\n", "");
+        return;
+      }
+
+      // TODO: Re-broadcast this packet to other interfaces on this
+      // machine.
+      odr_start_route_discovery(pkt);
     }
   }
 }
@@ -379,12 +413,15 @@ odr_pkt *
 create_odr_pkt(api_msg *m) {
   odr_pkt *o;
   o = MALLOC(odr_pkt);
-  o->type = DATA;
+  o->type = PKT_DATA;
   // FIXME
   // What do we put here? 
   // Is the broadcast_id a number which increases everytime we
   // get a send request? Or is it a client specific count?
-  o->broadcast_id = 0; 
+  //
+  // The broadcast_id is probably useful only in case of an RREQ or
+  // RREP packet.
+  o->broadcast_id = 0;
   o->hop_count = 0;
   if (m->rtype == MSG_SEND) {
     strcpy(o->src_ip, my_ipaddr);
@@ -422,18 +459,24 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   pretty_print_eth_addr(frame->src_eth_addr.eth_addr, src_addr);
   pretty_print_eth_addr(frame->dst_eth_addr.eth_addr, dst_addr);
 
-  VERBOSE("process_eth_pkt:: (%s -> %s)", src_addr, dst_addr);
+  VERBOSE("process_eth_pkt:: (%s -> %s)\n", src_addr, dst_addr);
 
   if (ntohs(frame->protocol) != ODR_PROTOCOL) {
     return;
   }
+
+  odr_packet_print(pkt);
 
   if (should_process_packet(pkt) == FALSE) {
     return;
   }
 
   if (is_my_packet(pkt) == TRUE) {
-    odr_deliver_message_to_client(pkt);
+    if (pkt->type == PKT_DATA) {
+      odr_deliver_message_to_client(pkt);
+    } else {
+      assert(pkt->type == PKT_RREQ || pkt->type == PKT_RREP);
+    }
   }
 
   update_routing_table(pkt, sa);
@@ -446,7 +489,7 @@ on_pf_recv(void *opaque) {
   socklen_t addrlen = sizeof(sa);
   eth_frame frame;
   r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
-  VERBOSE("Received an eth_frame of size %d, r = %d\n", addrlen, r);
+  VERBOSE("Received an eth_frame of size %d\n", r);
   if (r < 0 && errno == EINTR) {
     VERBOSE("recvfrom got EINTR%s\n", "");
     return;
@@ -497,6 +540,8 @@ odr_loop(void) {
   timeout.tv_usec = 0;
 
   fdset_init(&fds, timeout, NULL);
+
+  VERBOSE("pf_sockfd: %d\n", pf_sockfd);
 
   fdset_add(&fds, &fds.rev,  pf_sockfd, &pf_sockfd, on_pf_recv);
   fdset_add(&fds, &fds.exev, pf_sockfd, &pf_sockfd, on_pf_error);

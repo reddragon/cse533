@@ -54,12 +54,15 @@ timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y) 
 }
 
 eth_addr_t hton6(eth_addr_t addr) {
+  return addr;
+#if 0
   eth_addr_t ret;
   int i;
   for (i = 0; i < 6; ++i) {
     ret.eth_addr[i] = addr.eth_addr[5-i];
   }
   return ret;
+#endif
 }
 
 eth_addr_t ntoh6(eth_addr_t addr) {
