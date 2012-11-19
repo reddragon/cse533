@@ -232,14 +232,25 @@ should_process_packet(odr_pkt *pkt) {
 void
 send_eth_pkt(eth_frame *ef, int iface_idx) {
   struct sockaddr_ll sa;
+  int i;
+  char mask = 0xff;
 
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
   sa.sll_hatype   = ARPHRD_ETHER;
-  sa.sll_pkttype  = PACKET_BROADCAST; // FIXME
+  sa.sll_pkttype  = PACKET_BROADCAST;
   sa.sll_protocol = ef->protocol;
   sa.sll_ifindex  = iface_idx;
-  sa.sll_halen    = 6; // TODO Looks right?
+  sa.sll_halen    = 6;
+
+  for (i = 0; i < 6; ++i) {
+    mask &= ef->dst_eth_addr.eth_addr[i];
+  }
+
+  if (mask != 0xff) {
+    sa.sll_pkttype = PACKET_OTHERHOST;
+  }
+
   memcpy(sa.sll_addr, ef->dst_eth_addr.eth_addr, 6);
   Sendto(pf_sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
 }
@@ -283,7 +294,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     // Check if the broadcast ID is the same.
     if (e->broadcast_id == pkt->broadcast_id) {
       // Ignore this packet.
-      VERBOSE("broadcast_id [%d] matches. Stopping RREQ propagation.\n", e->broadcast_id);
+      VERBOSE("broadcast_id [%d] matches. Stopping RREQ/RREP propagation.\n", e->broadcast_id);
       return;
     }
 
@@ -301,19 +312,29 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
       e->broadcast_id       = pkt->broadcast_id;
-
-      // TODO: Check if this packet's destination IP is our IP. If so,
-      // don't re-broadcast the PKT_RREQ.
-      if (is_my_packet(pkt)) {
-        VERBOSE("This packet is for me.%s\n", "");
-        return;
-      }
-
-      // TODO: Re-broadcast this packet to other interfaces on this
-      // machine.
-      odr_start_route_discovery(pkt);
     }
   }
+
+  // All the code below is mostly wrong.
+
+  // TODO: Check if this packet's destination IP is our IP. If so,
+  // don't re-broadcast the PKT_RREQ (if pkt->type ==
+  // PKT_RREQ). Instead send back a PKT_RREP to the sender of this
+  // packet. If pkt->type == PKT_RREP, propagate this RREP packet to
+  // the next hop on the path to the destination. This is complex,
+  // since the reverse path entry may have timed out.
+  if (is_my_packet(pkt)) {
+    VERBOSE("This packet is for me.%s\n", "");
+
+    if (pkt->type == PKT_RREQ) {
+      // TODO: Send back an RREP.
+    }
+    return;
+  }
+
+  // TODO: Re-broadcast this packet to other interfaces on this
+  // machine.
+  odr_start_route_discovery(pkt);
 }
 
 /* Route the message 'pkt' to the appropriate recipient by computing
