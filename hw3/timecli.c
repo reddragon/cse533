@@ -57,10 +57,28 @@ void on_recv_timedout(void *opaque) {
 
 void on_recv(void *opaque) {
   // Received a message.
+  int r;
+  char src_ip[20];
+  int src_port;
+  char msg[2048];
 
-  INFO("Received message: %s\n", "");
+  r = msg_recv(c.sockfd, src_ip, &src_port, msg);
+  if (r < 0) {
+    perror("msg_recv");
+    if (errno == EINTR) {
+      return;
+    } else {
+      exit(1);
+    }
+  }
+
+  INFO("Received message: '%s' from %s:%d\n", msg, src_ip, src_port);
   ask_for_user_input();
-  msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+  r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+  while (r < 0 && errno == EINTR) {
+    r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+  }
+  assert_ge(r, 0);
 
   ntimeouts = 0;
 }
