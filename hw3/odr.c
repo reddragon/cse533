@@ -506,12 +506,6 @@ maybe_flush_queued_data_packets(void) {
 
   for (i = 0; i < vector_size(&odr_send_q); i++) {
     pkt = vector_at(&odr_send_q, i);
-    // FIXME This would be slow, since everytime we want to push out
-    // packets, we would need to iterate through the routing table.
-    // Lets use the Treap for that.
-    //
-    // I guess it's okay for now. Up to 100 entries, this iteration
-    // should be okay.
     r = get_route_entry(pkt);
 
     // If a routing entry exists, flush the packet out
