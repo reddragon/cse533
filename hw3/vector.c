@@ -23,6 +23,12 @@ void vector_init(vector *v, int obj_size) {
     v->size = 0;
 }
 
+void vector_destroy(vector *v) {
+    ASSERT(v);
+    free(v->repr);
+    v->repr = NULL;
+}
+
 void *vector_get(vector *v, int i) {
     return (void*)(v->repr + i*v->obj_size);
 }
@@ -100,4 +106,14 @@ void vector_erase(vector *v, int i) {
     assert_lt(i, v->size);
     memmove(vector_get(v, i), vector_get(v, i+1), (v->size - i - 1) * v->obj_size);
     vector_pop_back(v);
+}
+
+void vector_swap(vector *lhs, vector *rhs) {
+    vector tmp;
+    ASSERT(lhs);
+    ASSERT(rhs);
+    ASSERT(vector_object_size(lhs) == vector_object_size(rhs));
+    tmp = *lhs;
+    *lhs = *rhs;
+    *rhs = tmp;
 }

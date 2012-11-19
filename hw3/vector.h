@@ -10,6 +10,7 @@ typedef struct vector {
 
 void overlapping_memcpy_ltor(char *dest, const char *src, int len);
 void vector_init(vector *v, int obj_size);
+void vector_destroy(vector *v);
 void *vector_get(vector *v, int i);
 void *vector_at(vector *v, int i);
 void vector_reserve(vector *v, int n);
@@ -20,5 +21,6 @@ int vector_size(vector *v);
 int vector_empty(vector *v);
 int vector_object_size(vector *v);
 void vector_erase(vector *v, int i);
+void vector_swap(vector *lhs, vector *rhs);
 
 #endif // VECTOR_H

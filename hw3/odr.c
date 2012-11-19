@@ -501,6 +501,9 @@ maybe_flush_queued_data_packets(void) {
   int i;
   odr_pkt *pkt;
   route_entry *r;
+  vector orphans;
+  vector_init(&orphans, sizeof(odr_pkt*));
+
   for (i = 0; i < vector_size(&odr_send_q); i++) {
     pkt = vector_at(&odr_send_q, i);
     // FIXME This would be slow, since everytime we want to push out
@@ -513,15 +516,16 @@ maybe_flush_queued_data_packets(void) {
 
     // If a routing entry exists, flush the packet out
     if (r != NULL) {
-      // Even though we are erasing the packet from the vector, it is
-      // fine, because vector_erase does not free the element. So, we
-      // can reuse it.
-      vector_erase(&odr_send_q, i);
-      i--;
       odr_route_message(pkt, r);
+      // We need to free(3) this packet after using it.
       free(pkt);
+    } else {
+      vector_push_back(&orphans, pkt);
     }
-  }
+  } // for()
+
+  vector_swap(&odr_send_q, &orphans);
+  vector_destroy(&orphans);
 }
 
 void
