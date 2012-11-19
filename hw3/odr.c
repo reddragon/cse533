@@ -123,7 +123,7 @@ odr_setup(void) {
   pf = fopen("/dev/urandom", "r");
   assert(pf);
   r = fread(&seed, sizeof(seed), 1, pf);
-  assert(r == sizeof(seed));
+  assert(r == 1);
   srand(seed);
   fclose(pf);
   pf = NULL;
