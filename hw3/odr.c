@@ -340,7 +340,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     e = get_route_entry(pkt);
     if (is_my_packet(pkt) || e) {
       VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
-      // TODO: Fill up.
+      odr_send_rrep(pkt, e);
     } else {
       odr_start_route_discovery(pkt);
     }
@@ -352,6 +352,15 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // a path isn't available, we flood the interfaces of this machine
     // with an RREQ to try and discover a path to the destination.
   }
+}
+
+/* Send an RREP packet when an RREQ packet is received. 
+ * TODO Other rules?
+ */
+
+void
+odr_send_rrep(odr_pkt *pkt, route_entry *e) {
+  // TODO Fill up  
 }
 
 /* Route the message 'pkt' to the appropriate recipient by computing
@@ -548,6 +557,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   }
 
   if (is_my_packet(pkt) == TRUE) {
+    VERBOSE("Received a packet meant for me\n%s", "");
     if (pkt->type == PKT_DATA) {
       odr_deliver_message_to_client(pkt);
     } else {
