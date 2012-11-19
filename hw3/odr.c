@@ -352,10 +352,11 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   }
 }
 
-/* Send an RREP packet when an RREQ packet is received. 
+/* Send an RREP packet when an RREQ packet is received OR when we are
+ * propagating an RREP that we received.
+ *
  * TODO Other rules?
  */
-
 void
 odr_send_rrep(odr_pkt *pkt, route_entry *e) {
   // TODO Fill up  
