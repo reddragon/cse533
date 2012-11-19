@@ -39,7 +39,7 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
 }
 
 /* Fetch a cli_entry from the cli_table given a 'struct sockaddr_un'
- * for that client address.
+ * for that client address. *Always* returns non-NULL.
  */
 cli_entry *
 get_cli_entry(struct sockaddr_un *cliaddr) {
