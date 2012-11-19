@@ -343,7 +343,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
       odr_start_route_discovery(pkt);
     }
   } else {
-    // PKT_RREP
+    // PKT_RREP (FIXME)
     //
     // Propagate this RREP packet to the next hop on the path to the
     // destination if a path to the destination is available. If such
