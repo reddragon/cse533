@@ -497,6 +497,26 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
  */
 void
 maybe_flush_queued_data_packets(void) {
+  int i;
+  odr_pkt *pkt;
+  route_entry *r;
+  for (i = 0; i < vector_size(&odr_send_q); i++) {
+    pkt = vector_at(&odr_send_q, i);
+    // FIXME This would be slow, since everytime we want to push out
+    // packets, we would need to iterate through the routing table.
+    // Lets use the Treap for that.
+    r = get_route_entry(p);
+    
+    // If a routing entry exists, flush the packet out
+    if (r != NULL) {
+      // Even though we are erasing the packet from the vector, it is
+      // fine, because vector_erase does not free the element. So, we
+      // can reuse it.
+      vector_erase(&odr_send_q, i);
+      i--;
+      odr_route_message(pkt);
+    }
+  }
 }
 
 void
