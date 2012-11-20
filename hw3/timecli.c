@@ -46,8 +46,10 @@ void on_recv_timedout(void *opaque) {
   INFO("msg_recv() timed out %d times\n", ntimeouts);
   if (ntimeouts >= 2) {
     // Reset. Print timed out 2 times.
+    ntimeouts = 0;
     ask_for_user_input();
     msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+    return;
   }
   // Resend message to 'server_ip' with the route re-discovery flag
   // set.

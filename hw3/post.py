@@ -16,10 +16,9 @@ hostname = p.readline()
 
 print "POST /%s_%s HTTP/1.1\r\nContent-Length: 10000000\r\n\r\n" % (etype, hostname)
 sys.stdout.flush()
-p = os.popen("%s %s" % (executable, " ".join(args)), 'r', 0)
-line = p.readline()
+(sin, sout) = os.popen4("%s %s" % (executable, " ".join(args)), 'r', 0)
+line = sout.readline()
 
 while line != '':
 	sys.stdout.write(line)
-	line = p.readline()
-
+	line = sout.readline()

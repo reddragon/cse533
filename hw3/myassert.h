@@ -6,7 +6,7 @@
 
 #define ASSERT(X) if (!(X)) { char body[4096]; \
   sprintf(body, "Assertion '%s' FAILED in file %s, on line %d.\n", #X, __FILE__, __LINE__); \
-  send_email("dmatani", "gmenghani", "Assertion failure in " __FILE__, body); \
+  /* send_email("dmatani", "gmenghani", "Assertion failure in " __FILE__, body); */ \
   assert(X); }
 
 #define assert_lt(L,R) if((L)>=(R)) { fprintf(stderr, "%d < %d FAILED\n", (L), (R)); ASSERT((L)<(R)); }

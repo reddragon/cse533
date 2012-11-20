@@ -250,7 +250,7 @@ void
 send_eth_pkt(eth_frame *ef, int iface_idx) {
   struct sockaddr_ll sa;
   int i;
-  char mask = 0xff;
+  unsigned char mask = 0xff;
 
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
@@ -261,7 +261,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   sa.sll_halen    = 6;
 
   for (i = 0; i < 6; ++i) {
-    mask &= ef->dst_eth_addr.eth_addr[i];
+    mask &= *(unsigned char*)(ef->dst_eth_addr.eth_addr + i);
   }
 
   if (mask != 0xff) {
@@ -380,8 +380,13 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
  */
 void
 odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
+  odr_pkt *rrep_pkt;
+  eth_addr_t outgoing_addr;
+  eth_addr_t src_addr;
+
   assert(pkt->type == PKT_RREQ);
-  odr_pkt *rrep_pkt       = MALLOC(odr_pkt);
+
+  rrep_pkt = MALLOC(odr_pkt);
   memset(rrep_pkt, 0, sizeof(rrep_pkt));
   rrep_pkt->type          = PKT_RREP;
   // rrep_pkt->broadcast_id = ?;
@@ -396,11 +401,9 @@ odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
   // TODO Retain the Route Discovery Flag?
   rrep_pkt->flags = pkt->flags;
   
-  eth_addr_t outgoing_addr;
   strcpy(outgoing_addr.eth_addr, 
           ((struct hwa_info *)treap_find(&iface_treap, e->iface_idx))->if_haddr);
-  eth_addr_t src_addr;
-  strcpy(src_addr.eth_addr, from->sll_addr);
+  strcpy(src_addr.eth_addr, (char*)from->sll_addr);
   send_over_ethernet(src_addr, outgoing_addr, (void *)rrep_pkt, sizeof(*rrep_pkt), from->sll_ifindex);
   free(rrep_pkt);
 }
@@ -414,6 +417,7 @@ odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
 void
 odr_route_message(odr_pkt *pkt, route_entry *r) {
   // TODO Where are we handling RREQs and RREPs
+  odr_pkt *p;
   struct hwa_info *h;
   eth_addr_t src_addr, dst_addr;
 
@@ -424,8 +428,10 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
       INFO("Could not find a route for IP Address: %s\n", pkt->dst_ip);
       odr_start_route_discovery(pkt);
 
+      p = MALLOC(odr_pkt);
+      memcpy(p, pkt, sizeof(odr_pkt));
       // Queue up the packet to be sent later.
-      vector_push_back(&odr_send_q, pkt);
+      vector_push_back(&odr_send_q, p);
       return;
     }
   }
@@ -445,6 +451,7 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
  */
 BOOL
 is_my_packet(odr_pkt *pkt) {
+  VERBOSE("is_my_packet(other: %s, mine: %s)\n", pkt->dst_ip, my_ipaddr);
   return strcmp(pkt->dst_ip, my_ipaddr) == 0;
 }
 
@@ -524,8 +531,6 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
   } else if (m->rtype == MSG_SEND) {
     pkt = create_odr_pkt(m);
     odr_route_message(pkt, NULL);
-  } else if (m->rtype == MSG_RECV) {
-    odr_deliver_message_to_client(pkt);
     free(pkt);
   }
 }
