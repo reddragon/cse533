@@ -268,7 +268,7 @@ seen_packet_before(odr_pkt *pkt) {
   seen = FALSE;
   for (i = 0; i < vector_size(&bid_table); i++) {
     b = vector_at(&bid_table, i);
-    if (!strcmp(pkt->src_ip, b->src_ip) && (b->bid <= pkt->broadcast_id)) {
+    if (!strcmp(pkt->src_ip, b->src_ip) && (b->bid >= pkt->broadcast_id)) {
       seen = TRUE;
       break;
     }
