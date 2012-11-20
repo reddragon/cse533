@@ -218,7 +218,7 @@ odr_start_route_discovery(odr_pkt *pkt) {
 
   rreq_pkt = *pkt;
   rreq_pkt.type = PKT_RREQ;
-  rreq_pkt.broadcast_id = broadcast_id++;
+  rreq_pkt.broadcast_id = pkt->broadcast_id;
 
   // Zero out the data.
   memset(rreq_pkt.msg, 0,   sizeof(rreq_pkt.msg));
