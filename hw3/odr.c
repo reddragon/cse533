@@ -206,7 +206,7 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
  *
  */
 void
-odr_start_route_discovery(odr_pkt *pkt) {
+odr_start_route_discovery(odr_pkt *pkt, int except_ifindex) {
   // We need to send a PKT_RREQ type ODR packet, wrapped
   // in an ethernet frame
 
@@ -229,6 +229,11 @@ odr_start_route_discovery(odr_pkt *pkt) {
   for (h = h_head; h != NULL; h = h->hwa_next) {
     // We don't send the message on eth0 and its aliases, and lo
     if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
+      continue;
+    }
+
+    // If we don't want to flood on a particular index, we will use this
+    if (except_ifindex == h->if_index) {
       continue;
     }
 
@@ -395,16 +400,23 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   }
 
   if (pkt->type == PKT_RREQ) {
-    // TODO: If this packet's destination IP is our IP OR we have an
+    // If this packet's destination IP is our IP OR we have an
     // un-expired route to the destination, we reply with a
-    // PKT_RREP. Otherwise, we re-broadcast this RREQ.
-    e = get_route_entry(pkt);
-    if (is_my_packet(pkt) || e) {
-      VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
-      odr_send_rrep(pkt, e, from);
-    } else {
-      odr_start_route_discovery(pkt);
+    // PKT_RREP. But this is only if the RREP was not sent 
+    if (!(pkt->flags & RREP_ALREADY_SENT_FLG)) {
+      e = get_route_entry(pkt);
+      if (is_my_packet(pkt) || e) {
+        VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
+        odr_send_rrep(pkt, e, from);
+      } else {
+        odr_start_route_discovery(pkt, -1);
+      }
     }
+
+    // Further flood this packet to all interfaces, except the one
+    // it came from
+    pkt->flags |= RREP_ALREADY_SENT_FLG;
+    odr_start_route_discovery(pkt, from->sll_ifindex); 
   } else {
     // PKT_RREP (FIXME)
     //
@@ -429,6 +441,10 @@ odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
   eth_addr_t src_addr;
 
   assert(pkt->type == PKT_RREQ);
+  if (pkt->flags & RREP_ALREADY_SENT_FLG) {
+    // This packet has already been RREP-ed
+    return;
+  }
 
   rrep_pkt = MALLOC(odr_pkt);
   memset(rrep_pkt, 0, sizeof(rrep_pkt));
@@ -474,7 +490,7 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
       memcpy(p, pkt, sizeof(odr_pkt));
 
       pkt->broadcast_id = broadcast_id++;
-      odr_start_route_discovery(pkt);
+      odr_start_route_discovery(pkt, -1);
 
       // Queue up the packet to be sent later.
       vector_push_back(&odr_send_q, p);
