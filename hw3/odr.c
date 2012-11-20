@@ -25,6 +25,7 @@ struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping. treap<int, struct hwa_info*>
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets. Remember to initialize to a random value.
+vector bid_table;         // The ID containing the mapping of IP to Broadcast ID
 
 /* Print out the routing table */
 void
@@ -133,6 +134,7 @@ odr_setup(void) {
 
   vector_init(&cli_table,   sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
+  vector_init(&bid_table, sizeof(bid_entry));
   treap_init(&iface_treap);
   treap_init(&cli_port_map);
   vector_init(&odr_send_q,  sizeof(odr_pkt*));
@@ -234,8 +236,56 @@ odr_start_route_discovery(odr_pkt *pkt) {
   }
 }
 
+void
+update_bid_entry(odr_pkt *pkt) {
+  int i;
+  BOOL seen;
+  bid_entry *b;
+  seen = FALSE;
+  for (i = 0; i < vector_size(&bid_table); i++) {
+    b = vector_at(&bid_table, i);
+    if (!strcmp(pkt->src_ip, b->src_ip)) {
+      b->bid = pkt->broadcast_id;
+      seen = TRUE;
+      break;
+    }
+  }
+  if (seen == FALSE) {
+    b = MALLOC(bid_entry);
+    strcpy(b->src_ip, pkt->src_ip);
+    b->bid = pkt->broadcast_id;
+    vector_push_back(&bid_table, b);
+  }
+}
+
+BOOL
+seen_packet_before(odr_pkt *pkt) {
+  int i;
+  BOOL seen;
+  bid_entry *b;
+  seen = FALSE;
+  for (i = 0; i < vector_size(&bid_table); i++) {
+    b = vector_at(&bid_table, i);
+    if (!strcmp(pkt->src_ip, b->src_ip) && (b->bid <= pkt->broadcast_id)) {
+      seen = TRUE;
+      break;
+    }
+  }
+  if (seen == FALSE) {
+    update_bid_entry(pkt);
+  }
+  return seen;
+}
+
 BOOL
 should_process_packet(odr_pkt *pkt) {
+  if (seen_packet_before(pkt)) {
+    INFO("Dropping packet from %s:%d -> %s:%d with broadcast_id: %d, before I have seen it earlier\n",
+         pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->broadcast_id);
+    // Caller free(3)s packet if necessary.
+    return FALSE;
+  }
+
   ++pkt->hop_count;
   if (pkt->hop_count >= MAX_HOP_COUNT) {
     INFO("Dropping packet from %s:%d -> %s:%d because hop count reached %d\n",

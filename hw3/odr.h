@@ -28,6 +28,11 @@ typedef struct eth_frame {
   char payload[ETHERNET_PAYLOAD_SIZE];       // Payload
 } eth_frame;
 
+typedef struct bid_entry {
+  char src_ip[16];
+  uint32_t bid;
+} bid_entry;
+
 // TODO How do we figure out what is the length of the 
 // payload?
 
