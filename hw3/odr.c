@@ -148,7 +148,7 @@ odr_setup(void) {
   fclose(pf);
   pf = NULL;
 
-  broadcast_id = rand() % 10000;
+  // broadcast_id = rand() % 10000;
 
   h_head = Get_hw_addrs();
 
