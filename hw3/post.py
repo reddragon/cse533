@@ -11,9 +11,12 @@ etype      = sys.argv[1]
 executable = sys.argv[2]
 args       = sys.argv[3:]
 
-print "POST /%s_%s HTTP/1.1\r\nContent-Length: 10000000\r\n\r\n" % (etype, os.environ['HOSTNAME'])
+p = os.popen("hostname", 'r', 0)
+hostname = p.readline()
+
+print "POST /%s_%s HTTP/1.1\r\nContent-Length: 10000000\r\n\r\n" % (etype, hostname)
 sys.stdout.flush()
-p = os.popen("%s " % (executable, " ".join(args)), 'r', 0)
+p = os.popen("%s %s" % (executable, " ".join(args)), 'r', 0)
 line = p.readline()
 
 while line != '':
