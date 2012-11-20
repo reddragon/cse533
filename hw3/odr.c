@@ -218,11 +218,13 @@ odr_start_route_discovery(odr_pkt *pkt) {
 
   rreq_pkt = *pkt;
   rreq_pkt.type = PKT_RREQ;
+  rreq_pkt.broadcast_id = broadcast_id++;
+
   // Zero out the data.
   memset(rreq_pkt.msg, 0,   sizeof(rreq_pkt.msg));
   memset(dst_addr.eth_addr, 0xff, sizeof(dst_addr));
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
-  
+
   VERBOSE("odr_start_route_discovery::Flooding the network with a PKT_RREQ for destination IP: %s\n", pkt->dst_ip);
   for (h = h_head; h != NULL; h = h->hwa_next) {
     // We don't send the message on eth0 and its aliases, and lo
@@ -354,16 +356,9 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     e->iface_idx          = from->sll_ifindex;
     e->nhops_to_dest      = pkt->hop_count;
     e->last_updated_at_ms = current_time_in_ms();
-    e->broadcast_id       = pkt->broadcast_id;
     vector_push_back(&route_table, e);
     free(e);
   } else {
-    // Check if the broadcast ID is the same.
-    if (e->broadcast_id == pkt->broadcast_id) {
-      // Ignore this packet.
-      VERBOSE("broadcast_id [%d] matches. Stopping RREQ/RREP propagation.\n", e->broadcast_id);
-      return;
-    }
 
     if (e->nhops_to_dest > pkt->hop_count) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
@@ -378,7 +373,6 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
-      e->broadcast_id       = pkt->broadcast_id;
     }
   }
 }
@@ -439,8 +433,8 @@ odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
   rrep_pkt = MALLOC(odr_pkt);
   memset(rrep_pkt, 0, sizeof(rrep_pkt));
   rrep_pkt->type          = PKT_RREP;
-  // rrep_pkt->broadcast_id = ?;
-  
+  // No need to set the broadcast_id for an RREP.
+
   // If we are sending a RREP to A, which wants the path to B,
   // which goes through this node, then the hop count for A, would be:
   // hop count uptil this node + 1 (which is this node).
@@ -554,8 +548,7 @@ create_odr_pkt(api_msg *m) {
   // Is the broadcast_id a number which increases everytime we
   // get a send request? Or is it a client specific count?
   //
-  // The broadcast_id is probably useful only in case of an RREQ or
-  // RREP packet.
+  // The broadcast_id is useful only in case of an RREQ packet.
   o->broadcast_id = 0;
   o->hop_count = 0;
   if (m->rtype == MSG_SEND) {
