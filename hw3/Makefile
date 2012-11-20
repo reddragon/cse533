@@ -17,10 +17,10 @@ debug: targets
 
 targets: $(OBJ)
 
-ODR_gmenghani: odr.c odr.h api.h myassert.h gitcommit.h $(OBJDEPS)
+ODR_gmenghani: odr.c odr.h api.h myassert.h gitcommit $(OBJDEPS)
 	$(CC) $(CFLAGS) odr.c  $(OBJDEPS) -o ODR_gmenghani $(LIBS)
 
-client_gmenghani: timecli.c myassert.h gitcommit.h $(OBJDEPS)
+client_gmenghani: timecli.c myassert.h gitcommit $(OBJDEPS)
 	$(CC) $(CFLAGS) timecli.c $(OBJDEPS) -o client_gmenghani $(LIBS)
 
 api.o: api.c api.h utils.h
@@ -44,7 +44,7 @@ email.o: email.c email.h
 treap.o: treap.c treap.h myassert.h
 	$(CC) $(CFLAGS) -c -o treap.o treap.c
 
-gitcommit.h:
+gitcommit:
 	./make_gitcommit.sh
 
 scp:
