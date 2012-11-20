@@ -26,8 +26,18 @@ treap iface_treap;        // Interface Index to Interface Mapping. treap<int, st
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets. Remember to initialize to a random value.
 
+/* Print out the routing table */
 void
-toGraphViz(void) {
+print_route_table(void) {
+  int i;
+  route_entry *e;
+  char buff[20];
+  printf("Routing Table:\n");
+  for (i = 0; i < vector_size(&route_table); ++i) {
+    pretty_print_eth_addr(e->next_hop, buff);
+    e = (route_entry*)vector_at(&route_table, i);
+    printf("To '%s' via '%s'\n", e->ip_addr, buff);
+  }
 }
 
 /* Add an entry to the cli_table, which holds a list of cli_entry's
