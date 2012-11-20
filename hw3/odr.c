@@ -281,8 +281,8 @@ seen_packet_before(odr_pkt *pkt) {
 
 BOOL
 should_process_packet(odr_pkt *pkt) {
-  if (seen_packet_before(pkt)) {
-    INFO("Dropping packet from %s:%d -> %s:%d with broadcast_id: %d, before I have seen it earlier\n",
+  if (pkt->type == PKT_RREQ && seen_packet_before(pkt)) {
+    INFO("Dropping a PKT_RREQ packet from %s:%d -> %s:%d with broadcast_id: %d, before I have seen it earlier\n",
          pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->broadcast_id);
     // Caller free(3)s packet if necessary.
     return FALSE;
