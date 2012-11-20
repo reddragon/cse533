@@ -20,6 +20,7 @@
 
 #define TIMESTAMPMSG(TYPE, X, VARGS...) {     \
   fprintf(stdout, TYPE ": " X, VARGS);        \
+  fflush(stdout);                             \
 }
 
 #if 1

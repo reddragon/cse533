@@ -80,7 +80,7 @@ odr_pkt *create_odr_pkt(api_msg *m);
 
 void odr_setup(void);
 void odr_route_message(odr_pkt *pkt, route_entry *e);
-void odr_send_rrep(odr_pkt *pkt, route_entry *e);
+void odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from);
 void odr_deliver_message_to_client(odr_pkt *pkt);
 void odr_start_route_discovery(odr_pkt *pkt);
 void odr_packet_print(odr_pkt *pkt);

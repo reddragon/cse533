@@ -358,7 +358,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     e = get_route_entry(pkt);
     if (is_my_packet(pkt) || e) {
       VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
-      odr_send_rrep(pkt, e);
+      odr_send_rrep(pkt, e, from);
     } else {
       odr_start_route_discovery(pkt);
     }
@@ -374,12 +374,36 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
 
 /* Send an RREP packet when an RREQ packet is received OR when we are
  * propagating an RREP that we received.
- *
- * TODO Other rules?
+ * 1. Create a new odr_pkt *
+ * 2. Fill up the details
+ * 3. Transmit it over the wire
+ * 4. Free the odr_pkt *
  */
 void
-odr_send_rrep(odr_pkt *pkt, route_entry *e) {
-  // TODO Fill up  
+odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
+  assert(pkt->type == PKT_RREQ);
+  odr_pkt *rrep_pkt       = MALLOC(odr_pkt);
+  memset(rrep_pkt, 0, sizeof(rrep_pkt));
+  rrep_pkt->type          = PKT_RREP;
+  // rrep_pkt->broadcast_id = ?;
+  
+  // If we are sending a RREP to A, which wants the path to B,
+  // which goes through this node, then the hop count for A, would be:
+  // hop count uptil this node + 1 (which is this node).
+  rrep_pkt->hop_count     = (is_my_packet(pkt) ? 0 : e->nhops_to_dest) + 1;
+  strcpy(rrep_pkt->src_ip, my_ipaddr);
+  // The source of the original packet becomes the destination
+  strcpy(rrep_pkt->dst_ip, pkt->src_ip);
+  // TODO Retain the Route Discovery Flag?
+  rrep_pkt->flags = pkt->flags;
+  
+  eth_addr_t outgoing_addr;
+  strcpy(outgoing_addr.eth_addr, 
+          ((struct hwa_info *)treap_find(&iface_treap, e->iface_idx))->if_haddr);
+  eth_addr_t src_addr;
+  strcpy(src_addr.eth_addr, from->sll_addr);
+  send_over_ethernet(src_addr, outgoing_addr, (void *)rrep_pkt, sizeof(*rrep_pkt), from->sll_ifindex);
+  free(rrep_pkt);
 }
 
 /* Route the message 'pkt' to the appropriate recipient by computing
