@@ -5,6 +5,7 @@
 #include "treap.h"
 #include "fdset.h"
 #include "myassert.h"
+#include "gitcommit.h"
 
 /* TODO: We also need to time out older clients that don't exist. We
  * can possibly do this by checking if the socket file for that client
@@ -24,6 +25,10 @@ struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping. treap<int, struct hwa_info*>
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets. Remember to initialize to a random value.
+
+void
+toGraphViz(void) {
+}
 
 /* Add an entry to the cli_table, which holds a list of cli_entry's
  * for every client that has contacted us.
@@ -654,6 +659,7 @@ void on_odr_exit(void) {
 
 int
 main(int argc, char **argv) {
+  VERBOSE("Commit ID: %s\n", COMMITID);
   atexit(on_odr_exit);
   if (argc != 2) {
     fprintf(stderr, "Usage: ./odr <staleness>");
