@@ -407,7 +407,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
       e = get_route_entry(pkt);
       if (is_my_packet(pkt) || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
-        odr_send_rrep(pkt, e, from);
+        odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
       } else {
         odr_start_route_discovery(pkt, -1);
       }
@@ -424,6 +424,14 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // destination if a path to the destination is available. If such
     // a path isn't available, we flood the interfaces of this machine
     // with an RREQ to try and discover a path to the destination.
+    e = get_route_entry(pkt);
+    if (e) {
+      odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
+    } else {
+      // TODO: Find out if we should not flood the interface on which
+      // the RREP arrived.
+      odr_start_route_discovery(pkt, -1);
+    }
   }
 }
 
@@ -435,16 +443,20 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
  * 4. Free the odr_pkt *
  */
 void
-odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
+odr_send_rrep(const char *fromip, const char *toip,
+              route_entry *e, struct sockaddr_ll *from) {
   odr_pkt *rrep_pkt;
   eth_addr_t outgoing_addr;
   eth_addr_t src_addr;
+  BOOL am_i_sending_RREP = FALSE;
 
-  assert(pkt->type == PKT_RREQ);
+  // TODO: Move this to the caller.
+  /*
   if (pkt->flags & RREP_ALREADY_SENT_FLG) {
     // This packet has already been RREP-ed
     return;
   }
+  */
 
   rrep_pkt = MALLOC(odr_pkt);
   memset(rrep_pkt, 0, sizeof(rrep_pkt));
@@ -453,18 +465,21 @@ odr_send_rrep(odr_pkt *pkt, route_entry *e, struct sockaddr_ll *from) {
 
   // If we are sending a RREP to A, which wants the path to B,
   // which goes through this node, then the hop count for A, would be:
-  // hop count uptil this node + 1 (which is this node).
-  rrep_pkt->hop_count     = (is_my_packet(pkt) ? 0 : e->nhops_to_dest) + 1;
-  strcpy(rrep_pkt->src_ip, my_ipaddr);
-  // The source of the original packet becomes the destination
-  strcpy(rrep_pkt->dst_ip, pkt->src_ip);
+  // hop count up to this node + 1.
+  am_i_sending_RREP = (strcmp(fromip, my_ipaddr) == 0);
+  rrep_pkt->hop_count     = (am_i_sending_RREP ? 0 : e->nhops_to_dest) + 1;
+
+  strcpy(rrep_pkt->src_ip, fromip);
+  strcpy(rrep_pkt->dst_ip, toip);
+
   // TODO Retain the Route Discovery Flag?
-  rrep_pkt->flags = pkt->flags;
-  
-  strcpy(outgoing_addr.eth_addr, 
-          ((struct hwa_info *)treap_find(&iface_treap, e->iface_idx))->if_haddr);
+  // rrep_pkt->flags = pkt->flags;
+
+  strcpy(outgoing_addr.eth_addr,
+         ((struct hwa_info *)treap_find(&iface_treap, e->iface_idx))->if_haddr);
   strcpy(src_addr.eth_addr, (char*)from->sll_addr);
-  send_over_ethernet(src_addr, outgoing_addr, (void *)rrep_pkt, sizeof(*rrep_pkt), from->sll_ifindex);
+  send_over_ethernet(src_addr, outgoing_addr, (void *)rrep_pkt,
+                     sizeof(*rrep_pkt), from->sll_ifindex);
   free(rrep_pkt);
 }
 
