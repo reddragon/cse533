@@ -17,11 +17,11 @@ debug: targets
 
 targets: $(OBJ)
 
-ODR_gmenghani: odr.c odr.h api.h myassert.h $(OBJDEPS)
+ODR_gmenghani: odr.c odr.h api.h myassert.h gitcommit.h $(OBJDEPS)
 	./make_gitcommit.sh
 	$(CC) $(CFLAGS) odr.c  $(OBJDEPS) -o ODR_gmenghani $(LIBS)
 
-client_gmenghani: timecli.c myassert.h $(OBJDEPS)
+client_gmenghani: timecli.c myassert.h gitcommit.h $(OBJDEPS)
 	./make_gitcommit.sh
 	$(CC) $(CFLAGS) timecli.c $(OBJDEPS) -o client_gmenghani $(LIBS)
 
