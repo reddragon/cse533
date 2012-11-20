@@ -336,7 +336,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
 void
 act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   route_entry *e;
-  char via_eth_addr[20], via_eth_addr_old[20];
+  char via_eth_addr[20];
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
@@ -462,7 +462,6 @@ is_my_packet(odr_pkt *pkt) {
  */
 void
 odr_deliver_message_to_client(odr_pkt *pkt) {
-  // TODO
   cli_entry *ce;
   struct sockaddr_un *cliaddr;
   api_msg resp;
@@ -472,7 +471,7 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
           pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port);
   ce = (cli_entry*)treap_get_value(&cli_port_map, pkt->dst_port);
   if (!ce) {
-    INFO("No entry for destination port #%d\n", pkt->dst_port);
+    INFO("No client listening on localhost:%d\n", pkt->dst_port);
     return;
   }
 
