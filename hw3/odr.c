@@ -240,8 +240,7 @@ should_process_packet(odr_pkt *pkt) {
   if (pkt->hop_count >= MAX_HOP_COUNT) {
     INFO("Dropping packet from %s:%d -> %s:%d because hop count reached %d\n",
          pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->hop_count);
-    // TODO: Caller free(3)s packet.
-    // free(pkt);
+    // Caller free(3)s packet if necessary.
     return FALSE;
   }
   return TRUE;
