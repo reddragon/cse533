@@ -470,10 +470,12 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
     r = get_route_entry(pkt);
     if (r == NULL) {
       INFO("Could not find a route for IP Address: %s\n", pkt->dst_ip);
-      odr_start_route_discovery(pkt);
-
       p = MALLOC(odr_pkt);
       memcpy(p, pkt, sizeof(odr_pkt));
+
+      pkt->broadcast_id = broadcast_id++;
+      odr_start_route_discovery(pkt);
+
       // Queue up the packet to be sent later.
       vector_push_back(&odr_send_q, p);
       return;
