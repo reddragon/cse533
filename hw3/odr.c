@@ -6,11 +6,7 @@
 #include "fdset.h"
 #include "myassert.h"
 #include "gitcommit.h"
-
-/* TODO: We also need to time out older clients that don't exist. We
- * can possibly do this by checking if the socket file for that client
- * exists or not.
- */
+#include <unistd.h>
 
 serv_dsock s;             // Domain socket to listen on & serve requests
 vector cli_table;         // Table containing entries of all clients. vector<cli_entry>
@@ -113,7 +109,7 @@ prune_routing_table(const char *ip, int flags) {
   int i;
   route_entry *r = NULL;
   vector alive;
-  vector_init(&alive, sizeof(route_entry*));
+  vector_init(&alive, sizeof(route_entry));
 
   for (i = 0; i < vector_size(&route_table); i++) {
     r = vector_at(&route_table, i);
@@ -125,6 +121,28 @@ prune_routing_table(const char *ip, int flags) {
     }
   }
   vector_swap(&route_table, &alive);
+  vector_destroy(&alive);
+}
+
+/* We also need to time out older clients that don't exist. We can do
+ * this by checking if the socket file for that client exists or not.
+ *
+ */
+void
+prune_cli_table(void) {
+  int i;
+  cli_entry *c = NULL;
+  vector alive;
+  vector_init(&alive, sizeof(cli_entry));
+
+  for (i = 0; i < vector_size(&cli_table); i++) {
+    c = vector_at(&cli_table, i);
+    if (access(c->cliaddr->sun_path, R_OK) == 0) {
+      // No error accessing the file
+      vector_push_back(&alive, c);
+    }
+  }
+  vector_swap(&cli_table, &alive);
   vector_destroy(&alive);
 }
 
@@ -698,6 +716,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   }
 
   prune_routing_table(pkt->dst_ip, pkt->flags);
+  prune_cli_table();
 
   if (is_my_packet(pkt) == TRUE) {
     VERBOSE("Received a packet meant for me\n%s", "");

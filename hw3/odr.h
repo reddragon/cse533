@@ -78,6 +78,7 @@ cli_entry * add_cli_entry(struct sockaddr_un *cliaddr);
 cli_entry * get_cli_entry(struct sockaddr_un *cliaddr);
 route_entry *get_route_entry(const char *ip);
 void prune_routing_table(const char *ip, int flags);
+void prune_cli_table(void);
 BOOL is_stale_entry(route_entry *e);
 odr_pkt *create_odr_pkt(api_msg *m);
 
