@@ -25,7 +25,6 @@ struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping. treap<int, struct hwa_info*>
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets
-uint32_t gen_id = 1;      // The global generation ID
 vector bid_table;         // The ID containing the mapping of IP to Broadcast ID
 
 /* Print out the routing table */
@@ -86,8 +85,7 @@ get_cli_entry(struct sockaddr_un *cliaddr) {
 
 BOOL
 is_stale_entry(route_entry *e) {
-  if ((e->gen_id != gen_id) &&
-      (current_time_in_ms() - (e->last_updated_at_ms) >= staleness)) {
+  if (current_time_in_ms() - (e->last_updated_at_ms) >= staleness) {
     return TRUE;
   }
   return FALSE;
@@ -97,23 +95,37 @@ is_stale_entry(route_entry *e) {
  * its destination. Returns NULL if no such route is found.
  */
 route_entry *
-get_route_entry(odr_pkt *p) {
+get_route_entry(const char *ip) {
   int i;
-  route_entry *c = NULL, *r;
+  route_entry *r = NULL;
+  for (i = 0; i < vector_size(&route_table); i++) {
+    r = vector_at(&route_table, i);
+    if (!strcmp(r->ip_addr, ip)) {
+      // We have a match
+      return r;
+    }
+  }
+  return NULL;
+}
+
+void
+prune_routing_table(const char *ip, int flags) {
+  int i;
+  route_entry *r = NULL;
+  vector alive;
+  vector_init(&alive, sizeof(route_entry*));
+
   for (i = 0; i < vector_size(&route_table); i++) {
     r = vector_at(&route_table, i);
     if (is_stale_entry(r) ||
-        (!strcmp(r->ip_addr, p->dst_ip) && (p->flags & ROUTE_REDISCOVERY_FLG))) {
+        (!strcmp(r->ip_addr, ip) && (flags & ROUTE_REDISCOVERY_FLG))) {
       // This is a stale entry
-      vector_erase(&route_table, i);
-      i--;
-    } else if (!strcmp(r->ip_addr, p->dst_ip)) {
-      // We have a potential match
-      c = r;
-      break;
+    } else {
+      vector_push_back(&alive, r);
     }
   }
-  return c;
+  vector_swap(&route_table, &alive);
+  vector_destroy(&alive);
 }
 
 void
@@ -353,7 +365,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
 
   // We got a request packet from someone. Update the reverse path
   // to that host as via the host we got this packet from.
-  e = get_route_entry(pkt);
+  e = get_route_entry(pkt->dst_ip);
   if (!e) {
     INFO("New routing table entry to %s via %s\n", pkt->src_ip, via_eth_addr);
     // We have a new routing table entry.
@@ -363,7 +375,6 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     e->iface_idx          = from->sll_ifindex;
     e->nhops_to_dest      = pkt->hop_count;
     e->last_updated_at_ms = current_time_in_ms();
-    e->gen_id             = gen_id;
     vector_push_back(&route_table, e);
     free(e);
   } else {
@@ -381,7 +392,6 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
-      e->gen_id             = gen_id;
     }
   }
 }
@@ -408,7 +418,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // un-expired route to the destination, we reply with a
     // PKT_RREP. But this is only if the RREP was not sent 
     if (!(pkt->flags & RREP_ALREADY_SENT_FLG)) {
-      e = get_route_entry(pkt);
+      e = get_route_entry(pkt->dst_ip);
       if (is_my_packet(pkt) || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
         odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
@@ -428,7 +438,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // destination if a path to the destination is available. If such
     // a path isn't available, we flood the interfaces of this machine
     // with an RREQ to try and discover a path to the destination.
-    e = get_route_entry(pkt);
+    e = get_route_entry(pkt->dst_ip);
     if (e) {
       odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
     } else {
@@ -504,7 +514,7 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
 
   if (!r) {
     // Look up the routing table, to see if there is an entry
-    r = get_route_entry(pkt);
+    r = get_route_entry(pkt->dst_ip);
     if (r == NULL) {
       INFO("Could not find a route for IP Address: %s\n", pkt->dst_ip);
       p = MALLOC(odr_pkt);
@@ -629,7 +639,7 @@ maybe_flush_queued_data_packets(void) {
 
   for (i = 0; i < vector_size(&odr_send_q); i++) {
     pkt = vector_at(&odr_send_q, i);
-    r = get_route_entry(pkt);
+    r = get_route_entry(pkt->dst_ip);
 
     // If a routing entry exists, flush the packet out
     if (r != NULL) {
@@ -670,6 +680,8 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     return;
   }
 
+  prune_routing_table(pkt->dst_ip, pkt->flags);
+
   if (is_my_packet(pkt) == TRUE) {
     VERBOSE("Received a packet meant for me\n%s", "");
     if (pkt->type == PKT_DATA) {
@@ -697,7 +709,6 @@ on_pf_recv(void *opaque) {
   struct sockaddr_ll sa;
   socklen_t addrlen = sizeof(sa);
   eth_frame frame;
-  ++gen_id;
   r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
   VERBOSE("Received an eth_frame of size %d\n", r);
   if (r < 0 && errno == EINTR) {

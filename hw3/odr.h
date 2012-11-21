@@ -43,7 +43,6 @@ typedef struct route_entry {
   char next_hop[6];             // The ethernet address of the next hop
   uint16_t nhops_to_dest;       // Number of hops to destination
   uint32_t last_updated_at_ms;  // When was this entry updated?
-  uint32_t gen_id;              // Generation ID
 } route_entry;
 
 // This is the entry used to forward messages from the 
@@ -79,7 +78,8 @@ BOOL is_stale_entry(route_entry *e);
 BOOL is_my_packet(odr_pkt *pkt);
 cli_entry * add_cli_entry(struct sockaddr_un *cliaddr);
 cli_entry * get_cli_entry(struct sockaddr_un *cliaddr);
-route_entry *get_route_entry(odr_pkt *p);
+route_entry *get_route_entry(const char *ip);
+void prune_routing_table(const char *ip, int flags);
 BOOL is_stale_entry(route_entry *e);
 odr_pkt *create_odr_pkt(api_msg *m);
 
