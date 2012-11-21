@@ -1,6 +1,8 @@
 1. When we send an RREP, in reply to the RREQ, we lookup the routing table for the source now. 
 If we do not find the route, then we do not set the RREP_ALREADY_SENT_FLG, and we also push that
-into send queue.
+into send queue. 
+
+NOTE: We need to fill in the ethernet addresses when we flush.
 
 2. Add the expire_entry function which takes in a packet and removes stale packets according to
 a. Time

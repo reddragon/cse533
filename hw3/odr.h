@@ -86,7 +86,7 @@ void print_routing_table(void);
 void odr_setup(void);
 void odr_route_message(odr_pkt *pkt, route_entry *e);
 
-void odr_queue_or_send_rrep(const char *fromip, const char *toip,
+BOOL odr_queue_or_send_rrep(const char *fromip, const char *toip,
                             int hop_count);
 // signature(fromip, toip, hop_count, route_entry_to_get_to_TOIP)
 void odr_send_rrep(const char *fromip, const char *toip,

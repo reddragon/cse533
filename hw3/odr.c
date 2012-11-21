@@ -477,11 +477,46 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
 
 /* Send the RREP if a path to the destination (toip) is avaibale or
  * enqueue it for sending later in the odr_send_q.
- *
+ * 
+ * Returns
+ *  TRUE  if the RREP was sent
+ *  FALSE if the RREP was queued
  */
-void
+BOOL
 odr_queue_or_send_rrep(const char *fromip, const char *toip,
                        int hop_count) {
+  odr_pkt *rrep_pkt;
+  route_entry *r;
+  struct hwa_info *h;
+  eth_addr_t next_hop_addr;
+  eth_addr_t iface_addr;
+
+
+  rrep_pkt = MALLOC(odr_pkt);
+  memset(rrep_pkt, 0, sizeof(rrep_pkt));
+  rrep_pkt->type          = PKT_RREP;
+  rrep_pkt->hop_count     = hop_count;
+  // TODO Pass the port numbers
+  // rrep_pkt->src_port      = ?
+  // rrep_pkt->dst_port      = ?
+  strcpy(rrep_pkt->src_ip, fromip);
+  strcpy(rrep_pkt->dst_ip, toip);
+  
+  r = get_route_entry(toip);
+  if (r == NULL) {
+    // Did not find a route entry to send this RREP
+    // Queue this    
+    vector_push_back(&odr_send_q, r); 
+    return FALSE;
+  } else {
+    h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
+    strcpy(next_hop_addr.eth_addr, r->next_hop);
+    strcpy(iface_addr.eth_addr, h->if_haddr);
+    
+    send_over_ethernet(iface_addr, next_hop_addr, (void *)rrep_pkt,
+                        sizeof(*rrep_pkt), h->if_index);
+    return TRUE;
+  }
 }
 
 /* Send an RREP packet when an RREQ packet is received OR when we are
