@@ -43,6 +43,7 @@ typedef struct route_entry {
   char next_hop[6];             // The ethernet address of the next hop
   uint16_t nhops_to_dest;       // Number of hops to destination
   uint32_t last_updated_at_ms;  // When was this entry updated?
+  uint32_t gen_id;              // Generation ID
 } route_entry;
 
 // This is the entry used to forward messages from the 

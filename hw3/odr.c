@@ -24,7 +24,8 @@ vector odr_send_q;        // A queue of outgoing packets to send to the other OD
 struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping. treap<int, struct hwa_info*>
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
-int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets. Remember to initialize to a random value.
+int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets
+uint32_t gen_id = 1;      // The global generation ID
 vector bid_table;         // The ID containing the mapping of IP to Broadcast ID
 
 /* Print out the routing table */
@@ -85,7 +86,8 @@ get_cli_entry(struct sockaddr_un *cliaddr) {
 
 BOOL
 is_stale_entry(route_entry *e) {
-  if (current_time_in_ms() - (e->last_updated_at_ms) >= staleness) {
+  if ((e->gen_id != gen_id) &&
+      (current_time_in_ms() - (e->last_updated_at_ms) >= staleness)) {
     return TRUE;
   }
   return FALSE;
@@ -361,6 +363,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     e->iface_idx          = from->sll_ifindex;
     e->nhops_to_dest      = pkt->hop_count;
     e->last_updated_at_ms = current_time_in_ms();
+    e->gen_id             = gen_id;
     vector_push_back(&route_table, e);
     free(e);
   } else {
@@ -378,6 +381,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
+      e->gen_id             = gen_id;
     }
   }
 }
@@ -693,6 +697,7 @@ on_pf_recv(void *opaque) {
   struct sockaddr_ll sa;
   socklen_t addrlen = sizeof(sa);
   eth_frame frame;
+  ++gen_id;
   r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
   VERBOSE("Received an eth_frame of size %d\n", r);
   if (r < 0 && errno == EINTR) {
