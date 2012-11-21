@@ -20,8 +20,6 @@ uint32_t staleness;
 // TODO Choose a type for ODR packets
 
 typedef struct eth_frame {
-  // char preamble[7];
-  // char delimiter;
   eth_addr_t dst_eth_addr;  // Destination Ethernet Address
   eth_addr_t src_eth_addr;  // Source Ethernet Address
   uint16_t protocol;        // Protocol
@@ -85,6 +83,10 @@ odr_pkt *create_odr_pkt(api_msg *m);
 
 void odr_setup(void);
 void odr_route_message(odr_pkt *pkt, route_entry *e);
+
+void odr_queue_or_send_rrep(const char *fromip, const char *toip,
+                            int hop_count);
+// signature(fromip, toip, hop_count, route_entry_to_get_to_TOIP)
 void odr_send_rrep(const char *fromip, const char *toip,
                    route_entry *e, struct sockaddr_ll *from);
 void odr_deliver_message_to_client(odr_pkt *pkt);

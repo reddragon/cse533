@@ -400,6 +400,7 @@ void
 act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   route_entry *e;
   char via_eth_addr[20];
+  BOOL am_i_the_destination = FALSE;
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
@@ -419,9 +420,15 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // PKT_RREP. But this is only if the RREP was not sent 
     if (!(pkt->flags & RREP_ALREADY_SENT_FLG)) {
       e = get_route_entry(pkt->dst_ip);
-      if (is_my_packet(pkt) || e) {
+      am_i_the_destination = is_my_packet(pkt);
+      if (am_i_the_destination || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
-        odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
+        if (am_i_the_destination) {
+          odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, 1);
+        } else {
+          odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
+        }
+        // odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
       } else {
         odr_start_route_discovery(pkt, -1);
       }
@@ -440,13 +447,23 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // with an RREQ to try and discover a path to the destination.
     e = get_route_entry(pkt->dst_ip);
     if (e) {
-      odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
+      // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
+      odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
     } else {
       // TODO: Find out if we should not flood the interface on which
       // the RREP arrived.
       odr_start_route_discovery(pkt, -1);
     }
   }
+}
+
+/* Send the RREP if a path to the destination (toip) is avaibale or
+ * enqueue it for sending later in the odr_send_q.
+ *
+ */
+void
+odr_queue_or_send_rrep(const char *fromip, const char *toip,
+                       int hop_count) {
 }
 
 /* Send an RREP packet when an RREQ packet is received OR when we are
