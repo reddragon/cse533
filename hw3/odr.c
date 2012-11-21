@@ -25,7 +25,7 @@ vector bid_table;         // The ID containing the mapping of IP to Broadcast ID
 
 /* Print out the routing table */
 void
-print_route_table(void) {
+print_routing_table(void) {
   int i;
   route_entry *e;
   char buff[20];
@@ -729,6 +729,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
 
   if (pkt->type == PKT_RREQ || pkt->type == PKT_RREP) {
     update_routing_table(pkt, sa);
+    print_routing_table();
     act_on_packet(pkt, sa);
   } else {
     // Add this data packet to the queue.

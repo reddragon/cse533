@@ -81,6 +81,7 @@ void prune_routing_table(const char *ip, int flags);
 void prune_cli_table(void);
 BOOL is_stale_entry(route_entry *e);
 odr_pkt *create_odr_pkt(api_msg *m);
+void print_routing_table(void);
 
 void odr_setup(void);
 void odr_route_message(odr_pkt *pkt, route_entry *e);
