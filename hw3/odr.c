@@ -472,6 +472,8 @@ odr_send_rrep(const char *fromip, const char *toip,
   strcpy(rrep_pkt->src_ip, fromip);
   strcpy(rrep_pkt->dst_ip, toip);
 
+  VERBOSE("odr_send_rrep(%s -> %s), %d hops\n", fromip, toip, rrep_pkt->hop_count);
+
   // TODO Retain the Route Discovery Flag?
   // rrep_pkt->flags = pkt->flags;
 
