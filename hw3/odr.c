@@ -512,6 +512,9 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // destination if a path to the destination is available. If such
     // a path isn't available, we flood the interfaces of this machine
     // with an RREQ to try and discover a path to the destination.
+    VERBOSE("Received an RREP for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->dst_ip);
+    // TODO
+    // Doesn't just odr_queue_or_send_rrep suffice?
     e = get_route_entry(pkt->dst_ip);
     if (e) {
       // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
@@ -539,6 +542,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   struct hwa_info *h;
   eth_addr_t next_hop_addr;
   eth_addr_t iface_addr;
+  char eth_buf[20];
 
   VERBOSE("odr_queue_or_send_rrep(%s -> %s [%d] hops)\n", fromip, toip, hop_count);
 
@@ -556,6 +560,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   if (r == NULL) {
     // Did not find a route entry to send this RREP
     // Queue this    
+    VERBOSE("Could not find a route to IP: %s, queueing this RREP\n", toip);
     vector_push_back(&odr_send_q, &rrep_pkt); 
     return FALSE;
   } else {
@@ -563,6 +568,8 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
     memcpy(next_hop_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
     memcpy(iface_addr.eth_addr, h->if_haddr, sizeof(h->if_haddr));
     
+    pretty_print_eth_addr(next_hop_addr.eth_addr, eth_buf);
+    VERBOSE("Found a route to IP: %s, sending this RREP via iface_idx: %d to next_hop_addr: %s\n", toip, r->iface_idx, eth_buf);
     send_over_ethernet(iface_addr, next_hop_addr, (void *)rrep_pkt,
                         sizeof(*rrep_pkt), h->if_index);
     return TRUE;
