@@ -31,10 +31,11 @@ print_routing_table(void) {
   char buff[20];
   printf("Routing Table:\n");
   for (i = 0; i < vector_size(&route_table); ++i) {
-    pretty_print_eth_addr(e->next_hop, buff);
     e = (route_entry*)vector_at(&route_table, i);
-    printf("To '%s' via '%s'\n", e->ip_addr, buff);
+    pretty_print_eth_addr(e->next_hop, buff);
+    printf("Route: %s to %s via %s with %d hops\n", my_ipaddr, e->ip_addr, buff, e->nhops_to_dest);
   }
+  fflush(stdout);
 }
 
 /* Add an entry to the cli_table, which holds a list of cli_entry's
@@ -113,6 +114,7 @@ prune_routing_table(const char *ip, int flags) {
 
   for (i = 0; i < vector_size(&route_table); i++) {
     r = vector_at(&route_table, i);
+    ASSERT(strcmp(my_ipaddr, r->ip_addr));
     if (is_stale_entry(r) ||
         (!strcmp(r->ip_addr, ip) && (flags & ROUTE_REDISCOVERY_FLG))) {
       // This is a stale entry
@@ -140,6 +142,8 @@ prune_cli_table(void) {
     if (access(c->cliaddr->sun_path, R_OK) == 0) {
       // No error accessing the file
       vector_push_back(&alive, c);
+    } else {
+      treap_delete(&cli_port_map, c->e_portno);
     }
   }
   vector_swap(&cli_table, &alive);
@@ -160,9 +164,12 @@ odr_setup(void) {
   struct hwa_info *h;
   struct sockaddr *sa;
   struct sockaddr_un *serv_addr;
-  int r;
+  int r, i;
   unsigned int seed;
+  char *cptr;
+  char buff[20];
   FILE *pf;
+  vector hwaddrs;
 
   vector_init(&cli_table,   sizeof(cli_entry));
   vector_init(&route_table, sizeof(route_entry));
@@ -170,7 +177,7 @@ odr_setup(void) {
   treap_init(&iface_treap);
   treap_init(&cli_port_map);
   vector_init(&odr_send_q,  sizeof(odr_pkt*));
-  next_e_portno = 7700;
+  next_e_portno = TIME_SERVER_PORT;
 
   pf = fopen("/dev/urandom", "r");
   assert(pf);
@@ -183,9 +190,9 @@ odr_setup(void) {
   // broadcast_id = rand() % 10000;
 
   h_head = Get_hw_addrs();
+  vector_init(&hwaddrs, sizeof(char*));
 
   for (h = h_head; h != NULL; h = h->hwa_next) {
-    treap_insert(&iface_treap, h->if_index, h);
     if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
       sa = h->ip_addr;
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
@@ -194,7 +201,15 @@ odr_setup(void) {
     
     if (strcmp(h->if_name, "lo") && strncmp(h->if_name, "eth0", 4)) {
       INFO("Discovered interface: %s\n", h->if_name);
+      cptr = h->if_haddr;
+      vector_push_back(&hwaddrs, &cptr);
+      treap_insert(&iface_treap, h->if_index, h);
     }
+  }
+
+  for (i = 0; i < vector_size(&hwaddrs); ++i) {
+    pretty_print_eth_addr(*(char**)vector_at(&hwaddrs, i), buff);
+    printf("Topology: %s %s\n", my_ipaddr, buff);
   }
 
   // Create the PF_PACKET socket
@@ -381,6 +396,11 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     return;
   }
 
+  if (is_my_ip(pkt->src_ip)) {
+    VERBOSE("Ignoring packet since the source IP %s is mine\n", pkt->src_ip);
+    return;
+  }
+
   // We got a request packet from someone. Update the reverse path
   // to that host as via the host we got this packet from.
   e = get_route_entry(pkt->dst_ip);
@@ -396,7 +416,6 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     vector_push_back(&route_table, e);
     free(e);
   } else {
-
     if (e->nhops_to_dest > pkt->hop_count) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
       INFO("Replacing older routing table entry to (%s via %s with "
@@ -438,7 +457,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // PKT_RREP. But this is only if the RREP was not sent 
     if (!(pkt->flags & RREP_ALREADY_SENT_FLG)) {
       e = get_route_entry(pkt->dst_ip);
-      am_i_the_destination = is_my_packet(pkt);
+      am_i_the_destination = is_my_ip(pkt->dst_ip);
       if (am_i_the_destination || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
         if (am_i_the_destination) {
@@ -594,14 +613,15 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
       odr_start_route_discovery(pkt, -1);
 
       // Queue up the packet to be sent later.
-      vector_push_back(&odr_send_q, p);
+      vector_push_back(&odr_send_q, &p);
       return;
     }
   }
 
   h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
+  ASSERT(h);
 
-  INFO("Found a route for IP Address: %s, which goes through my interface %s\n", pkt->dst_ip, h->if_name);
+  INFO("Packet to IP: %s can be routed via interface: %s\n", pkt->dst_ip, h->if_name);
 
   memcpy(src_addr.eth_addr, h->if_haddr, sizeof(h->if_haddr));
   memcpy(dst_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
@@ -613,9 +633,9 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
 /* Is this ODR packet meant for some client on this machine?
  */
 BOOL
-is_my_packet(odr_pkt *pkt) {
-  VERBOSE("is_my_packet(other: %s, mine: %s)\n", pkt->dst_ip, my_ipaddr);
-  return strcmp(pkt->dst_ip, my_ipaddr) == 0;
+is_my_ip(const char *ip) {
+  VERBOSE("is_my_ip(other: %s, mine: %s)\n", ip, my_ipaddr);
+  return strcmp(ip, my_ipaddr) == 0;
 }
 
 /* Deliver the message 'pkt' received by the ODR to the client to
@@ -654,11 +674,14 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   while (r < 0 && errno == EINTR) {
     r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) &cliaddr, clilen);
   }
+  if (r < 0) {
+    perror("sendto");
+  }
   ASSERT(r == sizeof(api_msg));
 }
 
 odr_pkt *
-create_odr_pkt(api_msg *m) {
+create_odr_pkt(api_msg *m, cli_entry *c) {
   odr_pkt *o;
   o = MALLOC(odr_pkt);
   o->type = PKT_DATA;
@@ -673,9 +696,15 @@ create_odr_pkt(api_msg *m) {
   if (m->rtype == MSG_SEND) {
     strcpy(o->src_ip, my_ipaddr);
     strcpy(o->dst_ip, m->ip);
+    o->src_port = c->e_portno;
+    o->dst_port = m->port;
   }
   o->flags = m->msg_flag;
   strcpy(o->msg, m->msg);
+
+  VERBOSE("create_odr_pkt()%s\n", "");
+  odr_packet_print(o);
+
   return o;
 }
 
@@ -690,8 +719,12 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
     // weird that way. In general, no get_*() function should add
     // anything to the table since it is totally counter-intuitive.
   } else if (m->rtype == MSG_SEND) {
-    pkt = create_odr_pkt(m);
-    odr_route_message(pkt, NULL);
+    pkt = create_odr_pkt(m, c);
+    if (is_my_ip(pkt->dst_ip)) {
+      odr_deliver_message_to_client(pkt);
+    } else {
+      odr_route_message(pkt, NULL);
+    }
     free(pkt);
   }
 }
@@ -708,7 +741,7 @@ maybe_flush_queued_data_packets(void) {
   vector_init(&orphans, sizeof(odr_pkt*));
 
   for (i = 0; i < vector_size(&odr_send_q); i++) {
-    pkt = vector_at(&odr_send_q, i);
+    pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
     r = get_route_entry(pkt->dst_ip);
 
     // If a routing entry exists, flush the packet out
@@ -753,7 +786,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   prune_routing_table(pkt->dst_ip, pkt->flags);
   prune_cli_table();
 
-  if (is_my_packet(pkt) == TRUE) {
+  if (is_my_ip(pkt->dst_ip) == TRUE) {
     VERBOSE("Received a packet meant for me\n%s", "");
     if (pkt->type == PKT_DATA) {
       odr_deliver_message_to_client(pkt);
@@ -769,8 +802,9 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   } else {
     // Add this data packet to the queue.
     odr_pkt *p = MALLOC(odr_pkt);
+    print_routing_table();
     memcpy(p, pkt, sizeof(odr_pkt));
-    vector_push_back(&odr_send_q, p);
+    vector_push_back(&odr_send_q, &p);
   }
   maybe_flush_queued_data_packets();
 }
@@ -825,6 +859,11 @@ on_ud_error(void *opaque) {
 }
 
 void
+on_timeout(void *opaque) {
+  VERBOSE("timed out%s\n", "");
+}
+
+void
 odr_loop(void) {
   // We never come out of this function
   struct timeval timeout;
@@ -842,7 +881,7 @@ odr_loop(void) {
   fdset_add(&fds, &fds.rev,  s.sockfd, &s.sockfd, on_ud_recv);
   fdset_add(&fds, &fds.exev, s.sockfd, &s.sockfd, on_ud_error);
 
-  r = fdset_poll(&fds, NULL, NULL);
+  r = fdset_poll(&fds, &timeout, on_timeout);
   if (r < 0) {
     perror("select");
     ASSERT(errno != EINTR);

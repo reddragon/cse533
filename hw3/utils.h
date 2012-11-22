@@ -12,7 +12,7 @@
 
 #define SRV_DGPATH "/tmp/dynamic_duo/srv_dsock"
 #define ODR_DGPATH "/tmp/dynamic_duo/odr_dsock"
-#define TIME_SERVER_PORT 5491
+#define TIME_SERVER_PORT 7700
 
 #define BOOL  unsigned int
 #define FALSE 0
