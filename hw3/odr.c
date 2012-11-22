@@ -23,10 +23,12 @@ treap iface_treap;        // Interface Index to Interface Mapping. treap<int, st
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets
 vector bid_table;         // The ID containing the mapping of IP to Broadcast ID
+const char *appname = 0;  // The value of argv[0]
 
 void
 sigsegv_handler(int sig) {
   signal (SIGSEGV, SIG_DFL);
+  print_bt(appname);
   printf("**Segmentation Fault detected\n");
   fflush(stdout);
   raise (SIGSEGV);
@@ -929,6 +931,7 @@ void on_odr_exit(void) {
 
 int
 main(int argc, char **argv) {
+  appname = argv[0];
   VERBOSE("Commit ID: %s\n", COMMITID);
   atexit(on_odr_exit);
   signal(SIGSEGV, sigsegv_handler);

@@ -41,7 +41,6 @@ int
 msg_recv(int sockfd, char *src_ip, int *src_port, char *msg) {
   api_msg r;
   int ret;
-  struct sockaddr_un serv_addr;
 
   // The message which will have the response
   VERBOSE("Waiting for a Recv\n%s", "");
