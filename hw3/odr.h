@@ -13,7 +13,7 @@
 #include "api.h" // For the api_msg flags
 #include "vector.h"
 
-#define ETHERNET_PAYLOAD_SIZE 80
+#define ETHERNET_PAYLOAD_SIZE 120
 
 uint32_t staleness;
 // TODO Define ethernet_frame Type macros here
@@ -57,7 +57,7 @@ typedef enum odr_pkt_type {
   PKT_DATA = 3  // Application Payload
 } odr_pkt_type;
 
-#define ODR_MSG_SZ 50
+#define ODR_MSG_SZ 30
 typedef struct odr_pkt {
   uint16_t type;          // Type of the ODR packet
   uint32_t broadcast_id;  // Broadcast ID of the packet 
