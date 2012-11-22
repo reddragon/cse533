@@ -507,7 +507,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // it came from
     pkt->flags |= RREP_ALREADY_SENT_FLG;
     odr_start_route_discovery(pkt, from->sll_ifindex); 
-  } else {
+  } else if (pkt->type == PKT_RREP) {
     // PKT_RREP (FIXME)
     //
     // Propagate this RREP packet to the next hop on the path to the
@@ -526,6 +526,15 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
       // the RREP arrived.
       odr_start_route_discovery(pkt, -1);
     }
+  } else if (pkt->type == PKT_DATA) {
+    VERBOSE("Received a PKT_DATA packet for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
+    e = get_route_entry(pkt->dst_ip);
+    if (e) {
+      VERBOSE("Have a route to send the PKT_DATA packet\n%s", "");
+    } else {
+      VERBOSE("Don't have a route to send the PKT_DATA packet. Queuing it.\n%s", "");
+    }
+    odr_route_message(pkt, e);
   }
 }
 
