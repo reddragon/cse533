@@ -518,7 +518,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     e = get_route_entry(pkt->dst_ip);
     if (e) {
       // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
-      odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, e->nhops_to_dest + 1);
+      odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
     } else {
       // TODO: Find out if we should not flood the interface on which
       // the RREP arrived.
