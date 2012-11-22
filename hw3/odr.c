@@ -179,9 +179,9 @@ prune_cli_table(void) {
 
 void
 odr_packet_print(odr_pkt *pkt) {
-  INFO("ODR Packet { Type: %d, bcast_id: %d, hop_count: %d, src: %s:%d, "
+  INFO("ODR Packet { Type: %s, bcast_id: %d, hop_count: %d, src: %s:%d, "
        "dst: %s:%d, size: %d }\n",
-       pkt->type, pkt->broadcast_id, pkt->hop_count,
+       pkt_type_to_str(pkt->type), pkt->broadcast_id, pkt->hop_count,
        pkt->src_ip, pkt->src_port,
        pkt->dst_ip, pkt->dst_port, pkt->msg_size);
 }
@@ -765,6 +765,12 @@ maybe_flush_queued_data_packets(void) {
   for (i = 0; i < vector_size(&odr_send_q); i++) {
     pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
     r = get_route_entry(pkt->dst_ip);
+    
+    if (pkt->type == PKT_DATA) {
+      VERBOSE("For PKT_DATA destined to %s, the route %s\n",
+              pkt->dst_ip,
+              (r == NULL ? "does not exist." : "exists"));
+    }
 
     // If a routing entry exists, flush the packet out
     if (r != NULL) {
@@ -798,7 +804,8 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   pretty_print_eth_addr(frame->src_eth_addr.eth_addr, src_addr);
   pretty_print_eth_addr(frame->dst_eth_addr.eth_addr, dst_addr);
 
-  VERBOSE("process_eth_pkt:: (%s -> %s)\n", src_addr, dst_addr);
+  VERBOSE("process_eth_pkt:: (%s -> %s) of type %s\n", 
+          src_addr, dst_addr, pkt_type_to_str(pkt->type));
 
   if (ntohs(frame->protocol) != ODR_PROTOCOL) {
     return;
@@ -826,11 +833,12 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     update_routing_table(pkt, sa);
     print_routing_table();
     act_on_packet(pkt, sa);
-  } else {
+  } else if (!is_my_ip(pkt->dst_ip) && pkt->type == PKT_DATA) {
     // Add this data packet to the queue.
     odr_pkt *p = MALLOC(odr_pkt);
     print_routing_table();
     memcpy(p, pkt, sizeof(odr_pkt));
+    VERBOSE("Pushing the PKT_DATA packet into the queue\n%s", "");
     vector_push_back(&odr_send_q, &p);
   }
   maybe_flush_queued_data_packets();
