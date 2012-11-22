@@ -703,6 +703,12 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   while (r < 0 && errno == EINTR) {
     r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) cliaddr, clilen);
   }
+
+  if (errno == ENOENT) {
+    INFO("Could not find client with sun_path: %s\n", cliaddr.sun_path);
+    return;
+  }
+
   if (r < 0) {
     perror("sendto");
   }
