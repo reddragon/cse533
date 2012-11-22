@@ -1,0 +1,8 @@
+Return value of odr_queue_or_send_rrep() is unused, but it needs to be
+used to send the RREP again if necessary.
+
+When we send and RREQ for a RREP that we might send, we set the flag
+currently irrespective of whether we queued or sent the RREP. Fix this.
+
+We send an RREP followed b yand RREQ. Check if this is in violation
+with anything mentioned in the handout.
