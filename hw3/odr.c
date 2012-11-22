@@ -280,7 +280,7 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
  *
  */
 void
-odr_start_route_discovery(odr_pkt *pkt, int except_ifindex) {
+odr_start_route_discovery(odr_pkt *pkt, int except_ifindex, BOOL send_as_me) {
   // We need to send a PKT_RREQ type ODR packet, wrapped
   // in an ethernet frame
 
@@ -292,7 +292,14 @@ odr_start_route_discovery(odr_pkt *pkt, int except_ifindex) {
 
   rreq_pkt = *pkt;
   rreq_pkt.type = PKT_RREQ;
-  rreq_pkt.broadcast_id = pkt->broadcast_id;
+  if (send_as_me) {
+    rreq_pkt.broadcast_id = broadcast_id++;
+    strcpy(rreq_pkt.src_ip, my_ipaddr);
+    VERBOSE("Sending a packet originally sent by %s, as me (%s)",
+            pkt->src_ip, rreq_pkt.src_ip);
+  } else {
+    rreq_pkt.broadcast_id = pkt->broadcast_id;
+  }
 
   // Zero out the data.
   memset(rreq_pkt.msg, 0,   sizeof(rreq_pkt.msg));
@@ -499,14 +506,14 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
         }
         // odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
       } else {
-        odr_start_route_discovery(pkt, -1);
+        odr_start_route_discovery(pkt, -1, FALSE);
       }
     }
 
     // Further flood this packet to all interfaces, except the one
     // it came from
     pkt->flags |= RREP_ALREADY_SENT_FLG;
-    odr_start_route_discovery(pkt, from->sll_ifindex); 
+    odr_start_route_discovery(pkt, from->sll_ifindex, FALSE); 
   } else if (pkt->type == PKT_RREP) {
     // PKT_RREP (FIXME)
     //
@@ -524,7 +531,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     } else {
       // TODO: Find out if we should not flood the interface on which
       // the RREP arrived.
-      odr_start_route_discovery(pkt, -1);
+      odr_start_route_discovery(pkt, -1, FALSE);
     }
   } else if (pkt->type == PKT_DATA) {
     VERBOSE("Received a PKT_DATA packet for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
@@ -612,7 +619,7 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
       memcpy(p, pkt, sizeof(odr_pkt));
 
       pkt->broadcast_id = broadcast_id++;
-      odr_start_route_discovery(pkt, -1);
+      odr_start_route_discovery(pkt, -1, FALSE);
 
       // Queue up the packet to be sent later.
       vector_push_back(&odr_send_q, &p);
@@ -774,6 +781,9 @@ maybe_flush_queued_data_packets(void) {
 
     // If a routing entry exists, flush the packet out
     if (r != NULL) {
+      pkt->flags &= ~(RREQ_ALREADY_SENT_FLG);
+      assert(!(pkt->flags & RREQ_ALREADY_SENT_FLG));
+
       pretty_print_eth_addr(r->next_hop, eth_buf); 
       VERBOSE("Found a route for a packet of type %s to IP %s, with next hop %s\n", 
               pkt_type_to_str(pkt->type),
@@ -783,6 +793,12 @@ maybe_flush_queued_data_packets(void) {
       // We need to free(3) this packet after using it.
       free(pkt);
     } else {
+      if (pkt->type == PKT_DATA && (!(pkt->flags & RREQ_ALREADY_SENT_FLG))) {
+        VERBOSE("Flooding the network to send the PKT_DATA orphan packet destined to %s\n",
+                pkt->src_ip);
+        pkt->flags |= RREQ_ALREADY_SENT_FLG;
+        odr_start_route_discovery(pkt, -1, TRUE);
+      }
       vector_push_back(&orphans, &pkt);
     }
   } // for()
@@ -803,7 +819,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
 
   pretty_print_eth_addr(frame->src_eth_addr.eth_addr, src_addr);
   pretty_print_eth_addr(frame->dst_eth_addr.eth_addr, dst_addr);
-
+  
   VERBOSE("process_eth_pkt:: (%s -> %s) of type %s\n", 
           src_addr, dst_addr, pkt_type_to_str(pkt->type));
 

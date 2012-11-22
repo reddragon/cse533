@@ -10,8 +10,9 @@ typedef enum request_type {
 } request_type;
 
 // #define-s for msg_flag in api_msg
-#define ROUTE_REDISCOVERY_FLG  0x1
-#define RREP_ALREADY_SENT_FLG 0x10
+#define ROUTE_REDISCOVERY_FLG    0x1
+#define RREP_ALREADY_SENT_FLG   0x10
+#define RREQ_ALREADY_SENT_FLG  0x100
 
 // The message which will be sent from the API to the ODR, or the other way round
 #define API_MSG_STRUCT_SZ 256
