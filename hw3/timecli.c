@@ -8,6 +8,9 @@
 #include <time.h>
 #include <sys/time.h>
 
+// FIXME: Set this to 2 before submitting.
+#define MAX_TIMEOUTS 1
+
 cli_dsock c;                   // client's domain socket
 char *tmp_fname = NULL;        // temp-file name
 fdset fds;                     // fdset for the client's domain socket
@@ -36,7 +39,7 @@ void ask_for_user_input(void) {
 void on_recv_timedout(void *opaque) {
   ++ntimeouts;
   INFO("msg_recv() timed out %d times\n", ntimeouts);
-  if (ntimeouts >= 2) {
+  if (ntimeouts >= MAX_TIMEOUTS) {
     // Reset. Print timed out 2 times.
     ntimeouts = 0;
     ask_for_user_input();
