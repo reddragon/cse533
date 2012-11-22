@@ -543,6 +543,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   eth_addr_t next_hop_addr;
   eth_addr_t iface_addr;
   char eth_buf[20];
+  BOOL ret;
 
   VERBOSE("odr_queue_or_send_rrep(%s -> %s [%d] hops)\n", fromip, toip, hop_count);
 
@@ -562,7 +563,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
     // Queue this    
     VERBOSE("Could not find a route to IP: %s, queueing this RREP\n", toip);
     vector_push_back(&odr_send_q, &rrep_pkt); 
-    return FALSE;
+    ret = FALSE;
   } else {
     h = (struct hwa_info *)treap_get_value(&iface_treap, r->iface_idx);
     memcpy(next_hop_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
@@ -572,8 +573,10 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
     VERBOSE("Found a route to IP: %s, sending this RREP via iface_idx: %d to next_hop_addr: %s\n", toip, r->iface_idx, eth_buf);
     send_over_ethernet(iface_addr, next_hop_addr, (void *)rrep_pkt,
                         sizeof(*rrep_pkt), h->if_index);
-    return TRUE;
+    ret = TRUE;
   }
+  free(rrep_pkt);
+  return ret;
 }
 
 /* Route the message 'pkt' to the appropriate recipient by computing
