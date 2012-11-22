@@ -939,6 +939,7 @@ void on_odr_exit(void) {
 
 int
 main(int argc, char **argv) {
+  double staleness_sec;
   appname = argv[0];
   VERBOSE("Commit ID: %s\n", COMMITID);
   atexit(on_odr_exit);
@@ -950,7 +951,11 @@ main(int argc, char **argv) {
     fprintf(stderr, "Usage: ./odr <staleness>");
     exit(1);
   }
-  sscanf(argv[1], "%u", &staleness);
+  
+  sscanf(argv[1], "%Lf", &staleness_sec);
+  // Convert the floating point staleness value, which was 
+  // in seconds to milliseconds
+  staleness = (uint32_t)(1000 * staleness_sec);
 
   odr_setup();
   odr_loop();
