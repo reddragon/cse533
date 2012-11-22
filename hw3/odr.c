@@ -28,7 +28,6 @@ const char *appname = 0;  // The value of argv[0]
 void
 sigsegv_handler(int sig) {
   signal (SIGSEGV, SIG_DFL);
-  print_bt(appname);
   printf("**Segmentation Fault detected\n");
   fflush(stdout);
   raise (SIGSEGV);
@@ -71,6 +70,7 @@ print_routing_table(void) {
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
   cli_entry *e;
+
   e = MALLOC(cli_entry);
   e->last_id = 0;
   e->cliaddr = cliaddr;
@@ -940,7 +940,7 @@ main(int argc, char **argv) {
   appname = argv[0];
   VERBOSE("Commit ID: %s\n", COMMITID);
   atexit(on_odr_exit);
-  signal(SIGSEGV, sigsegv_handler);
+  // signal(SIGSEGV, sigsegv_handler);
   signal(SIGINT,  sigint_handler);
   signal(SIGTERM, sigterm_handler);
 

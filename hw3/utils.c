@@ -7,20 +7,6 @@
 struct timeval dob; // Date of Birth
 
 void
-print_bt(const char *progname) {
-  pid_t pid;
-  char cmd[2048];
-  FILE *pf;
-  pf = fopen("/tmp/btcmd.gdb", "w");
-  pid = getpid();
-  fwrite("bt\n", 3, 1, pf);
-  fclose(pf);
-  sprintf(cmd, "gdb '%s' %d -batch -x /tmp/btcmd.gdb", progname, pid);
-  // VERBOSE("print_bt(%s)::cmd: %s\n", progname, cmd);
-  system(cmd);
-}
-
-void
 utils_init(void) {
   Gettimeofday(&dob, NULL);
 }

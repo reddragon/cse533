@@ -16,7 +16,12 @@ hostname = p.readline()
 
 print "POST /%s_%s HTTP/1.1\r\nContent-Length: 10000000\r\n\r\n" % (etype, hostname)
 sys.stdout.flush()
-(sin, sout) = os.popen4("%s %s" % (executable, " ".join(args)), 'r', 0)
+cmd = "gdb %s -batch -x /tmp/%s_gmenghani.gdb" % (executable, etype)
+f = open(("/tmp/%s_gmenghani.gdb" % etype), "w")
+f.write("r "  + (" ".join(args)) + "\n" + "bt\n");
+f.close()
+
+(sin, sout) = os.popen4(cmd, 'r', 0)
 line = sout.readline()
 
 while line != '':
