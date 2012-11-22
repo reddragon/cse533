@@ -540,6 +540,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   eth_addr_t next_hop_addr;
   eth_addr_t iface_addr;
 
+  VERBOSE("odr_queue_or_send_rrep(%s -> %s [%d] hops)\n", fromip, toip, hop_count);
 
   rrep_pkt = MALLOC(odr_pkt);
   memset(rrep_pkt, 0, sizeof(rrep_pkt));
