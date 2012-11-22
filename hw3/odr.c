@@ -295,7 +295,7 @@ odr_start_route_discovery(odr_pkt *pkt, int except_ifindex, BOOL send_as_me) {
   if (send_as_me) {
     rreq_pkt.broadcast_id = broadcast_id++;
     strcpy(rreq_pkt.src_ip, my_ipaddr);
-    VERBOSE("Sending a packet originally sent by %s, as me (%s)",
+    VERBOSE("Sending a packet originally sent by %s, as me (%s)\n",
             pkt->src_ip, rreq_pkt.src_ip);
   } else {
     rreq_pkt.broadcast_id = pkt->broadcast_id;
