@@ -576,56 +576,6 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   }
 }
 
-/* Send an RREP packet when an RREQ packet is received OR when we are
- * propagating an RREP that we received.
- * 1. Create a new odr_pkt *
- * 2. Fill up the details
- * 3. Transmit it over the wire
- * 4. Free the odr_pkt *
- */
-void
-odr_send_rrep(const char *fromip, const char *toip,
-              route_entry *e, struct sockaddr_ll *from) {
-  odr_pkt *rrep_pkt;
-  eth_addr_t outgoing_addr;
-  eth_addr_t src_addr;
-  BOOL am_i_sending_RREP = FALSE;
-
-  // TODO: Move this to the caller.
-  /*
-  if (pkt->flags & RREP_ALREADY_SENT_FLG) {
-    // This packet has already been RREP-ed
-    return;
-  }
-  */
-
-  rrep_pkt = MALLOC(odr_pkt);
-  memset(rrep_pkt, 0, sizeof(rrep_pkt));
-  rrep_pkt->type          = PKT_RREP;
-  // No need to set the broadcast_id for an RREP.
-
-  // If we are sending a RREP to A, which wants the path to B,
-  // which goes through this node, then the hop count for A, would be:
-  // hop count up to this node + 1.
-  am_i_sending_RREP = (strcmp(fromip, my_ipaddr) == 0);
-  rrep_pkt->hop_count     = (am_i_sending_RREP ? 0 : e->nhops_to_dest) + 1;
-
-  strcpy(rrep_pkt->src_ip, fromip);
-  strcpy(rrep_pkt->dst_ip, toip);
-
-  VERBOSE("odr_send_rrep(%s -> %s), %d hops\n", fromip, toip, rrep_pkt->hop_count);
-
-  // TODO Retain the Route Discovery Flag?
-  // rrep_pkt->flags = pkt->flags;
-
-  memcpy(outgoing_addr.eth_addr,
-         ((struct hwa_info *)treap_get_value(&iface_treap, e->iface_idx))->if_haddr, sizeof(outgoing_addr.eth_addr));
-  strcpy(src_addr.eth_addr, (char*)from->sll_addr);
-  send_over_ethernet(src_addr, outgoing_addr, (void *)rrep_pkt,
-                     sizeof(*rrep_pkt), from->sll_ifindex);
-  free(rrep_pkt);
-}
-
 /* Route the message 'pkt' to the appropriate recipient by computing
  * the next hop on the route. Also increment the hop_count. If the hop
  * count reaches MAX_HOP_COUNT, we silently drop this packet and print
