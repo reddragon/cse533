@@ -471,8 +471,10 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
-  VERBOSE("act_on_packet::(%s -> %s); hop_count: %d; via: %s\n",
-          pkt->src_ip, pkt->dst_ip, pkt->hop_count, via_eth_addr);
+  VERBOSE("act_on_packet::(%s -> %s); type: %s; hop_count: %d; via: %s\n",
+          pkt->src_ip, pkt->dst_ip, 
+          pkt_type_to_str(pkt->type),
+          pkt->hop_count, via_eth_addr);
 
   if (pkt->type != PKT_RREQ && pkt->type != PKT_RREP) {
     // Ignore this packet since it is neither an RREQ nor is it an

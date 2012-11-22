@@ -71,7 +71,7 @@ typedef struct odr_pkt {
   char msg[ODR_MSG_SZ];   // Message to be sent
 } odr_pkt;
 
-// Checks if the entry is stale now
+const char *pkt_type_to_str(enum odr_pkt_type o);
 BOOL is_stale_entry(route_entry *e);
 BOOL is_my_ip(const char *ip);
 cli_entry * add_cli_entry(struct sockaddr_un *cliaddr);
