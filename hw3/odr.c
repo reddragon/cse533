@@ -512,7 +512,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // destination if a path to the destination is available. If such
     // a path isn't available, we flood the interfaces of this machine
     // with an RREQ to try and discover a path to the destination.
-    VERBOSE("Received an RREP for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->dst_ip);
+    VERBOSE("Received an RREP for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
     // TODO
     // Doesn't just odr_queue_or_send_rrep suffice?
     e = get_route_entry(pkt->dst_ip);
