@@ -553,7 +553,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
     vector_push_back(&odr_send_q, &rrep_pkt); 
     return FALSE;
   } else {
-    h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
+    h = (struct hwa_info *)treap_get_value(&iface_treap, r->iface_idx);
     strcpy(next_hop_addr.eth_addr, r->next_hop);
     strcpy(iface_addr.eth_addr, h->if_haddr);
     
