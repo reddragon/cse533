@@ -775,7 +775,7 @@ maybe_flush_queued_data_packets(void) {
       // We need to free(3) this packet after using it.
       free(pkt);
     } else {
-      vector_push_back(&orphans, pkt);
+      vector_push_back(&orphans, &pkt);
     }
   } // for()
 
