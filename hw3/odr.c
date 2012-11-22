@@ -381,6 +381,8 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
   int i;
   unsigned char mask = 0xff;
 
+  VERBOSE("send_eth_pkt(iface_idx: %d)\n", iface_idx);
+
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
   sa.sll_hatype   = ARPHRD_ETHER;
