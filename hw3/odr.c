@@ -519,8 +519,8 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   }
 }
 
-/* Send the RREP if a path to the destination (toip) is avaibale or
- * enqueue it for sending later in the odr_send_q.
+/* Send the RREP to 'toip' if a path to the source (fromip) is
+ * avaibale or enqueue it for sending later in the odr_send_q.
  * 
  * Returns
  *  TRUE  if the RREP was sent
