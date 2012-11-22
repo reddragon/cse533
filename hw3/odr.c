@@ -749,6 +749,7 @@ maybe_flush_queued_data_packets(void) {
   route_entry *r;
   vector orphans;
   vector_init(&orphans, sizeof(odr_pkt*));
+  char eth_buf[20];
 
   for (i = 0; i < vector_size(&odr_send_q); i++) {
     pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
@@ -756,9 +757,11 @@ maybe_flush_queued_data_packets(void) {
 
     // If a routing entry exists, flush the packet out
     if (r != NULL) {
-      VERBOSE("Found a route for a packet of type %s to IP %s\n", 
+      pretty_print_eth_addr(r->next_hop, eth_buf); 
+      VERBOSE("Found a route for a packet of type %s to IP %s, with next hop %s\n", 
               pkt_type_to_str(pkt->type),
-              pkt->dst_ip);
+              pkt->dst_ip,
+              eth_buf);
       odr_route_message(pkt, r);
       // We need to free(3) this packet after using it.
       free(pkt);
