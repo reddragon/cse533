@@ -438,7 +438,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     INFO("New routing table entry to %s via %s\n", pkt->src_ip, via_eth_addr);
     // We have a new routing table entry.
     e = MALLOC(route_entry);
-    memcpy(e->ip_addr, pkt->src_ip, sizeof(e->ip_addr));
+    strcpy(e->ip_addr, pkt->src_ip);
     memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
     e->iface_idx          = from->sll_ifindex;
     e->nhops_to_dest      = pkt->hop_count;
@@ -454,7 +454,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
            pkt->src_ip, via_eth_addr, pkt->hop_count);
 
       // Replace the older entry.
-      memcpy(e->ip_addr, pkt->src_ip, sizeof(e->ip_addr));
+      strcpy(e->ip_addr, pkt->src_ip);
       memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
