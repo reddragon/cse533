@@ -25,11 +25,24 @@ int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP pa
 vector bid_table;         // The ID containing the mapping of IP to Broadcast ID
 
 void
-sigsegv_handler(int sig)
-{
+sigsegv_handler(int sig) {
   signal (SIGSEGV, SIG_DFL);
   printf("**Segmentation Fault detected\n");
   raise (SIGSEGV);
+}
+
+void
+sigint_handler(int sig) {
+  signal (SIGINT, SIG_DFL);
+  printf("**SIGINT detected\n");
+  raise (SIGINT);
+}
+
+void
+sigterm_handler(int sig) {
+  signal (SIGTERM, SIG_DFL);
+  printf("**SIGTERM detected\n");
+  raise (SIGTERM);
 }
 
 /* Print out the routing table */
@@ -343,7 +356,7 @@ seen_packet_before(odr_pkt *pkt) {
 BOOL
 should_process_packet(odr_pkt *pkt) {
   if (pkt->type == PKT_RREQ && seen_packet_before(pkt)) {
-    INFO("Dropping a PKT_RREQ packet from %s:%d -> %s:%d with broadcast_id: %d, because I have seen it earlier\n",
+    INFO("Dropping previously seen PKT_RREQ from %s:%d -> %s:%d with broadcast_id: %d\n",
          pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port, pkt->broadcast_id);
     // Caller free(3)s packet if necessary.
     return FALSE;
@@ -672,7 +685,7 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
 
   INFO("Delivering message to client at sun_path: %s\n", cliaddr->sun_path);
   memset(&resp, 0, sizeof(resp));
-  clilen = sizeof(cliaddr);
+  clilen = sizeof(*cliaddr);
   resp.rtype = MSG_RESPONSE;
   resp.port = pkt->src_port;
   strcpy(resp.ip, pkt->src_ip);
@@ -913,6 +926,9 @@ main(int argc, char **argv) {
   VERBOSE("Commit ID: %s\n", COMMITID);
   atexit(on_odr_exit);
   signal(SIGSEGV, sigsegv_handler);
+  signal(SIGINT,  sigint_handler);
+  signal(SIGTERM, sigterm_handler);
+
   if (argc != 2) {
     fprintf(stderr, "Usage: ./odr <staleness>");
     exit(1);
