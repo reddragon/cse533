@@ -952,7 +952,7 @@ main(int argc, char **argv) {
     exit(1);
   }
   
-  sscanf(argv[1], "%Lf", &staleness_sec);
+  sscanf(argv[1], "%lf", &staleness_sec);
   // Convert the floating point staleness value, which was 
   // in seconds to milliseconds
   staleness = (uint32_t)(1000 * staleness_sec);
