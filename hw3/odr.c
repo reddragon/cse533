@@ -28,6 +28,7 @@ void
 sigsegv_handler(int sig) {
   signal (SIGSEGV, SIG_DFL);
   printf("**Segmentation Fault detected\n");
+  fflush(stdout);
   raise (SIGSEGV);
 }
 
@@ -35,6 +36,7 @@ void
 sigint_handler(int sig) {
   signal (SIGINT, SIG_DFL);
   printf("**SIGINT detected\n");
+  fflush(stdout);
   raise (SIGINT);
 }
 
@@ -42,6 +44,7 @@ void
 sigterm_handler(int sig) {
   signal (SIGTERM, SIG_DFL);
   printf("**SIGTERM detected\n");
+  fflush(stdout);
   raise (SIGTERM);
 }
 
@@ -919,6 +922,7 @@ void on_odr_exit(void) {
   time(&currtime);
   strftime(str_time, 40, "%T", localtime(&currtime));
   INFO("ODR exited at %s.%03u\n", str_time, (unsigned int)tv.tv_usec/1000);
+  fflush(stdout);
 }
 
 int
