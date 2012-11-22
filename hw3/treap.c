@@ -353,6 +353,14 @@ int main(int argc, char *argv[]) {
         printf("\n");
     }
 
+    int x = 23;
+    treap t1;
+    treap_init(&t1);
+    treap_insert(&t1, 3, &x);
+    int *px = (int*)treap_find(&t1, 3);
+
+    printf("t1[3] = %d\n", *px);
+
     return 0;
 }
 #endif

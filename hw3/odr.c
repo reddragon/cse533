@@ -7,6 +7,7 @@
 #include "myassert.h"
 #include "gitcommit.h"
 #include <unistd.h>
+#include <signal.h>
 
 serv_dsock s;             // Domain socket to listen on & serve requests
 vector cli_table;         // Table containing entries of all clients. vector<cli_entry>
@@ -22,6 +23,14 @@ treap iface_treap;        // Interface Index to Interface Mapping. treap<int, st
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets
 vector bid_table;         // The ID containing the mapping of IP to Broadcast ID
+
+void
+sigsegv_handler(int sig)
+{
+  signal (SIGSEGV, SIG_DFL);
+  printf("**Segmentation Fault detected\n");
+  raise (SIGSEGV);
+}
 
 /* Print out the routing table */
 void
@@ -200,7 +209,7 @@ odr_setup(void) {
     }
     
     if (strcmp(h->if_name, "lo") && strncmp(h->if_name, "eth0", 4)) {
-      INFO("Discovered interface: %s\n", h->if_name);
+      INFO("Discovered interface[%d]: %s\n", h->if_index, h->if_name);
       cptr = h->if_haddr;
       vector_push_back(&hwaddrs, &cptr);
       treap_insert(&iface_treap, h->if_index, h);
@@ -581,7 +590,7 @@ odr_send_rrep(const char *fromip, const char *toip,
   // rrep_pkt->flags = pkt->flags;
 
   strcpy(outgoing_addr.eth_addr,
-         ((struct hwa_info *)treap_find(&iface_treap, e->iface_idx))->if_haddr);
+         ((struct hwa_info *)treap_get_value(&iface_treap, e->iface_idx))->if_haddr);
   strcpy(src_addr.eth_addr, (char*)from->sll_addr);
   send_over_ethernet(src_addr, outgoing_addr, (void *)rrep_pkt,
                      sizeof(*rrep_pkt), from->sll_ifindex);
@@ -618,10 +627,10 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
     }
   }
 
-  h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
+  h = (struct hwa_info *)treap_get_value(&iface_treap, r->iface_idx);
   ASSERT(h);
 
-  INFO("Packet to IP: %s can be routed via interface: %s\n", pkt->dst_ip, h->if_name);
+  INFO("Packet to IP: %s can be routed via interface[%d]: %s\n", pkt->dst_ip, r->iface_idx, h->if_name);
 
   memcpy(src_addr.eth_addr, h->if_haddr, sizeof(h->if_haddr));
   memcpy(dst_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
@@ -903,6 +912,7 @@ int
 main(int argc, char **argv) {
   VERBOSE("Commit ID: %s\n", COMMITID);
   atexit(on_odr_exit);
+  signal(SIGSEGV, sigsegv_handler);
   if (argc != 2) {
     fprintf(stderr, "Usage: ./odr <staleness>");
     exit(1);
