@@ -749,9 +749,9 @@ maybe_flush_queued_data_packets(void) {
   int i;
   odr_pkt *pkt;
   route_entry *r;
+  char eth_buf[20];
   vector orphans;
   vector_init(&orphans, sizeof(odr_pkt*));
-  char eth_buf[20];
 
   for (i = 0; i < vector_size(&odr_send_q); i++) {
     pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
