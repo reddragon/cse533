@@ -705,7 +705,7 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   }
 
   if (errno == ENOENT) {
-    INFO("Could not find client with sun_path: %s\n", cliaddr.sun_path);
+    INFO("Could not find client with sun_path: %s\n", cliaddr->sun_path);
     return;
   }
 
