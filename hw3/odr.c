@@ -550,7 +550,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   if (r == NULL) {
     // Did not find a route entry to send this RREP
     // Queue this    
-    vector_push_back(&odr_send_q, rrep_pkt); 
+    vector_push_back(&odr_send_q, &rrep_pkt); 
     return FALSE;
   } else {
     h = (struct hwa_info *)treap_find(&iface_treap, r->iface_idx);
