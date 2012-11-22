@@ -179,9 +179,9 @@ prune_cli_table(void) {
 
 void
 odr_packet_print(odr_pkt *pkt) {
-  INFO("ODR Packet { Type: %s, bcast_id: %d, hop_count: %d, src: %s:%d, "
+  INFO("ODR Packet { Type: %d, bcast_id: %d, hop_count: %d, src: %s:%d, "
        "dst: %s:%d, size: %d }\n",
-       pkt_type_to_str(pkt->type), pkt->broadcast_id, pkt->hop_count,
+       pkt->type, pkt->broadcast_id, pkt->hop_count,
        pkt->src_ip, pkt->src_port,
        pkt->dst_ip, pkt->dst_port, pkt->msg_size);
 }
