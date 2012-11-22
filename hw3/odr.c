@@ -503,7 +503,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
 
     // Further flood this packet to all interfaces, except the one
     // it came from
-    // pkt->flags |= RREP_ALREADY_SENT_FLG;
+    pkt->flags |= RREP_ALREADY_SENT_FLG;
     odr_start_route_discovery(pkt, from->sll_ifindex); 
   } else {
     // PKT_RREP (FIXME)
