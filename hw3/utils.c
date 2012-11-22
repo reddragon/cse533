@@ -97,9 +97,9 @@ create_tempfile(void) {
 
 void
 create_cli_dsock(char *file_name, cli_dsock *c) {
-  if (c == NULL) {
-    c = MALLOC(cli_dsock);
-  }
+  struct sockaddr_un servaddr;
+
+  ASSERT(c);
   c->sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
   bzero(&c->cliaddr, sizeof(c->cliaddr));
   c->cliaddr.sun_family = AF_LOCAL;
@@ -108,29 +108,37 @@ create_cli_dsock(char *file_name, cli_dsock *c) {
   unlink(file_name); 
   strcpy(c->cliaddr.sun_path, file_name);
   Bind(c->sockfd, (SA *) &c->cliaddr, sizeof(c->cliaddr));
-  
-  bzero(&c->servaddr, sizeof(c->servaddr));
-  c->servaddr.sun_family = AF_LOCAL;
-  strcpy(c->servaddr.sun_path, ODR_DGPATH);
+
+  bzero(&servaddr, sizeof(servaddr));
+  servaddr.sun_family = AF_LOCAL;
+  strcpy(servaddr.sun_path, ODR_DGPATH);
   
   // This is required since unlike normal TCP/UDP sockets, the
   // kernel does not create an ephemeral port for us.
-  connect(c->sockfd, (SA *) &(c->servaddr), sizeof(c->servaddr));
+  connect(c->sockfd, (SA*)&(servaddr), sizeof(servaddr));
 }
 
 void
-create_serv_dsock(serv_dsock *s) {
-  if (s == NULL) {
-    s = MALLOC(serv_dsock);
-  }
+create_generic_dsock(const char *path, serv_dsock *s) {
+  ASSERT(s);
   s->sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
-  unlink(ODR_DGPATH);
+  unlink(path);
   bzero(&s->servaddr, sizeof(s->servaddr));
   s->servaddr.sun_family = AF_LOCAL;
-  strcpy(s->servaddr.sun_path, ODR_DGPATH);
-  
+  strcpy(s->servaddr.sun_path, path);
+
   Bind(s->sockfd, (SA *) &s->servaddr, sizeof(s->servaddr));
-  VERBOSE("Successfully bound to the socket\n%s", "");
+  VERBOSE("Successfully bound to the AF_LOCAL socket at path: %s\n", path);
+}
+
+void
+create_odr_dsock(serv_dsock *s) {
+  create_generic_dsock(ODR_DGPATH, s);
+}
+
+void
+create_srv_dsock(serv_dsock *s) {
+  create_generic_dsock(SRV_DGPATH, s);
 }
 
 struct hwa_info *

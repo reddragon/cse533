@@ -28,14 +28,6 @@ void on_client_exit(void) {
   INFO("Client exited at %s.%03u\n", str_time, (unsigned int)tv.tv_usec/1000);
 }
 
-void
-test_api(void) {
-  //msg_send(c.sockfd, "123.456.789.123", 1234, "Hello!", 0);
-  char ip[20], msg[500];
-  int src_port;
-  msg_recv(c.sockfd, ip, &src_port, msg);
-}
-
 void ask_for_user_input(void) {
   printf("Please enter the IP of the VM do you want to send a message to: ");
   scanf("%s", server_ip);
@@ -137,12 +129,9 @@ main(int argc, char **argv) {
   tmp_fname = create_tempfile();
   VERBOSE("Client File Name: %s\n", tmp_fname);
 
-  prhwaddrs();
-
   create_cli_dsock(tmp_fname, &c);
 
   (void) signal(SIGINT, on_interrupt);
   client_loop();
-  test_api();
   return 0;
 }

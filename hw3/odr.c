@@ -247,7 +247,7 @@ odr_setup(void) {
   strcpy(serv_addr->sun_path, SRV_DGPATH);
   serv_addr->sun_family = AF_LOCAL;
   add_cli_entry(serv_addr);
-  create_serv_dsock(&s);
+  create_odr_dsock(&s);
 }
 
 void

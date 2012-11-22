@@ -54,7 +54,7 @@ struct hwa_info {
 };
 
 typedef struct cli_dsock {
-  struct sockaddr_un cliaddr, servaddr;
+  struct sockaddr_un cliaddr;
   int sockfd;
 } cli_dsock;
 
@@ -71,7 +71,9 @@ char * create_tempfile(void);
 void utils_init(void);
 uint32_t current_time_in_ms(void);
 void create_cli_dsock(char *file_name, cli_dsock *c);
-void create_serv_dsock(serv_dsock *s);
+void create_generic_dsock(const char *path, serv_dsock *s);
+void create_odr_dsock(serv_dsock *s);
+void create_srv_dsock(serv_dsock *s);
 struct hwa_info	*get_hw_addrs(void);
 struct hwa_info	*Get_hw_addrs(void);
 void free_hwa_info(struct hwa_info *);

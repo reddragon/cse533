@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wstrict-prototypes -g
 OBJDEPS = utils.o api.o algorithm.o vector.o \
       fdset.o email.o treap.o
-OBJ = client_gmenghani ODR_gmenghani $(OBJDEPS)
+OBJ = client_gmenghani ODR_gmenghani server_gmenghani $(OBJDEPS)
 
 LINKFLAGS = -lpthread
 INCFLAGS  = -I../unpv13e_linux/lib
@@ -22,6 +22,9 @@ ODR_gmenghani: odr.c odr.h api.h myassert.h gitcommit.h $(OBJDEPS)
 
 client_gmenghani: timecli.c myassert.h gitcommit.h $(OBJDEPS)
 	$(CC) $(CFLAGS) timecli.c $(OBJDEPS) -o client_gmenghani $(LIBS)
+
+server_gmenghani: timeserv.c myassert.h gitcommit.h $(OBJDEPS)
+	$(CC) $(CFLAGS) timeserv.c $(OBJDEPS) -o server_gmenghani $(LIBS)
 
 api.o: api.c api.h utils.h
 	$(CC) $(CFLAGS) -c -o api.o api.c
