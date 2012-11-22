@@ -88,9 +88,6 @@ void odr_route_message(odr_pkt *pkt, route_entry *e);
 
 BOOL odr_queue_or_send_rrep(const char *fromip, const char *toip,
                             int hop_count);
-// signature(fromip, toip, hop_count, route_entry_to_get_to_TOIP)
-void odr_send_rrep(const char *fromip, const char *toip,
-                   route_entry *e, struct sockaddr_ll *from);
 void odr_deliver_message_to_client(odr_pkt *pkt);
 void odr_start_route_discovery(odr_pkt *pkt, int except_ifindex);
 void odr_packet_print(odr_pkt *pkt);
