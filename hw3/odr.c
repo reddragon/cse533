@@ -403,6 +403,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
 
   memcpy(sa.sll_addr, ef->dst_eth_addr.eth_addr, 6);
   Sendto(pf_sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
+  VERBOSE("send_eth_pkt() terminated successfully\n%s", "");
 }
 
 /* Update the routing table based on the type of the packet and the
@@ -609,8 +610,8 @@ odr_send_rrep(const char *fromip, const char *toip,
   // TODO Retain the Route Discovery Flag?
   // rrep_pkt->flags = pkt->flags;
 
-  strcpy(outgoing_addr.eth_addr,
-         ((struct hwa_info *)treap_get_value(&iface_treap, e->iface_idx))->if_haddr);
+  memcpy(outgoing_addr.eth_addr,
+         ((struct hwa_info *)treap_get_value(&iface_treap, e->iface_idx))->if_haddr, sizeof(outgoing_addr.eth_addr));
   strcpy(src_addr.eth_addr, (char*)from->sll_addr);
   send_over_ethernet(src_addr, outgoing_addr, (void *)rrep_pkt,
                      sizeof(*rrep_pkt), from->sll_ifindex);
