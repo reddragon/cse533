@@ -486,9 +486,9 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
       if (am_i_the_destination || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
         if (am_i_the_destination) {
-          odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, 1);
+          odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, 1);
         } else {
-          odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
+          odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, e->nhops_to_dest + 1);
         }
         // odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
       } else {
@@ -510,7 +510,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     e = get_route_entry(pkt->dst_ip);
     if (e) {
       // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
-      odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
+      odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, e->nhops_to_dest + 1);
     } else {
       // TODO: Find out if we should not flood the interface on which
       // the RREP arrived.
