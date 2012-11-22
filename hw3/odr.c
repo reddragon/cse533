@@ -726,6 +726,19 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
   }
 }
 
+/*
+ * Helper method to return the pkt_type as a string
+ */
+const char *
+pkt_type_to_str(odr_pkt_type o) {
+  switch(o) {
+    case PKT_RREP: return "PKT_RREP";
+    case PKT_RREQ: return "PKT_RREQ";
+    case PKT_DATA: return "PKT_DATA";
+    default      : return "UNKNOWN";
+  }
+}
+
 /* Check the queue of pending data packets to be routed, and send out
  * as many as we can.
  */
@@ -743,6 +756,9 @@ maybe_flush_queued_data_packets(void) {
 
     // If a routing entry exists, flush the packet out
     if (r != NULL) {
+      VERBOSE("Found a route for a packet of type %s to IP %s\n", 
+              pkt_type_to_str(pkt->type),
+              pkt->dst_ip);
       odr_route_message(pkt, r);
       // We need to free(3) this packet after using it.
       free(pkt);
