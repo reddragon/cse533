@@ -562,6 +562,8 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   eth_addr_t iface_addr;
   char eth_buf[20];
   BOOL ret;
+  int i;
+  odr_pkt *pkt;
 
   VERBOSE("odr_queue_or_send_rrep(%s -> %s [%d] hops)\n", fromip, toip, hop_count);
 
@@ -580,7 +582,14 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
     // Did not find a route entry to send this RREP
     // Queue this    
     VERBOSE("Could not find a route to IP: %s, queueing this RREP\n", toip);
+    
+    ASSERT(rrep_pkt->type == PKT_RREQ || rrep_pkt->type == PKT_RREP || rrep_pkt->type == PKT_DATA);
     vector_push_back(&odr_send_q, &rrep_pkt); 
+    VERBOSE("odr_send_q size: %d\n", vector_size(&odr_send_q));
+    for (i = 0; i < vector_size(&odr_send_q); i++) {
+      pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
+      ASSERT(pkt->type == PKT_RREQ || pkt->type == PKT_RREP || pkt->type == PKT_DATA);
+    }
     ret = FALSE;
   } else {
     h = (struct hwa_info *)treap_get_value(&iface_treap, r->iface_idx);
@@ -593,7 +602,7 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
                         sizeof(*rrep_pkt), h->if_index);
     ret = TRUE;
   }
-  free(rrep_pkt);
+  //free(rrep_pkt);
   return ret;
 }
 
@@ -610,6 +619,8 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
   struct hwa_info *h;
   eth_addr_t src_addr, dst_addr;
 
+  ASSERT(pkt->type == PKT_RREQ || pkt->type == PKT_RREP || pkt->type == PKT_DATA);
+
   if (!r) {
     // Look up the routing table, to see if there is an entry
     r = get_route_entry(pkt->dst_ip);
@@ -618,6 +629,7 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
       p = MALLOC(odr_pkt);
       memcpy(p, pkt, sizeof(odr_pkt));
 
+      ASSERT(p->type == PKT_RREQ || p->type == PKT_RREP || p->type == PKT_DATA);
       // Queue up the packet to be sent later.
       vector_push_back(&odr_send_q, &p);
       
@@ -636,6 +648,7 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
   memcpy(src_addr.eth_addr, h->if_haddr, sizeof(h->if_haddr));
   memcpy(dst_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
 
+  ASSERT(pkt->type == PKT_RREQ || pkt->type == PKT_RREP || pkt->type == PKT_DATA);
   send_over_ethernet(src_addr, dst_addr, pkt, sizeof(*pkt), h->if_index);
   // Don't free(3) the packet here, since the caller will free it.
 }
@@ -769,9 +782,12 @@ maybe_flush_queued_data_packets(void) {
   char eth_buf[20];
   vector orphans;
   vector_init(&orphans, sizeof(odr_pkt*));
-
+  
+  VERBOSE("Entering maybe_flush_queued_data_packets()\n%s", "");
+  VERBOSE("Size of odr_send_q: %d\n", vector_size(&odr_send_q));
   for (i = 0; i < vector_size(&odr_send_q); i++) {
     pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
+    ASSERT(pkt->type == PKT_RREQ || pkt->type == PKT_RREP || pkt->type == PKT_DATA);
     r = get_route_entry(pkt->dst_ip);
     
     if (pkt->type == PKT_DATA) {
@@ -806,6 +822,12 @@ maybe_flush_queued_data_packets(void) {
 
   vector_swap(&odr_send_q, &orphans);
   vector_destroy(&orphans);
+  for (i = 0; i < vector_size(&odr_send_q); i++) {
+    pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
+    ASSERT(pkt->type == PKT_RREQ || pkt->type == PKT_RREP || pkt->type == PKT_DATA);
+  }
+  
+  VERBOSE("Leaving maybe_flush_queued_data_packets()\n%s", "");
 }
 
 void
@@ -856,6 +878,8 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     print_routing_table();
     memcpy(p, pkt, sizeof(odr_pkt));
     VERBOSE("Pushing the PKT_DATA packet into the queue\n%s", "");
+    
+    ASSERT(p->type == PKT_RREQ || p->type == PKT_RREP || p->type == PKT_DATA);
     vector_push_back(&odr_send_q, &p);
   }
   maybe_flush_queued_data_packets();
