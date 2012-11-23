@@ -599,10 +599,10 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
     pretty_print_eth_addr(next_hop_addr.eth_addr, eth_buf);
     VERBOSE("Found a route to IP: %s, sending this RREP via iface_idx: %d to next_hop_addr: %s\n", toip, r->iface_idx, eth_buf);
     send_over_ethernet(iface_addr, next_hop_addr, (void *)rrep_pkt,
-                        sizeof(*rrep_pkt), h->if_index);
+                       sizeof(*rrep_pkt), h->if_index);
+    free(rrep_pkt);
     ret = TRUE;
   }
-  //free(rrep_pkt);
   return ret;
 }
 
