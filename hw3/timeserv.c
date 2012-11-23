@@ -45,6 +45,9 @@ void on_recv(void *opaque) {
   }
 
   INFO("Received message: '%s' from %s:%d\n", msg, src_ip, src_port);
+// FIXME 
+#if 0
+  VERBOSE("Sending a message to the client %s:%d\n", src_ip, src_port);
   // TODO: Set the time
   sprintf(msg, "Hello W0rLd");
   r = msg_send(s.sockfd, src_ip, src_port, msg, 0);
@@ -52,6 +55,7 @@ void on_recv(void *opaque) {
     r = msg_send(s.sockfd, src_ip, src_port, msg, 0);
   }
   assert_ge(r, 0);
+#endif
 }
 
 void on_error(void *opaque) {
