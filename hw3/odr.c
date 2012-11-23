@@ -618,11 +618,12 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
       p = MALLOC(odr_pkt);
       memcpy(p, pkt, sizeof(odr_pkt));
 
-      pkt->broadcast_id = broadcast_id++;
-      odr_start_route_discovery(pkt, -1, FALSE);
-
       // Queue up the packet to be sent later.
       vector_push_back(&odr_send_q, &p);
+      
+      // Flush out the queue if you can, and the RREQ is sent if 
+      // required
+      maybe_flush_queued_data_packets();
       return;
     }
   }
