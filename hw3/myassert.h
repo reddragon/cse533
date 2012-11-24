@@ -13,5 +13,6 @@
 #define assert_le(L,R) if((L)>(R)) { fprintf(stderr, "%d <= %d FAILED\n", (L), (R)); ASSERT((L)<=(R)); }
 #define assert_gt(L,R) if((L)<=(R)) { fprintf(stderr, "%d > %d FAILED\n", (L), (R)); ASSERT((L)>(R)); }
 #define assert_ge(L,R) if((L)<(R)) { fprintf(stderr, "%d >= %d FAILED\n", (L), (R)); ASSERT((L)>=(R)); }
+#define assert_eq(L,R) if((L)!=(R)) { fprintf(stderr, "%d == %d FAILED\n", (L), (R)); ASSERT((L)==(R)); }
 
 #endif // MYASSERT_H
