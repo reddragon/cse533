@@ -896,6 +896,7 @@ on_pf_recv(void *opaque) {
   struct sockaddr_ll sa;
   socklen_t addrlen = sizeof(sa);
   eth_frame frame;
+  memset(&frame, 0, sizeof(frame));
   r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
   VERBOSE("Received an eth_frame of size %d\n", r);
   if (r < 0 && errno == EINTR) {
