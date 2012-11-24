@@ -32,7 +32,12 @@ void on_recv(void *opaque) {
   int r;
   char src_ip[20];
   int src_port;
-  char msg[2048];
+  char msg[30];
+  time_t rawtime;
+  struct tm *timeinfo;
+
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
 
   r = msg_recv(s.sockfd, src_ip, &src_port, msg);
   if (r < 0) {
@@ -46,10 +51,11 @@ void on_recv(void *opaque) {
 
   INFO("Received message: '%s' from %s:%d\n", msg, src_ip, src_port);
 // FIXME 
-#if 0
+#if 1
   VERBOSE("Sending a message to the client %s:%d\n", src_ip, src_port);
   // TODO: Set the time
-  sprintf(msg, "Hello W0rLd");
+  // sprintf(msg, "Hello W0rLd");
+  strftime(msg, sizeof(msg), "%c", timeinfo);
   r = msg_send(s.sockfd, src_ip, src_port, msg, 0);
   while (r < 0 && errno == EINTR) {
     r = msg_send(s.sockfd, src_ip, src_port, msg, 0);
