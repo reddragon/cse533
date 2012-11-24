@@ -18,6 +18,9 @@
 #define FALSE 0
 #define TRUE  1
 
+#define API_MSG_SZ 30
+#define ODR_MSG_SZ API_MSG_SZ
+
 #define TIMESTAMPMSG(TYPE, X, VARGS...) {     \
   fprintf(stdout, TYPE ": " X, VARGS);        \
   fflush(stdout);                             \

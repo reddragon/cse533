@@ -57,7 +57,6 @@ typedef enum odr_pkt_type {
   PKT_DATA = 3  // Application Payload
 } odr_pkt_type;
 
-#define ODR_MSG_SZ 30
 typedef struct odr_pkt {
   uint16_t type;          // Type of the ODR packet
   uint32_t broadcast_id;  // Broadcast ID of the packet 

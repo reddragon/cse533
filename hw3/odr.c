@@ -696,8 +696,12 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
   resp.port = pkt->src_port;
   strcpy(resp.ip, pkt->src_ip);
   resp.msg_flag = 0;
+
+  assert_le(API_MSG_SZ, sizeof(resp.msg));
+  assert_le(API_MSG_SZ, sizeof(pkt->msg));
+
   memcpy(resp.msg, pkt->msg, API_MSG_SZ);
-  
+
   r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) cliaddr, clilen);
   while (r < 0 && errno == EINTR) {
     r = sendto(s.sockfd, (char*)&resp, sizeof(api_msg), 0, (SA*) cliaddr, clilen);
