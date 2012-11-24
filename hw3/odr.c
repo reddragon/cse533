@@ -314,7 +314,7 @@ odr_start_route_discovery(odr_pkt *pkt, int except_ifindex, BOOL send_as_me) {
   memset(dst_addr.eth_addr, 0xff, sizeof(dst_addr));
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
 
-  VERBOSE("odr_start_route_discovery::Flooding the network with a PKT_RREQ [broadcast_id: %d] for destination IP: %s\n", pkt->broadcast_id, pkt->dst_ip);
+  VERBOSE("odr_start_route_discovery::Flooding the network with a PKT_RREQ [broadcast_id: %d] for destination IP: %s\n", rreq_pkt.broadcast_id, rreq_pkt.dst_ip);
   for (h = h_head; h != NULL; h = h->hwa_next) {
     // We don't send the message on eth0 and its aliases, and lo
     if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
