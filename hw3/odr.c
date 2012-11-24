@@ -314,7 +314,7 @@ odr_start_route_discovery(odr_pkt *pkt, int except_ifindex, BOOL send_as_me) {
   memset(dst_addr.eth_addr, 0xff, sizeof(dst_addr));
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
 
-  VERBOSE("odr_start_route_discovery::Flooding the network with a PKT_RREQ for destination IP: %s\n", pkt->dst_ip);
+  VERBOSE("odr_start_route_discovery::Flooding the network with a PKT_RREQ [broadcast_id: %d] for destination IP: %s\n", pkt->broadcast_id, pkt->dst_ip);
   for (h = h_head; h != NULL; h = h->hwa_next) {
     // We don't send the message on eth0 and its aliases, and lo
     if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
@@ -516,12 +516,15 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
       } else {
         odr_start_route_discovery(pkt, -1, FALSE);
       }
+    } else {
+      // Q. Menghani, should the 2 lines below be in the 'else' part?
+      // Also, should we do an early exit in the former case?
+      //
+      // Further flood this packet to all interfaces, except the one
+      // it came from
+      assert(pkt->flags | RREP_ALREADY_SENT_FLG);
+      odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
     }
-
-    // Further flood this packet to all interfaces, except the one
-    // it came from
-    pkt->flags |= RREP_ALREADY_SENT_FLG;
-    odr_start_route_discovery(pkt, from->sll_ifindex, FALSE); 
   } else if (pkt->type == PKT_RREP) {
     // PKT_RREP (FIXME)
     //
@@ -539,7 +542,10 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     } else {
       // TODO: Find out if we should not flood the interface on which
       // the RREP arrived.
-      odr_start_route_discovery(pkt, -1, FALSE);
+      //
+      // Q. Menghani, why is this FALSE?
+      //
+      odr_start_route_discovery(pkt, -1, TRUE);
     }
   } else if (pkt->type == PKT_DATA) {
     VERBOSE("Received a PKT_DATA packet for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
