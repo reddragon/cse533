@@ -15,7 +15,7 @@ cli_dsock c;                   // client's domain socket
 char *tmp_fname = NULL;        // temp-file name
 fdset fds;                     // fdset for the client's domain socket
 int ntimeouts = 0;             // # of timeouts for this msg_send()
-char server_ip[40];            // The IP address of the server as entered by the user
+char server_ip[80];            // The IP address of the server as entered by the user
 
 void on_client_exit(void) {
   struct timeval tv;
@@ -34,6 +34,7 @@ void on_client_exit(void) {
 void ask_for_user_input(void) {
   printf("Please enter the IP of the VM do you want to send a message to: ");
   scanf("%s", server_ip);
+  server_ip[15] = '\0';
 }
 
 void on_recv_timedout(void *opaque) {
