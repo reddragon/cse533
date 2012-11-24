@@ -326,6 +326,7 @@ odr_start_route_discovery(odr_pkt *pkt, int except_ifindex, BOOL send_as_me) {
       continue;
     }
 
+    ASSERT(strcmp(rreq_pkt.src_ip, rreq_pkt.dst_ip));
     memcpy(src_addr.eth_addr, h->if_haddr, sizeof(h->if_haddr));
     send_over_ethernet(src_addr, dst_addr, &rreq_pkt,
                        odr_pkt_hdr_sz, h->if_index);
@@ -483,6 +484,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   route_entry *e;
   char via_eth_addr[20];
   BOOL am_i_the_destination = FALSE;
+  BOOL rrep_sent = FALSE;
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
@@ -508,23 +510,22 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
       if (am_i_the_destination || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
         if (am_i_the_destination) {
-          odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, 1);
+          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, 0);
         } else {
-          odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, e->nhops_to_dest + 1);
+          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, e->nhops_to_dest);
         }
         // odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
-      } else {
-        odr_start_route_discovery(pkt, -1, FALSE);
-      }
-    } else {
-      // Q. Menghani, should the 2 lines below be in the 'else' part?
-      // Also, should we do an early exit in the former case?
-      //
-      // Further flood this packet to all interfaces, except the one
-      // it came from
-      assert(pkt->flags | RREP_ALREADY_SENT_FLG);
-      odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
-    }
+        if (rrep_sent) {
+          pkt->flags |= RREP_ALREADY_SENT_FLG;
+        }
+
+      } // if (am_i_the_destination || e) {
+
+    } // if (!(pkt->flags & RREP_ALREADY_SENT_FLG))
+
+    // Send an RREQ in every case.
+    odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
+
   } else if (pkt->type == PKT_RREP) {
     // PKT_RREP (FIXME)
     //
