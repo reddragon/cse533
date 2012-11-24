@@ -536,17 +536,20 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     VERBOSE("Received an RREP for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
     // TODO
     // Doesn't just odr_queue_or_send_rrep suffice?
-    e = get_route_entry(pkt->dst_ip);
-    if (e) {
-      // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
-      odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
-    } else {
-      // TODO: Find out if we should not flood the interface on which
-      // the RREP arrived.
-      //
-      // Q. Menghani, why is this FALSE?
-      //
-      odr_start_route_discovery(pkt, -1, TRUE);
+    am_i_the_destination = is_my_ip(pkt->dst_ip);
+    if (!am_i_the_destination) {
+      e = get_route_entry(pkt->dst_ip);
+      if (e) {
+        // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
+        odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
+      } else {
+        // TODO: Find out if we should not flood the interface on which
+        // the RREP arrived.
+        //
+        // Q. Menghani, why is this FALSE?
+        //
+        odr_start_route_discovery(pkt, -1, TRUE);
+      }
     }
   } else if (pkt->type == PKT_DATA) {
     VERBOSE("Received a PKT_DATA packet for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
