@@ -166,7 +166,10 @@ prune_cli_table(void) {
 
   for (i = 0; i < vector_size(&cli_table); i++) {
     c = vector_at(&cli_table, i);
-    if (access(c->cliaddr->sun_path, R_OK) == 0) {
+    // No error accessing the file, or the file is
+    // the time server's file
+    if (access(c->cliaddr->sun_path, R_OK) == 0 || 
+        !strcmp(c->cliaddr->sun_path, SRV_DGPATH)) {
       // No error accessing the file
       vector_push_back(&alive, c);
     } else {
