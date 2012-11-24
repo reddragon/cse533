@@ -70,10 +70,12 @@ print_routing_table(void) {
 cli_entry *
 add_cli_entry(struct sockaddr_un *cliaddr) {
   cli_entry *e;
+  struct sockaddr_un *caddr = MALLOC(struct sockaddr_un);
+  memcpy(caddr, cliaddr, sizeof(*cliaddr));
 
   e = MALLOC(cli_entry);
   e->last_id = 0;
-  e->cliaddr = cliaddr;
+  e->cliaddr = caddr;
   e->e_portno = next_e_portno++;
 
   vector_push_back(&cli_table, (void *)e);
@@ -100,9 +102,7 @@ get_cli_entry(struct sockaddr_un *cliaddr) {
   }
   if (!e) {
     // Add an entry for this client
-    struct sockaddr_un *caddr = MALLOC(struct sockaddr_un);
-    memcpy(caddr, cliaddr, sizeof(*cliaddr));
-    e = add_cli_entry(caddr);
+    e = add_cli_entry(cliaddr);
   }
   return e;
 }
@@ -171,6 +171,11 @@ prune_cli_table(void) {
       vector_push_back(&alive, c);
     } else {
       treap_delete(&cli_port_map, c->e_portno);
+      // Zero out structures to help debugging.
+      memset(c->cliaddr, 0, sizeof(*(c->cliaddr)));
+      free(c->cliaddr);
+      memset(c, 0, sizeof(*c));
+      free(c);
     }
   }
   vector_swap(&cli_table, &alive);
