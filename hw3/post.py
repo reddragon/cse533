@@ -16,7 +16,8 @@ hostname = p.readline()
 
 print "POST /%s_%s HTTP/1.1\r\nContent-Length: 10000000\r\n\r\n" % (etype, hostname)
 sys.stdout.flush()
-cmd = "gdb %s -batch -x /tmp/%s_gmenghani.gdb" % (executable, etype)
+# cmd = "gdb %s -batch -x /tmp/%s_gmenghani.gdb" % (executable, etype)
+cmd = "valgrind %s %s" % (executable, (" ".join(args)))
 f = open(("/tmp/%s_gmenghani.gdb" % etype), "w")
 f.write("r "  + (" ".join(args)) + "\n" + "bt\n");
 f.close()
