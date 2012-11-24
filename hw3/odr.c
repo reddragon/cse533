@@ -824,7 +824,7 @@ maybe_flush_queued_data_packets(void) {
     } else {
       if (pkt->type == PKT_DATA && (!(pkt->flags & RREQ_ALREADY_SENT_FLG))) {
         VERBOSE("Flooding the network to send the PKT_DATA orphan packet destined to %s\n",
-                pkt->src_ip);
+                pkt->dst_ip);
         pkt->flags |= RREQ_ALREADY_SENT_FLG;
         odr_start_route_discovery(pkt, -1, TRUE);
       }
