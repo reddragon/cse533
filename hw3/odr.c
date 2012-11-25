@@ -538,24 +538,16 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // Doesn't just odr_queue_or_send_rrep suffice?
     am_i_the_destination = is_my_ip(pkt->dst_ip);
     if (!am_i_the_destination) {
-      e = get_route_entry(pkt->dst_ip);
-      if (e) {
-        // We *WILL* find an interface on which we should send the
-        // RREP, so don't bother checking the return value.
-        odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
-      } else {
-        // Add this packet to the queue of packets to be sent.
-        //
-        // We should flood every interface with the RREQ since this
-        // might be the only interface on this machine.
-        //
-        odr_pkt *p = MALLOC(odr_pkt);
-        *p = *pkt;
-        vector_push_back(&odr_send_q, p);
+      rrep_sent = odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip,
+                                         pkt->hop_count);
+      if (!rrep_sent) {
         odr_start_route_discovery(pkt, -1, TRUE);
       }
     }
-  } else if (pkt->type == PKT_DATA) {
+  }
+  /* We probably don't need this:
+   *
+    else if (pkt->type == PKT_DATA) {
     VERBOSE("Received a PKT_DATA packet for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
     e = get_route_entry(pkt->dst_ip);
     if (e) {
@@ -565,6 +557,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     }
     odr_route_message(pkt, e);
   }
+  */
 }
 
 /* Send the RREP to 'toip' if a path to the source (fromip) is
