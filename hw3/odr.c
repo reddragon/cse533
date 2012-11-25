@@ -543,10 +543,8 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
         // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
         odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
       } else {
-        // TODO: Find out if we should not flood the interface on which
-        // the RREP arrived.
-        //
-        // Q. Menghani, why is this FALSE?
+        // We should flood every interface with the RREQ since this
+        // might be the only interface on this machine.
         //
         odr_start_route_discovery(pkt, -1, TRUE);
       }
