@@ -6,3 +6,20 @@ currently irrespective of whether we queued or sent the RREP. Fix this.
 
 We send an RREP followed b yand RREQ. Check if this is in violation
 with anything mentioned in the handout.
+
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+Check timeout values
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+Re-try 2 times in the client.
+Set the rediscovery flag in the 2nd transmission.
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+Read document to see where we need to perform hostname <-> IP Address
+conversions.
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*

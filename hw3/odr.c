@@ -537,8 +537,6 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     // a path isn't available, we flood the interfaces of this machine
     // with an RREQ to try and discover a path to the destination.
     VERBOSE("Received an RREP for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
-    // TODO
-    // Doesn't just odr_queue_or_send_rrep suffice?
     am_i_the_destination = is_my_ip(pkt->dst_ip);
     if (!am_i_the_destination) {
       rrep_sent = odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip,
@@ -589,20 +587,18 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   memset(rrep_pkt, 0, sizeof(rrep_pkt));
   rrep_pkt->type          = PKT_RREP;
   rrep_pkt->hop_count     = hop_count;
-  // TODO Pass the port numbers
-  // rrep_pkt->src_port      = ?
-  // rrep_pkt->dst_port      = ?
+  // We don't need to pass the port numbers for an RREP packet
   strcpy(rrep_pkt->src_ip, fromip);
   strcpy(rrep_pkt->dst_ip, toip);
   
   r = get_route_entry(toip);
   if (r == NULL) {
     // Did not find a route entry to send this RREP
-    // Queue this    
+    // Queue this
     VERBOSE("Could not find a route to IP: %s, queueing this RREP\n", toip);
-    
+
     ASSERT(rrep_pkt->type == PKT_RREQ || rrep_pkt->type == PKT_RREP || rrep_pkt->type == PKT_DATA);
-    vector_push_back(&odr_send_q, &rrep_pkt); 
+    vector_push_back(&odr_send_q, &rrep_pkt);
     VERBOSE("odr_send_q size: %d\n", vector_size(&odr_send_q));
     for (i = 0; i < vector_size(&odr_send_q); i++) {
       pkt = *(odr_pkt**)vector_at(&odr_send_q, i);
@@ -632,7 +628,6 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
  */
 void
 odr_route_message(odr_pkt *pkt, route_entry *r) {
-  // TODO Where are we handling RREQs and RREPs
   odr_pkt *p;
   struct hwa_info *h;
   eth_addr_t src_addr, dst_addr;
@@ -647,7 +642,6 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
       p = MALLOC(odr_pkt);
       memcpy(p, pkt, sizeof(odr_pkt));
 
-      ASSERT(p->type == PKT_RREQ || p->type == PKT_RREP || p->type == PKT_DATA);
       // Queue up the packet to be sent later.
       vector_push_back(&odr_send_q, &p);
       
@@ -860,9 +854,7 @@ maybe_flush_queued_data_packets(void) {
 
 void
 process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
-  // TODO
-  // There is a packet on the PF_PACKET sockfd
-  // Process it
+  // There is a packet on the PF_PACKET sockfd. Process it
   char src_addr[20];
   char dst_addr[20];
   odr_pkt *pkt;
