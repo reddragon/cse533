@@ -449,7 +449,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
 
   // We got a request packet from someone. Update the reverse path
   // to that host as via the host we got this packet from.
-  e = get_route_entry(pkt->dst_ip);
+  e = get_route_entry(pkt->src_ip);
   if (!e) {
     INFO("New routing table entry to %s via %s\n", pkt->src_ip, via_eth_addr);
     // We have a new routing table entry.
@@ -467,10 +467,10 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       INFO("Replacing older routing table entry to (%s via %s with "
            "hop count %d) with (%s via %s with hop count %d)\n",
            e->ip_addr, via_eth_addr_old, e->nhops_to_dest,
-           pkt->dst_ip, via_eth_addr, pkt->hop_count);
+           pkt->src_ip, via_eth_addr, pkt->hop_count);
 
       // Replace the older entry.
-      strcpy(e->ip_addr, pkt->dst_ip);
+      strcpy(e->ip_addr, pkt->src_ip);
       memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
@@ -489,7 +489,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
   VERBOSE("act_on_packet::(%s -> %s); type: %s; hop_count: %d; via: %s\n",
-          pkt->src_ip, pkt->dst_ip, 
+          pkt->src_ip, pkt->dst_ip,
           pkt_type_to_str(pkt->type),
           pkt->hop_count, via_eth_addr);
 
