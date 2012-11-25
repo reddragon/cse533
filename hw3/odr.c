@@ -824,12 +824,18 @@ maybe_flush_queued_data_packets(void) {
     if (r != NULL) {
       pkt->flags &= ~(RREQ_ALREADY_SENT_FLG);
       assert(!(pkt->flags & RREQ_ALREADY_SENT_FLG));
-
+    
       pretty_print_eth_addr(r->next_hop, eth_buf); 
-      VERBOSE("Found a route for a packet of type %s to IP %s, with next hop %s\n", 
+      if (pkt->type == PKT_RREP) {
+        pkt->hop_count = r->nhops_to_dest;
+      }
+
+      VERBOSE("Found a route for a packet of type %s to IP %s, with next hop %s, and hop count %d\n", 
               pkt_type_to_str(pkt->type),
               pkt->dst_ip,
-              eth_buf);
+              eth_buf,
+              pkt->hop_count);
+
       odr_route_message(pkt, r);
       // We need to free(3) this packet after using it.
       free(pkt);
