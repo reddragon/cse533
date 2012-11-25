@@ -462,7 +462,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     vector_push_back(&route_table, e);
     free(e);
   } else {
-    if (e->nhops_to_dest > pkt->hop_count) {
+    if (pkt->hop_count <= e->nhops_to_dest) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
       INFO("Replacing older routing table entry to (%s via %s with "
            "hop count %d) with (%s via %s with hop count %d)\n",
