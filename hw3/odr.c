@@ -78,7 +78,7 @@ add_cli_entry(struct sockaddr_un *cliaddr) {
   e->cliaddr = caddr;
   e->e_portno = next_e_portno++;
 
-  vector_push_back(&cli_table, (void *)e);
+  vector_push_back(&cli_table, e);
   treap_insert(&cli_port_map, e->e_portno, e);
 
   VERBOSE("Added an entry for client with sun_path: %s and port number: %d\n", cliaddr->sun_path, e->e_portno);
@@ -173,12 +173,15 @@ prune_cli_table(void) {
       // No error accessing the file
       vector_push_back(&alive, c);
     } else {
+      cli_entry *p;
+      p = (cli_entry*)treap_get_value(&cli_port_map, c->e_portno);
+      free(p);
+      p = NULL;
       treap_delete(&cli_port_map, c->e_portno);
       // Zero out structures to help debugging.
       memset(c->cliaddr, 0, sizeof(*(c->cliaddr)));
       free(c->cliaddr);
       memset(c, 0, sizeof(*c));
-      free(c);
     }
   }
   vector_swap(&cli_table, &alive);
