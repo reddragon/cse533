@@ -549,7 +549,9 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
         // We should flood every interface with the RREQ since this
         // might be the only interface on this machine.
         //
-        vector_push_back(&odr_send_q, pkt);
+        odr_pkt *p = MALLOC(odr_pkt);
+        *p = *pkt;
+        vector_push_back(&odr_send_q, p);
         odr_start_route_discovery(pkt, -1, TRUE);
       }
     }
