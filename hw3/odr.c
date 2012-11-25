@@ -540,12 +540,16 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
     if (!am_i_the_destination) {
       e = get_route_entry(pkt->dst_ip);
       if (e) {
-        // odr_send_rrep(pkt->src_ip, pkt->dst_ip, e, from);
+        // We *WILL* find an interface on which we should send the
+        // RREP, so don't bother checking the return value.
         odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip, e->nhops_to_dest + 1);
       } else {
+        // Add this packet to the queue of packets to be sent.
+        //
         // We should flood every interface with the RREQ since this
         // might be the only interface on this machine.
         //
+        vector_push_back(&odr_send_q, pkt);
         odr_start_route_discovery(pkt, -1, TRUE);
       }
     }
