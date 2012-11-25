@@ -467,10 +467,10 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       INFO("Replacing older routing table entry to (%s via %s with "
            "hop count %d) with (%s via %s with hop count %d)\n",
            e->ip_addr, via_eth_addr_old, e->nhops_to_dest,
-           pkt->src_ip, via_eth_addr, pkt->hop_count);
+           pkt->dst_ip, via_eth_addr, pkt->hop_count);
 
       // Replace the older entry.
-      strcpy(e->ip_addr, pkt->src_ip);
+      strcpy(e->ip_addr, pkt->dst_ip);
       memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
