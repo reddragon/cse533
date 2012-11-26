@@ -162,7 +162,7 @@ void client_setup(void) {
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
       my_hostname[0] = '\0';
       // FIXME: Use eth0 IP address instead of 127.0.0.1
-      ip_address_to_hostname("127.0.0.1", my_hostname);
+      ip_address_to_hostname(my_ipaddr, my_hostname);
       INFO("My IP Address: %s & hostname: %s\n", my_ipaddr, my_hostname);
       break;
     }
