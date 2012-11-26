@@ -16,8 +16,14 @@ char *tmp_fname = NULL;        // temp-file name
 fdset fds;                     // fdset for the client's domain socket
 int ntimeouts = 0;             // # of timeouts for this msg_send()
 char server_ip[80];            // The IP address of the server as entered by the user
+char my_hostname[200];         // My hostname (i.e. hostname of IP bound to eth0)
 
 void ask_for_hostname_and_send(void);
+void on_client_exit(void);
+void ask_for_user_input(void);
+void on_recv_timedout(void *opaque);
+void on_recv(void *opaque);
+void on_error(void *opaque);
 
 void on_client_exit(void) {
   struct timeval tv;
@@ -47,8 +53,14 @@ void ask_for_user_input(void) {
 }
 
 void on_recv_timedout(void *opaque) {
+  char server_hostname[200];
+
   ++ntimeouts;
-  INFO("msg_recv() timed out %d times\n", ntimeouts);
+  server_hostname[0] = '\0';
+
+  ip_address_to_hostname(server_ip, server_hostname);
+  INFO("client at node %s : timeout on response from %s : %d times\n",
+       my_hostname, server_hostname, ntimeouts);
   if (ntimeouts >= MAX_TIMEOUTS) {
     // Reset. Print timed out 2 times.
     ntimeouts = 0;
@@ -57,7 +69,7 @@ void on_recv_timedout(void *opaque) {
   }
   // Resend message to 'server_ip' with the route re-discovery flag
   // set.
-  INFO("Re-sending request to %s:%d\n", server_ip, TIME_SERVER_PORT);
+  INFO("Re-sending request to %s:%d\n", server_hostname, TIME_SERVER_PORT);
   msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", ROUTE_REDISCOVERY_FLG);
 }
 
@@ -67,6 +79,8 @@ void on_recv(void *opaque) {
   char src_ip[20];
   int src_port;
   char msg[2048];
+  char src_hostname[200];
+  src_hostname[0] = '\0';
 
   r = msg_recv(c.sockfd, src_ip, &src_port, msg);
   if (r < 0) {
@@ -78,7 +92,9 @@ void on_recv(void *opaque) {
     }
   }
 
-  INFO("Received message: '%s' from %s:%d\n", msg, src_ip, src_port);
+  ip_address_to_hostname(src_ip, src_hostname);
+  INFO("client at node %s : received from %s:%d : '%s'\n",
+       my_hostname, src_hostname, src_port, msg);
   ask_for_hostname_and_send();
   ntimeouts = 0;
 }
@@ -136,6 +152,10 @@ int
 main(int argc, char **argv) {
   assert(((api_msg*)(0))->msg == (void *)API_MSG_HDR_SZ);
   atexit(on_client_exit);
+
+  my_hostname[0] = '\0';
+  // FIXME: Use eth0 IP address instead of 127.0.0.1
+  ip_address_to_hostname("127.0.0.1", my_hostname);
 
   tmp_fname = create_tempfile();
   VERBOSE("Client File Name: %s\n", tmp_fname);
