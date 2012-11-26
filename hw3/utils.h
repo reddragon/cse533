@@ -69,6 +69,7 @@ typedef struct serv_dsock {
 eth_addr_t hton6(eth_addr_t addr);
 eth_addr_t ntoh6(eth_addr_t addr);
 
+char *hostname_to_ip_address(const char *hostname, char *ip);
 void pretty_print_eth_addr(char hwaddr[6], char *out);
 char * create_tempfile(void);
 void utils_init(void);

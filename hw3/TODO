@@ -23,3 +23,26 @@ Read document to see where we need to perform hostname <-> IP Address
 conversions.
 
 -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+Update routing table based on PKT_DATA packets *as well*.
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+Do NOT propagate RREQ if we send an RREP unless this RREQ replaced an
+existing path in our routing table.
+
+"Unlike AODV, when an intermediate node receives a RREQ for which it
+generates a RREP, it should nevertheless continue to flood the RREQ it
+received if the RREQ pertains to a source node whose existence it has
+heretofore been unaware of, or the RREQ gives it a more efficient
+route than it knew of back to the source node (the reason for
+continuing to flood the RREQ is so that other nodes in the intranet
+also become aware of the existence of the source node or of the
+potentially more optimal reverse route to it, and update their tables
+accordingly)."
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+Aravind's bug - something about RREPs.
+
+-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*

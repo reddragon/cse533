@@ -428,7 +428,7 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
 /* Update the routing table based on the type of the packet and the
  * source & destination addresses.
  */
-void
+BOOL
 update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
   route_entry *e;
   char via_eth_addr[20], via_eth_addr_old[20];
@@ -438,16 +438,9 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
   VERBOSE("update_routing_table::(%s -> %s); hop_count: %d; via: %s\n",
           pkt->src_ip, pkt->dst_ip, pkt->hop_count, via_eth_addr);
 
-  if (pkt->type != PKT_RREQ && pkt->type != PKT_RREP) {
-    // Ignore this packet since it is neither an RREQ nor is it an
-    // RREP.
-    VERBOSE("Ignoring packet since it is of type: %d\n", pkt->type);
-    return;
-  }
-
   if (is_my_ip(pkt->src_ip)) {
     VERBOSE("Ignoring packet since the source IP %s is mine\n", pkt->src_ip);
-    return;
+    return FALSE;
   }
 
   // We got a request packet from someone. Update the reverse path
@@ -464,6 +457,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     e->last_updated_at_ms = current_time_in_ms();
     vector_push_back(&route_table, e);
     free(e);
+    return TRUE;
   } else {
     if (pkt->hop_count <= e->nhops_to_dest) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
@@ -478,12 +472,15 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
-    }
+      return TRUE;
+    } // if (pkt->hop_count <= e->nhops_to_dest)
   }
+  return FALSE;
 }
 
 void
-act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
+act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
+              BOOL updated_routing_table) {
   route_entry *e;
   char via_eth_addr[20];
   BOOL am_i_the_destination = FALSE;
@@ -506,10 +503,11 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
   if (pkt->type == PKT_RREQ) {
     // If this packet's destination IP is our IP OR we have an
     // un-expired route to the destination, we reply with a
-    // PKT_RREP. But this is only if the RREP was not sent 
+    // PKT_RREP. But this is only if the RREP was not sent
+    e = get_route_entry(pkt->dst_ip);
+    am_i_the_destination = is_my_ip(pkt->dst_ip);
+
     if (!(pkt->flags & RREP_ALREADY_SENT_FLG)) {
-      e = get_route_entry(pkt->dst_ip);
-      am_i_the_destination = is_my_ip(pkt->dst_ip);
       if (am_i_the_destination || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
         if (am_i_the_destination) {
@@ -526,9 +524,12 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from) {
 
     } // if (!(pkt->flags & RREP_ALREADY_SENT_FLG))
 
-    // Send an RREQ in every case.
-    odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
-
+    // Send an RREQ ONLY if this packet caused us to update our
+    // routing table OR we replied with an RREP. (TODO: Menghani,
+    // plz. could you verify this)
+    if (updated_routing_table || am_i_the_destination || e) {
+      odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
+    }
   } else if (pkt->type == PKT_RREP) {
     // PKT_RREP (FIXME)
     //
@@ -858,6 +859,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   char src_addr[20];
   char dst_addr[20];
   odr_pkt *pkt;
+  BOOL updated_routing_table;
   pkt = (odr_pkt*)frame->payload;
 
   pretty_print_eth_addr(frame->src_eth_addr.eth_addr, src_addr);
@@ -888,14 +890,14 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     }
   }
 
+  updated_routing_table = update_routing_table(pkt, sa);
+  print_routing_table();
+
   if (pkt->type == PKT_RREQ || pkt->type == PKT_RREP) {
-    update_routing_table(pkt, sa);
-    print_routing_table();
-    act_on_packet(pkt, sa);
+    act_on_packet(pkt, sa, updated_routing_table);
   } else if (!is_my_ip(pkt->dst_ip) && pkt->type == PKT_DATA) {
     // Add this data packet to the queue.
     odr_pkt *p = MALLOC(odr_pkt);
-    print_routing_table();
     memcpy(p, pkt, sizeof(odr_pkt));
     VERBOSE("Pushing the PKT_DATA packet into the queue\n%s", "");
     

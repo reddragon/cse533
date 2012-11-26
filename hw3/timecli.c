@@ -32,9 +32,16 @@ void on_client_exit(void) {
 }
 
 void ask_for_user_input(void) {
-  printf("Please enter the IP of the VM do you want to send a message to: ");
-  scanf("%s", server_ip);
-  server_ip[15] = '\0';
+  char hostname[100];
+  char *ip = NULL;
+  do {
+    printf("Please enter the hostname of the VM (vm1, vm2, vm3, ..., vm10) you want to send a message to: ");
+    scanf("%s", hostname);
+    ip = hostname_to_ip_address(hostname, server_ip);
+    if (!ip) {
+      INFO("Invalid hostname '%s' entered\n", hostname);
+    }
+  } while (!ip);
 }
 
 void on_recv_timedout(void *opaque) {
@@ -72,6 +79,7 @@ void on_recv(void *opaque) {
 
   INFO("Received message: '%s' from %s:%d\n", msg, src_ip, src_port);
   ask_for_user_input();
+  INFO("Sending a time request to IP address: %s\n", server_ip);
   r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
   while (r < 0 && errno == EINTR) {
     r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
@@ -106,6 +114,7 @@ client_loop(void) {
   assert_ge(r, 0);
 
   ask_for_user_input();
+  INFO("Sending a time request to IP address: %s\n", server_ip);
 
   r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
   while (r < 0 && errno == EINTR) {
