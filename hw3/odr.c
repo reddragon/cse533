@@ -13,12 +13,12 @@ serv_dsock s;             // Domain socket to listen on & serve requests
 vector cli_table;         // Table containing entries of all clients. vector<cli_entry>
 vector route_table;       // The Routing Table. vector<route_entry>
 uint32_t next_e_portno;   // Next Ephemeral Port Number to assign
+struct hwa_info *h_head;  // Hardware addresses
 char my_ipaddr[16];       // My IP Address
 int pf_sockfd = -1;       // Sockfd corresponding to the PF_PACKET socket
 uint32_t staleness;       // Staleness paramenter
 fdset fds;                // fdset for the client's domain socket
 vector odr_send_q;        // A queue of outgoing packets to send to the other ODR. vector<odr_pkt*>
-struct hwa_info *h_head;  // The hardware interfaces
 treap iface_treap;        // Interface Index to Interface Mapping. treap<int, struct hwa_info*>
 treap cli_port_map;       // Mapping from port # to cli_entry. treap<int, cli_entry*>
 int broadcast_id = 1;     // The global broadcast ID we use for RREQ and RREP packets
@@ -203,10 +203,8 @@ odr_setup(void) {
   struct sockaddr *sa;
   struct sockaddr_un *serv_addr;
   int r, i;
-  unsigned int seed;
   char *cptr;
   char buff[20];
-  FILE *pf;
   vector hwaddrs;
 
   vector_init(&cli_table,   sizeof(cli_entry));
@@ -216,16 +214,6 @@ odr_setup(void) {
   treap_init(&cli_port_map);
   vector_init(&odr_send_q,  sizeof(odr_pkt*));
   next_e_portno = TIME_SERVER_PORT;
-
-  pf = fopen("/dev/urandom", "r");
-  assert(pf);
-  r = fread(&seed, sizeof(seed), 1, pf);
-  assert(r == 1);
-  srand(seed);
-  fclose(pf);
-  pf = NULL;
-
-  // broadcast_id = rand() % 10000;
 
   h_head = Get_hw_addrs();
   vector_init(&hwaddrs, sizeof(char*));

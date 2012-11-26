@@ -17,6 +17,8 @@ fdset fds;                     // fdset for the client's domain socket
 int ntimeouts = 0;             // # of timeouts for this msg_send()
 char server_ip[80];            // The IP address of the server as entered by the user
 char my_hostname[200];         // My hostname (i.e. hostname of IP bound to eth0)
+char my_ipaddr[16];            // My IP Address
+
 
 void ask_for_hostname_and_send(void);
 void on_client_exit(void);
@@ -148,14 +150,31 @@ void on_interrupt(int status) {
   exit(0);
 }
 
+void client_setup(void) {
+  struct hwa_info *h;
+  struct hwa_info *h_head;
+  struct sockaddr *sa;
+
+  h_head = Get_hw_addrs();
+  for (h = h_head; h != NULL; h = h->hwa_next) {
+    if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
+      sa = h->ip_addr;
+      strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
+      my_hostname[0] = '\0';
+      // FIXME: Use eth0 IP address instead of 127.0.0.1
+      ip_address_to_hostname("127.0.0.1", my_hostname);
+      INFO("My IP Address: %s & hostname: %s\n", my_ipaddr, my_hostname);
+      break;
+    }
+  }
+}
+
 int
 main(int argc, char **argv) {
   assert(((api_msg*)(0))->msg == (void *)API_MSG_HDR_SZ);
   atexit(on_client_exit);
 
-  my_hostname[0] = '\0';
-  // FIXME: Use eth0 IP address instead of 127.0.0.1
-  ip_address_to_hostname("127.0.0.1", my_hostname);
+  client_setup();
 
   tmp_fname = create_tempfile();
   VERBOSE("Client File Name: %s\n", tmp_fname);
