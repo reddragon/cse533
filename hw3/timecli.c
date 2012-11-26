@@ -9,13 +9,15 @@
 #include <sys/time.h>
 
 // FIXME: Set this to 2 before submitting.
-#define MAX_TIMEOUTS 1
+#define MAX_TIMEOUTS 2
 
 cli_dsock c;                   // client's domain socket
 char *tmp_fname = NULL;        // temp-file name
 fdset fds;                     // fdset for the client's domain socket
 int ntimeouts = 0;             // # of timeouts for this msg_send()
 char server_ip[80];            // The IP address of the server as entered by the user
+
+void ask_for_hostname_and_send(void);
 
 void on_client_exit(void) {
   struct timeval tv;
@@ -50,14 +52,13 @@ void on_recv_timedout(void *opaque) {
   if (ntimeouts >= MAX_TIMEOUTS) {
     // Reset. Print timed out 2 times.
     ntimeouts = 0;
-    ask_for_user_input();
-    msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
+    ask_for_hostname_and_send();
     return;
   }
   // Resend message to 'server_ip' with the route re-discovery flag
   // set.
   INFO("Re-sending request to %s:%d\n", server_ip, TIME_SERVER_PORT);
-  msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 1);
+  msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", ROUTE_REDISCOVERY_FLG);
 }
 
 void on_recv(void *opaque) {
@@ -78,6 +79,17 @@ void on_recv(void *opaque) {
   }
 
   INFO("Received message: '%s' from %s:%d\n", msg, src_ip, src_port);
+  ask_for_hostname_and_send();
+  ntimeouts = 0;
+}
+
+void on_error(void *opaque) {
+  printf("Error on socket while listening for incoming data\n");
+  exit(1);
+}
+
+void ask_for_hostname_and_send(void) {
+  int r;
   ask_for_user_input();
   INFO("Sending a time request to IP address: %s\n", server_ip);
   r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
@@ -85,13 +97,6 @@ void on_recv(void *opaque) {
     r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
   }
   assert_ge(r, 0);
-
-  ntimeouts = 0;
-}
-
-void on_error(void *opaque) {
-  printf("Error on socket while listening for incoming data\n");
-  exit(1);
 }
 
 void
@@ -113,14 +118,7 @@ client_loop(void) {
   }
   assert_ge(r, 0);
 
-  ask_for_user_input();
-  INFO("Sending a time request to IP address: %s\n", server_ip);
-
-  r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
-  while (r < 0 && errno == EINTR) {
-    r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
-  }
-  assert_ge(r, 0);
+  ask_for_hostname_and_send();
 
   r = fdset_poll(&fds, &timeout, on_recv_timedout);
   if (r < 0) {
