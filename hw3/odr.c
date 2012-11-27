@@ -146,8 +146,8 @@ prune_routing_table(const char *ip, int flags) {
         (!strcmp(r->ip_addr, ip) && (flags & ROUTE_REDISCOVERY_FLG))) {
       INFO("Removing route to %s because %s\n",
             r->ip_addr,
-            (is_stale_entry(r) ? " it is stale." \
-                               : " route rediscovery flag is set."));
+            (is_stale_entry(r) ? "it is stale." \
+                               : "route rediscovery flag is set."));
       // This is a stale entry
     } else {
       vector_push_back(&alive, r);
