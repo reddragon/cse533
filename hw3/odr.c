@@ -460,7 +460,8 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     // destination is lesser than what the current entry contains, OR, we have
     // a route with the same number of hops, but from a different neighbor.
     if (pkt->hop_count < e->nhops_to_dest || 
-        (pkt->hop_count == e->nhops_to_dest && strcmp(via_eth_addr_old, via_eth_addr))) {
+        (pkt->hop_count == e->nhops_to_dest && 
+          memcmp(e->next_hop, from->sll_addr, sizeof(e->next_hop)))) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
       INFO("Replacing older routing table entry to (%s via %s with "
            "hop count %d) with (%s via %s with hop count %d)\n",
