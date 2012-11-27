@@ -425,6 +425,7 @@ BOOL
 update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
   route_entry *e;
   char via_eth_addr[20], via_eth_addr_old[20];
+  BOOL lesser_hops_in_new_route = FALSE;
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
@@ -452,12 +453,20 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     free(e);
     return TRUE;
   } else {
-    if (pkt->hop_count <= e->nhops_to_dest) {
+    // We update the older routing only if either the number of hops to the
+    // destination is lesser than what the current entry contains, OR, we have
+    // a route with the same number of hops, but from a different neighbor.
+    if (pkt->hop_count < e->nhops_to_dest || 
+        (pkt->hop_count == e->nhops_to_dest && strcmp(via_eth_addr_old, via_eth_addr))) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
       INFO("Replacing older routing table entry to (%s via %s with "
            "hop count %d) with (%s via %s with hop count %d)\n",
            e->ip_addr, via_eth_addr_old, e->nhops_to_dest,
            pkt->src_ip, via_eth_addr, pkt->hop_count);
+      
+      if (pkt->hop_count < e->nhops_to_dest) {
+        lesser_hops_in_new_route = TRUE;
+      }
 
       // Replace the older entry.
       strcpy(e->ip_addr, pkt->src_ip);
@@ -465,7 +474,10 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->iface_idx          = from->sll_ifindex;
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
-      return TRUE;
+      
+      // As per the documentation, we haven't truly update the table, if we haven't
+      // got a new route with lesser hops.
+      return lesser_hops_in_new_route;
     } // if (pkt->hop_count <= e->nhops_to_dest)
   }
   return FALSE;
