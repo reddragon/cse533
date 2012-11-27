@@ -457,26 +457,32 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
     return TRUE;
   } else {
     // We update the older routing only if either the number of hops to the
-    // destination is lesser than what the current entry contains, OR, we have
-    // a route with the same number of hops, but from a different neighbor.
-    if (pkt->hop_count < e->nhops_to_dest || 
-        (pkt->hop_count == e->nhops_to_dest && 
-          memcmp(e->next_hop, from->sll_addr, sizeof(e->next_hop)))) {
+    // destination is lesser than or equal to what the current entry contains.
+    if (pkt->hop_count <= e->nhops_to_dest) {
       pretty_print_eth_addr(e->next_hop, via_eth_addr_old);
-      INFO("Replacing older routing table entry to (%s via %s with "
+
+      if (pkt->hop_count < e->nhops_to_dest || 
+           memcmp(e->next_hop, from->sll_addr, sizeof(e->next_hop))) {
+        INFO("Replacing older routing table entry to (%s via %s with "
            "hop count %d) with (%s via %s with hop count %d)\n",
            e->ip_addr, via_eth_addr_old, e->nhops_to_dest,
            pkt->src_ip, via_eth_addr, pkt->hop_count);
-      
-      if (pkt->hop_count < e->nhops_to_dest) {
-        lesser_hops_in_new_route = TRUE;
-      }
+        
+        if (pkt->hop_count < e->nhops_to_dest) {
+          lesser_hops_in_new_route = TRUE;
+        }
 
-      // Replace the older entry.
-      strcpy(e->ip_addr, pkt->src_ip);
-      memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
-      e->iface_idx          = from->sll_ifindex;
-      e->nhops_to_dest      = pkt->hop_count;
+        // Replace the older entry.
+        strcpy(e->ip_addr, pkt->src_ip);
+        memcpy(e->next_hop, from->sll_addr, sizeof(e->next_hop));
+        e->iface_idx = from->sll_ifindex;
+        e->nhops_to_dest = pkt->hop_count;
+      } else {
+        INFO("Reconfirming the routing table entry to (%s via %s with "
+           "hop count %d)\n",
+           e->ip_addr, via_eth_addr_old, e->nhops_to_dest);
+      }
+            
       e->last_updated_at_ms = current_time_in_ms();
       
       // As per the documentation, we should not propagate the RREQ
