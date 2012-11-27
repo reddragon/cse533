@@ -870,7 +870,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   prune_cli_table();
 
   if (is_my_ip(pkt->dst_ip) == TRUE) {
-    VERBOSE("Received a packet meant for me\n%s", "");
+    INFO("Received a packet meant for me\n%s", "");
     if (pkt->type == PKT_DATA) {
       odr_deliver_message_to_client(pkt);
     } else {
