@@ -420,6 +420,9 @@ send_eth_pkt(eth_frame *ef, int iface_idx) {
 
 /* Update the routing table based on the type of the packet and the
  * source & destination addresses.
+ *
+ * Return TRUE if the RREQ should be propagated, and FALSE otherwise.
+ *
  */
 BOOL
 update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
@@ -475,8 +478,8 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
       e->nhops_to_dest      = pkt->hop_count;
       e->last_updated_at_ms = current_time_in_ms();
       
-      // As per the documentation, we haven't truly update the table, if we haven't
-      // got a new route with lesser hops.
+      // As per the documentation, we should not propagate the RREQ
+      // unless we have a new route with fewer hops.
       return lesser_hops_in_new_route;
     } // if (pkt->hop_count <= e->nhops_to_dest)
   }
@@ -485,7 +488,7 @@ update_routing_table(odr_pkt *pkt, struct sockaddr_ll *from) {
 
 void
 act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
-              BOOL updated_routing_table) {
+              BOOL propagate_RREQ) {
   route_entry *e;
   char via_eth_addr[20];
   BOOL am_i_the_destination = FALSE;
@@ -532,7 +535,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     // Send an RREQ ONLY if this packet caused us to update our
     // routing table OR we replied with an RREP. (TODO: Menghani,
     // plz. could you verify this)
-    if (updated_routing_table || am_i_the_destination || e) {
+    if (propagate_RREQ || am_i_the_destination || e) {
       odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
     }
   } else if (pkt->type == PKT_RREP) {
@@ -865,7 +868,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   char src_addr[20];
   char dst_addr[20];
   odr_pkt *pkt;
-  BOOL updated_routing_table;
+  BOOL propagate_RREQ = FALSE;
   pkt = (odr_pkt*)frame->payload;
 
   pretty_print_eth_addr(frame->src_eth_addr.eth_addr, src_addr);
@@ -896,11 +899,11 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     }
   }
 
-  updated_routing_table = update_routing_table(pkt, sa);
+  propagate_RREQ = update_routing_table(pkt, sa);
   print_routing_table();
 
   if (pkt->type == PKT_RREQ || pkt->type == PKT_RREP) {
-    act_on_packet(pkt, sa, updated_routing_table);
+    act_on_packet(pkt, sa, propagate_RREQ);
   } else if (!is_my_ip(pkt->dst_ip) && pkt->type == PKT_DATA) {
     // Add this data packet to the queue.
     odr_pkt *p = MALLOC(odr_pkt);

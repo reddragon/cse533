@@ -1,18 +1,5 @@
-Return value of odr_queue_or_send_rrep() is unused, but it needs to be
-used to send the RREP again if necessary.
-
-When we send and RREQ for a RREP that we might send, we set the flag
-currently irrespective of whether we queued or sent the RREP. Fix this.
-
-We send an RREP followed b yand RREQ. Check if this is in violation
+We send an RREP followed by an RREQ. Check if this is in violation
 with anything mentioned in the handout.
-
-
--*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
-
-Re-try 2 times in the client.
-Set the rediscovery flag in the 2nd transmission.
-Check if rediscovery is actually kicking off rediscovery.
 
 -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 
@@ -35,10 +22,5 @@ continuing to flood the RREQ is so that other nodes in the intranet
 also become aware of the existence of the source node or of the
 potentially more optimal reverse route to it, and update their tables
 accordingly)."
-
--*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
-
-Aravind's bug: RREPs should have destination address of RREQ as the
-source address, and NOT the address of the machine sending the RREP.
 
 -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
