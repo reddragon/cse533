@@ -952,7 +952,8 @@ on_ud_error(void *opaque) {
 
 void
 on_timeout(void *opaque) {
-  VERBOSE("Timed out. odr_send_q size: %d\n", vector_size(&odr_send_q));
+  // FIXME: Change to VERBOSE
+  INFO("Timed out. odr_send_q size: %d\n", vector_size(&odr_send_q));
 }
 
 void

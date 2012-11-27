@@ -26,7 +26,8 @@ void on_server_exit(void) {
 }
 
 void on_recv_timedout(void *opaque) {
-  VERBOSE("Timed out%s\n", "");
+  // FIXME: Change to VERBOSE
+  INFO("Timed out%s\n", "");
 }
 
 void on_recv(void *opaque) {
