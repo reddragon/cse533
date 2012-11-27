@@ -309,7 +309,7 @@ odr_start_route_discovery(odr_pkt *pkt, int except_ifindex, BOOL send_as_me) {
   memset(dst_addr.eth_addr, 0xff, sizeof(dst_addr));
   odr_pkt_hdr_sz = (int)(((odr_pkt*)(0))->msg);
 
-  VERBOSE("odr_start_route_discovery::Flooding the network with a PKT_RREQ [broadcast_id: %d] for destination IP: %s\n", rreq_pkt.broadcast_id, rreq_pkt.dst_ip);
+  INFO("odr_start_route_discovery::Flooding the network with a PKT_RREQ [broadcast_id: %d] for destination IP: %s\n", rreq_pkt.broadcast_id, rreq_pkt.dst_ip);
   for (h = h_head; h != NULL; h = h->hwa_next) {
     // We don't send the message on eth0 and its aliases, and lo
     if (!strncmp(h->if_name, "eth0", 4) || !strcmp(h->if_name, "lo")) {
@@ -523,13 +523,13 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
       odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
     }
   } else if (pkt->type == PKT_RREP) {
-    // PKT_RREP (FIXME)
+    // PKT_RREP
     //
     // Propagate this RREP packet to the next hop on the path to the
     // destination if a path to the destination is available. If such
     // a path isn't available, we flood the interfaces of this machine
     // with an RREQ to try and discover a path to the destination.
-    VERBOSE("Received an RREP for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
+    INFO("Received an RREP for dst_ip: %s, from src_ip: %s\n", pkt->dst_ip, pkt->src_ip);
     am_i_the_destination = is_my_ip(pkt->dst_ip);
     if (!am_i_the_destination) {
       rrep_sent = odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip,
@@ -857,8 +857,8 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   pretty_print_eth_addr(frame->src_eth_addr.eth_addr, src_addr);
   pretty_print_eth_addr(frame->dst_eth_addr.eth_addr, dst_addr);
   
-  VERBOSE("process_eth_pkt:: (%s -> %s) of type %s\n", 
-          src_addr, dst_addr, pkt_type_to_str(pkt->type));
+  INFO("Received eth packet (%s -> %s) of type %s\n", 
+       src_addr, dst_addr, pkt_type_to_str(pkt->type));
 
   if (ntohs(frame->protocol) != ODR_PROTOCOL) {
     return;
