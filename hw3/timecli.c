@@ -108,6 +108,8 @@ void on_error(void *opaque) {
 
 void ask_for_hostname_and_send(void) {
   int r;
+  char server_hostname[200];
+
   ask_for_user_input();
   INFO("Sending a time request to IP address: %s\n", server_ip);
   r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
@@ -115,6 +117,11 @@ void ask_for_hostname_and_send(void) {
     r = msg_send(c.sockfd, server_ip, TIME_SERVER_PORT, "1", 0);
   }
   assert_ge(r, 0);
+  server_hostname[0] = '\0';
+  ip_address_to_hostname(server_ip, server_hostname);
+
+  INFO("client at node %s sending request to server at %s\n",
+       my_hostname, server_hostname);
 }
 
 void
