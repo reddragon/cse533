@@ -26,7 +26,7 @@
   fflush(stdout);                             \
 }
 
-#if 1
+#ifdef DEBUG
 #define VERBOSE(X, VARGS...) TIMESTAMPMSG("VERBOSE", X, VARGS)
 #else
 #define VERBOSE(X...)
