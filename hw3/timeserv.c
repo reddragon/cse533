@@ -105,6 +105,8 @@ void server_setup(void) {
   struct hwa_info *h_head;
   struct sockaddr *sa;
 
+  unlink(SRV_DGPATH);
+
   h_head = Get_hw_addrs();
   for (h = h_head; h != NULL; h = h->hwa_next) {
     if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
