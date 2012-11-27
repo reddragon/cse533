@@ -156,8 +156,8 @@ create_cli_dsock(char *file_name, cli_dsock *c) {
 void
 create_generic_dsock(const char *path, serv_dsock *s) {
   ASSERT(s);
-  s->sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
   unlink(path);
+  s->sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
   bzero(&s->servaddr, sizeof(s->servaddr));
   s->servaddr.sun_family = AF_LOCAL;
   strcpy(s->servaddr.sun_path, path);
