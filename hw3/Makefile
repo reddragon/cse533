@@ -5,8 +5,8 @@ OBJDEPS = utils.o api.o algorithm.o vector.o \
 OBJ = client_gmenghani ODR_gmenghani server_gmenghani $(OBJDEPS)
 
 LINKFLAGS = -lpthread
-INCFLAGS  = -I../unpv13e_linux/lib
-LIBS      = ../unpv13e_linux/libunp.a -lpthread -lm
+INCFLAGS  = -I ~cse533/Stevens/unpv13e/lib
+LIBS      = ~cse533/Stevens/unpv13e/libunp.a -lpthread -lm
 
 CFLAGS += $(INCFLAGS)
 
@@ -52,7 +52,7 @@ scp:
 	./scp.sh
 
 handin:
-	ls *.c *.h Makefile README | xargs /home/courses/cse533/handin 3
+	ls *.c *.h Makefile README | xargs ~cse533/handin -r Asgn3
 
 clean:
 	rm -f $(OBJ)
