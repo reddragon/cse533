@@ -715,8 +715,9 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
 
   if (r < 0) {
     perror("sendto");
+  } else {
+    assert_eq(r, sizeof(api_msg));
   }
-  assert_eq(r, sizeof(api_msg));
 }
 
 odr_pkt *
