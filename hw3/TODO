@@ -10,10 +10,6 @@ with anything mentioned in the handout.
 
 -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 
-Check timeout values. Is 10s okay in client?
-
--*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
-
 Re-try 2 times in the client.
 Set the rediscovery flag in the 2nd transmission.
 Check if rediscovery is actually kicking off rediscovery.
@@ -24,10 +20,6 @@ Read document to see where we need to perform hostname <-> IP Address
 conversions.
 
 Print out trace messages with VM names instead of IP addresses.
-
--*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
-
-Update routing table based on PKT_DATA packets *as well*.
 
 -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
 
