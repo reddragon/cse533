@@ -237,6 +237,7 @@ odr_setup(void) {
     pretty_print_eth_addr(*(char**)vector_at(&hwaddrs, i), buff);
     printf("Topology: %s %s\n", my_ipaddr, buff);
   }
+  fflush(stdout);
 
   // Create the PF_PACKET socket
   pf_sockfd = Socket(PF_PACKET, SOCK_RAW, htons(ODR_PROTOCOL));
