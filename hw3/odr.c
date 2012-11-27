@@ -14,7 +14,8 @@ vector cli_table;         // Table containing entries of all clients. vector<cli
 vector route_table;       // The Routing Table. vector<route_entry>
 uint32_t next_e_portno;   // Next Ephemeral Port Number to assign
 struct hwa_info *h_head;  // Hardware addresses
-char my_ipaddr[16];       // My IP Address
+char my_ipaddr[16];       // My IP Address (i.e. IP bound to eth0)
+char my_hostname[200];    // My hostname (i.e. hostname of IP bound to eth0)
 int pf_sockfd = -1;       // Sockfd corresponding to the PF_PACKET socket
 uint32_t staleness;       // Staleness paramenter
 fdset fds;                // fdset for the client's domain socket
@@ -226,9 +227,11 @@ odr_setup(void) {
     if (!strcmp(h->if_name, "eth0") && h->ip_addr != NULL) {
       sa = h->ip_addr;
       strcpy(my_ipaddr, (char *)Sock_ntop_host(sa, sizeof(*sa)));
-      INFO("My IP Address: %s\n", my_ipaddr);
+      my_hostname[0] = '\0';
+      ip_address_to_hostname(my_ipaddr, my_hostname);
+      INFO("My IP Address: %s & hostname: %s\n", my_ipaddr, my_hostname);
     }
-    
+
     if (strcmp(h->if_name, "lo") && strncmp(h->if_name, "eth0", 4)) {
       INFO("Discovered interface[%d]: %s\n", h->if_index, h->if_name);
       cptr = h->if_haddr;
@@ -258,8 +261,12 @@ void
 send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
                    int len, int iface_idx) {
   eth_frame ef;
+  odr_pkt *pkt = NULL;
   char src_addr[20], dst_addr[20];
 
+  if (len == sizeof(*pkt)) {
+    pkt = (odr_pkt*)data;
+  }
   pretty_print_eth_addr(from.eth_addr, src_addr);
   pretty_print_eth_addr(to.eth_addr, dst_addr);
 
@@ -270,6 +277,13 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
   ef.src_eth_addr = hton6(from);
   ef.protocol = htons(ODR_PROTOCOL);
 
+  INFO("ODR at node %s : sending      frame %d      src %s      dest %s\n",
+       my_hostname, ODR_PROTOCOL, src_addr, dst_addr);
+  if (pkt) {
+    INFO("ODR msg: %s      type: %s     src: %s:%d      dest: %s:%d\n",
+         (pkt->msg_size ? pkt->msg : "(empty)"), pkt_type_to_str(pkt->type),
+         pkt->src_ip, pkt->src_port, pkt->dst_ip, pkt->dst_port);
+  }
   VERBOSE("Sending an eth_frame (%s -> %s) of size: %d. Payload size: %d\n",
           src_addr, dst_addr, sizeof(eth_frame), len);
 
@@ -745,23 +759,26 @@ odr_deliver_message_to_client(odr_pkt *pkt) {
 odr_pkt *
 create_odr_pkt(api_msg *m, cli_entry *c) {
   odr_pkt *o;
+
+  assert_eq(m->rtype, MSG_SEND);
+
   o = MALLOC(odr_pkt);
+  memset(o, 0, sizeof(*o));
   o->type = PKT_DATA;
   // FIXME
-  // What do we put here? 
+  // What do we put here?
   // Is the broadcast_id a number which increases everytime we
   // get a send request? Or is it a client specific count?
   //
   // The broadcast_id is useful only in case of an RREQ packet.
   o->broadcast_id = 0;
   o->hop_count = 0;
-  if (m->rtype == MSG_SEND) {
-    strcpy(o->src_ip, my_ipaddr);
-    strcpy(o->dst_ip, m->ip);
-    o->src_port = c->e_portno;
-    o->dst_port = m->port;
-  }
+  strcpy(o->src_ip, my_ipaddr);
+  strcpy(o->dst_ip, m->ip);
+  o->src_port = c->e_portno;
+  o->dst_port = m->port;
   o->flags = m->msg_flag;
+  o->msg_size = strlen(m->msg);
   strcpy(o->msg, m->msg);
 
   VERBOSE("create_odr_pkt()%s\n", "");
