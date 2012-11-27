@@ -135,12 +135,15 @@ create_cli_dsock(char *file_name, cli_dsock *c) {
   struct sockaddr_un servaddr;
 
   ASSERT(c);
+
+  // We need to unlink (before calling Socket()) because mkstemp will
+  // create the file for us
+  unlink(file_name); 
+
   c->sockfd = Socket(AF_LOCAL, SOCK_DGRAM, 0);
   bzero(&c->cliaddr, sizeof(c->cliaddr));
   c->cliaddr.sun_family = AF_LOCAL;
 
-  // We need to unlink because mkstemp will create the file for us
-  unlink(file_name); 
   strcpy(c->cliaddr.sun_path, file_name);
   Bind(c->sockfd, (SA *) &c->cliaddr, sizeof(c->cliaddr));
 

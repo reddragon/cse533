@@ -51,5 +51,8 @@ scp:
 	./make_gitcommit.sh
 	./scp.sh
 
+handin:
+	ls *.c *.h Makefile README | xargs /home/courses/cse533/handin 3
+
 clean:
 	rm -f $(OBJ)
