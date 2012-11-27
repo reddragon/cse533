@@ -5,8 +5,8 @@ OBJDEPS = utils.o api.o algorithm.o vector.o \
 OBJ = client_gmenghani ODR_gmenghani server_gmenghani $(OBJDEPS)
 
 LINKFLAGS = -lpthread
-INCFLAGS  = -I ~cse533/Stevens/unpv13e/lib
-LIBS      = ~cse533/Stevens/unpv13e/libunp.a -lpthread -lm
+INCFLAGS  = -I /home/users/cse533/Stevens/unpv13e/lib/
+LIBS      = /home/users/cse533/Stevens/unpv13e/libunp.a -lpthread -lm
 
 CFLAGS += $(INCFLAGS)
 
