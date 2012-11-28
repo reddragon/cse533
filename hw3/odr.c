@@ -810,6 +810,7 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
       odr_deliver_message_to_client(pkt);
     } else {
       prune_routing_table(pkt->dst_ip, pkt->flags);
+      prune_routing_table(pkt->src_ip, pkt->flags);
       odr_route_message(pkt, NULL);
     }
     free(pkt);
@@ -944,6 +945,8 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   }
 
   prune_routing_table(pkt->dst_ip, pkt->flags);
+  prune_routing_table(pkt->src_ip, pkt->flags);
+
   prune_cli_table();
 
   if (pkt->type == PKT_DATA) {
