@@ -549,9 +549,9 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
       if (am_i_the_destination || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
         if (am_i_the_destination) {
-          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, 0);
+          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, pkt->flags, 0);
         } else {
-          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, e->nhops_to_dest);
+          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, pkt->flags, e->nhops_to_dest);
         }
         // odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
         if (rrep_sent) {
@@ -581,7 +581,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     am_i_the_destination = is_my_ip(pkt->dst_ip);
     if (!am_i_the_destination) {
       rrep_sent = odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip,
-                                         pkt->hop_count);
+                                         pkt->flags, pkt->hop_count);
       if (!rrep_sent) {
         odr_start_route_discovery(pkt, -1, TRUE);
       }
@@ -611,7 +611,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
  */
 BOOL
 odr_queue_or_send_rrep(const char *fromip, const char *toip,
-                       int hop_count) {
+                       int flags, int hop_count) {
   odr_pkt *rrep_pkt;
   route_entry *r;
   struct hwa_info *h;
@@ -622,12 +622,16 @@ odr_queue_or_send_rrep(const char *fromip, const char *toip,
   int i;
   odr_pkt *pkt;
 
-  VERBOSE("odr_queue_or_send_rrep(%s -> %s [%d] hops)\n", fromip, toip, hop_count);
+  flags &= (ROUTE_REDISCOVERY_FLG);
+
+  VERBOSE("odr_queue_or_send_rrep(%s -> %s [flags: %s] [hops: %d])\n",
+          fromip, toip, str_flags(flags), hop_count);
 
   rrep_pkt = MALLOC(odr_pkt);
   memset(rrep_pkt, 0, sizeof(rrep_pkt));
   rrep_pkt->type          = PKT_RREP;
   rrep_pkt->hop_count     = hop_count;
+  rrep_pkt->flags         = flags;
   // We don't need to pass the port numbers for an RREP packet
   strcpy(rrep_pkt->src_ip, fromip);
   strcpy(rrep_pkt->dst_ip, toip);
@@ -814,7 +818,6 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
       odr_deliver_message_to_client(pkt);
     } else {
       prune_routing_table(pkt->dst_ip, pkt->flags);
-      prune_routing_table(pkt->src_ip, pkt->flags);
       odr_route_message(pkt, NULL);
     }
     free(pkt);
@@ -949,7 +952,6 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
   }
 
   prune_routing_table(pkt->dst_ip, pkt->flags);
-  prune_routing_table(pkt->src_ip, pkt->flags);
 
   prune_cli_table();
 
