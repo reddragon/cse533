@@ -833,7 +833,7 @@ const char *
 str_flags(int flags) {
   switch(flags) {
   case 0x0:
-    return "  |  |  ";
+    return "00|00|00";
   case 0x001:
     return "00|00|RD";
   case 0x010:
