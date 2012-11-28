@@ -543,29 +543,38 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     // PKT_RREP. But this is only if the RREP was not sent
     e = get_route_entry(pkt->dst_ip);
     am_i_the_destination = is_my_ip(pkt->dst_ip);
-
     rrep_sent_flag = (pkt->flags & RREP_ALREADY_SENT_FLG);
-    if (!rrep_sent_flag) {
-      if (am_i_the_destination || e) {
-        VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
-        if (am_i_the_destination) {
-          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, pkt->flags, 0);
-        } else {
-          rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip, pkt->flags, e->nhops_to_dest);
-        }
-        // odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
-        if (rrep_sent) {
-          pkt->flags |= RREP_ALREADY_SENT_FLG;
-        }
 
-      } // if (am_i_the_destination || e) {
+    if (!am_i_the_destination && (pkt->flags & ROUTE_REDISCOVERY_FLG)) {
+      rrep_sent = FALSE;
+    } else {
+      if (!rrep_sent_flag) {
+        if (am_i_the_destination || e) {
+          VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
+          if (am_i_the_destination) {
+            rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip,
+                                               pkt->flags, 0);
+          } else {
+            rrep_sent = odr_queue_or_send_rrep(pkt->dst_ip, pkt->src_ip,
+                                               pkt->flags,
+                                               e->nhops_to_dest);
+          }
+          // odr_send_rrep(pkt->dst_ip, pkt->src_ip, e, from);
+          if (rrep_sent) {
+            pkt->flags |= RREP_ALREADY_SENT_FLG;
+          }
 
-    } // if (!(pkt->flags & RREP_ALREADY_SENT_FLG))
+        } // if (am_i_the_destination || e) {
+
+      } // if (!(pkt->flags & RREP_ALREADY_SENT_FLG))
+
+    } // else { }
 
     // Send an RREQ ONLY if this packet caused us to update our
     // routing table OR we replied with an RREP. (TODO: Menghani,
     // plz. could you verify this)
     if (propagate_RREQ ||
+        !rrep_sent ||
         (!rrep_sent_flag && (am_i_the_destination || e)) ||
         (!am_i_the_destination && !e)) {
       odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
@@ -581,7 +590,8 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     am_i_the_destination = is_my_ip(pkt->dst_ip);
     if (!am_i_the_destination) {
       rrep_sent = odr_queue_or_send_rrep(pkt->src_ip, pkt->dst_ip,
-                                         pkt->flags, pkt->hop_count);
+                                         pkt->flags,
+                                         pkt->hop_count);
       if (!rrep_sent) {
         odr_start_route_discovery(pkt, -1, TRUE);
       }
@@ -817,7 +827,7 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
     if (is_my_ip(pkt->dst_ip)) {
       odr_deliver_message_to_client(pkt);
     } else {
-      prune_routing_table(pkt->dst_ip, pkt->flags);
+      prune_routing_table(pkt->src_ip, pkt->flags);
       odr_route_message(pkt, NULL);
     }
     free(pkt);
@@ -951,7 +961,7 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     return;
   }
 
-  prune_routing_table(pkt->dst_ip, pkt->flags);
+  prune_routing_table(pkt->src_ip, pkt->flags);
 
   prune_cli_table();
 
