@@ -195,9 +195,10 @@ prune_cli_table(void) {
 
 void
 odr_packet_print(odr_pkt *pkt) {
-  INFO("ODR Packet { Type: %s, bcast_id: %d, hop_count: %d, src: %s:%d, "
-       "dst: %s:%d, size: %d }\n",
-       pkt_type_to_str(pkt->type), pkt->broadcast_id, pkt->hop_count,
+  INFO("ODR Packet { Type: %s, bcast_id: %d, flags: %s, hop_count: %d, "
+       "src: %s:%d, dst: %s:%d, size: %d }\n",
+       pkt_type_to_str(pkt->type), pkt->broadcast_id,
+       str_flags(pkt->flags), pkt->hop_count,
        pkt->src_ip, pkt->src_port,
        pkt->dst_ip, pkt->dst_port, pkt->msg_size);
 }
@@ -820,6 +821,30 @@ pkt_type_to_str(odr_pkt_type o) {
     case PKT_RREQ: return "PKT_RREQ";
     case PKT_DATA: return "PKT_DATA";
     default      : return "UNKNOWN";
+  }
+}
+
+const char *
+str_flags(int flags) {
+  switch(flags) {
+  case 0x0:
+    return "  |  |  ";
+  case 0x001:
+    return "00|00|RD";
+  case 0x010:
+    return "00|RP|00";
+  case 0x011:
+    return "00|RP|RD";
+  case 0x100:
+    return "RQ|00|00";
+  case 0x101:
+    return "RQ|00|RD";
+  case 0x110:
+    return "RQ|RP|00";
+  case 0x111:
+    return "RQ|RP|RD";
+  default:
+    return "XX|XX|XX";
   }
 }
 
