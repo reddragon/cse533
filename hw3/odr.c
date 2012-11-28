@@ -268,6 +268,12 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
   if (len == sizeof(*pkt)) {
     pkt = (odr_pkt*)data;
   }
+  
+  if (pkt->type == PKT_DATA) {
+    pkt->flags = pkt->flags & (~ROUTE_REDISCOVERY_FLG);
+  }
+  pkt->flags = pkt->flags & (~RREQ_ALREADY_SENT_FLG);
+
   pretty_print_eth_addr(from.eth_addr, src_addr);
   pretty_print_eth_addr(to.eth_addr, dst_addr);
 
@@ -692,9 +698,6 @@ odr_route_message(odr_pkt *pkt, route_entry *r) {
   memcpy(dst_addr.eth_addr, r->next_hop, sizeof(r->next_hop));
 
   ASSERT(pkt->type == PKT_RREQ || pkt->type == PKT_RREP || pkt->type == PKT_DATA);
-  if (pkt->type == PKT_DATA) {
-    pkt->flags = pkt->flags & (~ROUTE_REDISCOVERY_FLG);
-  }
   send_over_ethernet(src_addr, dst_addr, pkt, sizeof(*pkt), h->if_index);
   // Don't free(3) the packet here, since the caller will free it.
 }
