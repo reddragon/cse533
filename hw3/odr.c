@@ -802,6 +802,8 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
     if (is_my_ip(pkt->dst_ip)) {
       odr_deliver_message_to_client(pkt);
     } else {
+      prune_routing_table(pkt->dst_ip, pkt->flags);
+      pkt->flags &= (~ROUTE_REDISCOVERY_FLG);
       odr_route_message(pkt, NULL);
     }
     free(pkt);
@@ -913,6 +915,11 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
 
   prune_routing_table(pkt->dst_ip, pkt->flags);
   prune_cli_table();
+
+  if (pkt->type == PKT_DATA) {
+    // No DATA packet should have the route rediscovery flag set.
+    assert(!(pkt->flags & ~ROUTE_REDISCOVERY_FLG));
+  }
 
   if (is_my_ip(pkt->dst_ip) == TRUE) {
     INFO("Received a packet meant for me\n%s", "");
