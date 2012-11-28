@@ -284,7 +284,7 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
   ef.src_eth_addr = hton6(from);
   ef.protocol = htons(ODR_PROTOCOL);
 
-  INFO("ODR at node %s : sending      frame %d      src %s      dest %s\n",
+  INFO("ODR at node %s : sending      frame 0x%x      src %s      dest %s\n",
        my_hostname, ODR_PROTOCOL, src_addr, dst_addr);
   if (pkt) {
     INFO("ODR msg: %s      type: %s     src: %s:%d      dest: %s:%d\n",
