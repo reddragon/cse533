@@ -521,6 +521,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
   char via_eth_addr[20];
   BOOL am_i_the_destination = FALSE;
   BOOL rrep_sent = FALSE;
+  BOOL rrep_sent_flag = FALSE;
 
   pretty_print_eth_addr((char*)from->sll_addr, via_eth_addr);
 
@@ -543,7 +544,8 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     e = get_route_entry(pkt->dst_ip);
     am_i_the_destination = is_my_ip(pkt->dst_ip);
 
-    if (!(pkt->flags & RREP_ALREADY_SENT_FLG)) {
+    rrep_sent_flag = (pkt->flags & RREP_ALREADY_SENT_FLG);
+    if (!rrep_sent_flag) {
       if (am_i_the_destination || e) {
         VERBOSE("The miracle, RREQ -> RREP conversion.%s\n", "");
         if (am_i_the_destination) {
@@ -563,7 +565,9 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     // Send an RREQ ONLY if this packet caused us to update our
     // routing table OR we replied with an RREP. (TODO: Menghani,
     // plz. could you verify this)
-    if (propagate_RREQ || am_i_the_destination || e) {
+    if (propagate_RREQ ||
+        (!rrep_sent_flag && (am_i_the_destination || e)) ||
+        (!am_i_the_destination && !e)) {
       odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
     }
   } else if (pkt->type == PKT_RREP) {
