@@ -575,7 +575,6 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     // plz. could you verify this)
     if (propagate_RREQ ||
         !rrep_sent ||
-        (!rrep_sent_flag && (am_i_the_destination || e)) ||
         (!am_i_the_destination && !e)) {
       odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
     }
