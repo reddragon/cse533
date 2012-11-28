@@ -265,7 +265,7 @@ send_over_ethernet(eth_addr_t from, eth_addr_t to, void *data,
   odr_pkt *pkt = NULL;
   char src_addr[20], dst_addr[20];
 
-  if (len == sizeof(*pkt)) {
+  if (len >= API_MSG_HDR_SZ) {
     pkt = (odr_pkt*)data;
   }
   
