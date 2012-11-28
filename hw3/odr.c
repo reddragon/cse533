@@ -573,9 +573,7 @@ act_on_packet(odr_pkt *pkt, struct sockaddr_ll *from,
     // Send an RREQ ONLY if this packet caused us to update our
     // routing table OR we replied with an RREP. (TODO: Menghani,
     // plz. could you verify this)
-    if (propagate_RREQ ||
-        !rrep_sent ||
-        (!am_i_the_destination && !e)) {
+    if (propagate_RREQ || !rrep_sent) {
       odr_start_route_discovery(pkt, from->sll_ifindex, FALSE);
     }
   } else if (pkt->type == PKT_RREP) {
@@ -826,7 +824,7 @@ process_dsock_requests(api_msg *m, cli_entry *c) {
     if (is_my_ip(pkt->dst_ip)) {
       odr_deliver_message_to_client(pkt);
     } else {
-      prune_routing_table(pkt->src_ip, pkt->flags);
+      prune_routing_table(pkt->dst_ip, pkt->flags);
       odr_route_message(pkt, NULL);
     }
     free(pkt);
@@ -960,7 +958,12 @@ process_eth_pkt(eth_frame *frame, struct sockaddr_ll *sa) {
     return;
   }
 
-  prune_routing_table(pkt->src_ip, pkt->flags);
+  if (pkt->type == PKT_RREP) {
+    prune_routing_table(pkt->src_ip, pkt->flags);
+  } else {
+    prune_routing_table(pkt->dst_ip, pkt->flags);
+    prune_routing_table(pkt->src_ip, pkt->flags);
+  }
 
   prune_cli_table();
 
