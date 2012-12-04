@@ -3,6 +3,14 @@
 #define _UTILS_H_
 
 #include <netinet/in.h>
+#include <stdio.h>
+#include <sys/socket.h>
+#include <errno.h>
+#include <sys/ioctl.h>      
+#include <linux/if.h>
+#include <assert.h>
+#include "myassert.h"
+#include "unp.h"
 
 #define IPPROTO_HW  0x8086
 #define ID_NUM      0x60061E5
@@ -44,6 +52,30 @@ typedef struct ip_pkt {
   ipaddr_n src_ip;
 } ip_pkt;
 
+// The ethernet address in Network Notation
+typedef struct eth_addr_n {
+    char addr[6];
+} eth_addr_n;
+
+// The ethernet address in ASCII Notation
+typedef struct eth_addr_a {
+    char addr[20];
+} eth_addr_a;
+
+#define	IF_NAME		16	/* same as IFNAMSIZ    in <net/if.h> */
+#define	IF_HADDR	 6	/* same as IFHWADDRLEN in <net/if.h> */
+
+#define	IP_ALIAS  	 1	/* hwa_addr is an alias */
+
+struct hwa_info {
+  char    if_name[IF_NAME];	/* interface name, null terminated */
+  char    if_haddr[IF_HADDR];	/* hardware address */
+  int     if_index;		/* interface index */
+  short   ip_alias;		/* 1 if hwa_addr is an alias IP address */
+  struct  sockaddr  *ip_addr;	/* IP address */
+  struct  hwa_info  *hwa_next;	/* next of these structures */
+};
+
 // TODO Is there any way out of statically declaring the MAXNODES?
 //      The tour_list structure will potentially be sent in the IP
 //      packets.
@@ -65,6 +97,9 @@ typedef struct tour_pkt {
 } tour_pkt;
 
 char *create_tmp_file(void);
+
+void* my_malloc(size_t size);
+void pretty_print_eth_addr(char hwaddr[6], char *out);
 
 #endif
 
