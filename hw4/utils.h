@@ -58,9 +58,9 @@ typedef struct eth_addr_n {
 } eth_addr_n;
 
 // The ethernet address in ASCII Notation
-typedef struct eth_addr_a {
+typedef struct eth_addr_ascii {
     char addr[20];
-} eth_addr_a;
+} eth_addr_ascii;
 
 #define	IF_NAME		16	/* same as IFNAMSIZ    in <net/if.h> */
 #define	IF_HADDR	 6	/* same as IFHWADDRLEN in <net/if.h> */
@@ -100,6 +100,6 @@ char *create_tmp_file(void);
 
 void* my_malloc(size_t size);
 void pretty_print_eth_addr(char hwaddr[6], char *out);
-
+struct hwa_info * Get_hw_addrs(void);
 #endif
 

@@ -6,6 +6,18 @@
 #include <stdio.h>
 #include "myassert.h"
 
+void pretty_print_eth_addr(char hwaddr[6], char *out) {
+  char *ptr;
+  int i;
+
+  ptr = hwaddr;
+  i = IF_HADDR;
+
+  do {
+    out += sprintf(out, "%.2x%s", *ptr++ & 0xff, (i == 1) ? "" : ":");
+  } while (--i > 0);
+}
+
 char *create_tmp_file(void) {
   int r, fd;
   char *file_name;
