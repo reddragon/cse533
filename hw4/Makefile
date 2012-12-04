@@ -17,11 +17,11 @@ debug: targets
 
 targets: $(OBJ)
 
-gmenghani_tour: odr.c odr.h api.h myassert.h gitcommit.h $(OBJDEPS)
-	$(CC) $(CFLAGS) odr.c  $(OBJDEPS) -o ODR_gmenghani $(LIBS)
+gmenghani_tour: tour.c api.h myassert.h $(OBJDEPS)
+	$(CC) $(CFLAGS) tour.c $(OBJDEPS) -o gmenghani_tour $(LIBS)
 
-gmenghani_arp: timecli.c myassert.h gitcommit.h $(OBJDEPS)
-	$(CC) $(CFLAGS) timecli.c $(OBJDEPS) -o client_gmenghani $(LIBS)
+gmenghani_arp: arp.c myassert.h $(OBJDEPS)
+	$(CC) $(CFLAGS) arp.c $(OBJDEPS) -o gmenghani_arp $(LIBS)
 
 fdset.o: fdset.c fdset.h vector.h algorithm.h utils.o myassert.h
 	$(CC) $(CFLAGS) -c -o fdset.o fdset.c
