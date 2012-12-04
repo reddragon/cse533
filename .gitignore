@@ -17,6 +17,8 @@ unpv13e_linux
 # Temporary emacs files
 *~
 
-#Temporary vim files
+# Temporary vim files
 *.swp
 
+# Input files
+*.in
