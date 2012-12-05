@@ -39,12 +39,12 @@ typedef struct arp_pkt {
   uint8_t     prot_size;
   uint16_t    op;
   eth_addr_n  sender_eth_addr;
-  ipaddr_n;   sender_ip_addr;
+  ipaddr_n    sender_ip_addr;
   eth_addr_n  target_eth_addr;
-  ipaddr_n;   target_ip_addr;
+  ipaddr_n    target_ip_addr;
 } arp_pkt;
 
-
+vector      cache;          // The ARP entry cache
 vector      addr_pairs;
 eth_addr_n  *eth0_hwaddr;
 ipaddr_n    *eth0_ipaddr;   
@@ -59,24 +59,26 @@ int         ds_sockfd;
 arp_pkt*
 create_arp_pkt(uint16_t op) {
   // TODO Fill this
+  return NULL;
 }
 
 eth_frame*
 create_arp_request(eth_addr_n dst_addr) {
   eth_frame *ef;
   arp_pkt pkt;
-    ef->dst_addr = dst_addr;
-  ef->src_addr = ((addr_pair *)vector_at(&addr_pairs, 0))->eth_n;
-  ef->protocol = ARP_PROTOCOL;
   ef = MALLOC(eth_frame);   
+  ef->dst_eth_addr  = dst_addr;
+  ef->src_eth_addr  = ((addr_pair *)vector_at(&addr_pairs, 0))->eth_n;
+  ef->protocol      = ARP_PROTOCOL;
 
-  arp_pkt.hard_type = 0x1;          // H/W Type is Ethernet 
-  arp_pkt.prot_type = 0x800;        // IP Address
-  arp_pkt.hard_size = 6;            // Size of the Ethernet Addr
-  arp_pkt.prot_size = 4;            // Size of IP Address
-  arp_pkt.op        = ARP_REQUEST;  
-  memcpy(ef->payload, pkt, sizeof(arp_pkt));
+  pkt.hard_type = 0x1;          // H/W Type is Ethernet 
+  pkt.prot_type = 0x800;        // IP Address
+  pkt.hard_size = 6;            // Size of the Ethernet Addr
+  pkt.prot_size = 4;            // Size of IP Address
+  pkt.op        = ARP_REQUEST;  
+  memcpy(ef->payload, &pkt, sizeof(arp_pkt));
   // TODO Fill up the target IP and other fields
+  return ef;
 }
 
 void
@@ -105,8 +107,8 @@ get_addr_pairs(void) {
   ASSERT(vector_size(&addr_pairs) > 0);
   // Get the ethernet address and IP address for eth0 (one of its alias)
   a = (addr_pair *)vector_at(&addr_pairs, 0);
-  eth0_hwaddr = a->eth_n;
-  eth0_ipaddr = a->ip_ascii;
+  eth0_hwaddr = &a->eth_n;
+  eth0_ipaddr = &a->ip_n;
 }
 
 void
@@ -115,11 +117,11 @@ setup_sockets(void) {
   
   // Setting up the Domain Socket for ARP<->Tour communication
   servaddr.sun_family = AF_LOCAL;
-  servaddr.sun_path   = SRV_SUN_PATH
+  strcpy(servaddr.sun_path, SRV_SUNPATH);
   
   unlink(servaddr.sun_path);
   ds_sockfd = Socket(AF_LOCAL, SOCK_STREAM, 0);
-  Bind(ds_sockfd, (SA *)&servaddr, sizeof(servaddr);
+  Bind(ds_sockfd, (SA *)&servaddr, sizeof(servaddr));
 
   // Setting up the PF_PACKET Socket for ARP<->ARP communication
   pf_sockfd = Socket(AF_INET, SOCK_RAW, ARP_PROTOCOL);
@@ -135,32 +137,32 @@ act_on_api_msg(api_msg *msg) {
 
 // Check if this packet was targeted for me
 // We can do this by going through the list of address pairs that we have.
-void
+bool
 is_my_pkt(arp_pkt *pkt) {
   addr_pair *a;
-  int n;
+  int n, i;
   n = vector_size(&addr_pairs);
   for (i = 0; i < n; i++) {
     a = (addr_pair *)vector_at(&addr_pairs, i);
-    if (a->eth_n == pkt->target_eth_addr) {
-      return true;
+    if (!memcmp(&a->eth_n, &pkt->target_eth_addr, sizeof(eth_addr_n))) {
+      return TRUE;
     }
   }
-  return false;  
+  return FALSE;  
 }
 
 bool
 cache_entry_exists(ipaddr_n target_addr) {
   cache_entry *c;
-  int n;
+  int n, i;
   n = vector_size(&cache);
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
-    if (c->ip_n == target_addr) {
-      return true;
+    if (!memcmp(&c->ip_n, &target_addr, sizeof(eth_addr_n))) {
+      return TRUE;
     }
   }
-  return false;
+  return FALSE;
 }
 
 cache_entry *
@@ -169,7 +171,8 @@ add_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   c->eth_n  = pkt->sender_eth_addr;
   c->ip_n   = pkt->sender_ip_addr;
   c->sll_ifindex  = sa->sll_ifindex;
-  c->sll_hatype   = sa->sll_hatype;
+  // c->sll_hatype   = sa->sll_hatype;
+  c->sll_hatype   = 1;
   c->sockfd       = -1;
   return c;
 }
@@ -177,11 +180,11 @@ add_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
 cache_entry *
 update_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   cache_entry *c;
-  int n;
+  int n, i;
   n = vector_size(&cache);
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
-    if (c->ip_n == pkt->sender_ip_addr) {
+    if (!memcmp(&c->ip_n, &pkt->sender_ip_addr, sizeof(ipaddr_n))) {
       c->ip_n         = pkt->sender_ip_addr;
       c->sll_ifindex  = sa->sll_ifindex;
       c->sll_hatype   = sa->sll_hatype;
@@ -198,8 +201,8 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   bool my_pkt, centry_exists;
   
   centry = NULL;
-  my_pkt = false;
-  centry_exists = false;
+  my_pkt = FALSE;
+  centry_exists = FALSE;
   
   // Drop the packet if it is not for the protocol that we respect
   if (ef->protocol != ARP_PROTOCOL) {
@@ -207,24 +210,24 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
           ef->protocol);
     return;
   }
-  mempcy(&pkt, ef->payload, sizeof(pkt));
+  memcpy(&pkt, ef->payload, sizeof(pkt));
   
   if (pkt.ident_num != ARP_IDENT_NUM) {
     INFO("Dropping a packet which has identity number %x.\n", 
-          ef->ident_num);
+          pkt.ident_num);
     return;
   }
 
   my_pkt = is_my_pkt(&pkt);
-  centry_exists = cache_entry_exists(&pkt);
+  centry_exists = cache_entry_exists(pkt.target_ip_addr);
   // If it is either my packet (then we should add this entry,
   // or update it). Otherwise, if it exists, but the packet is
   // not mine, I will just update the entry if required.
   if (my_pkt) {
     if (centry_exists) {
-      centry = update_cache_entry(&pkt);
+      centry = update_cache_entry(&pkt, sa);
     } else {
-      centry = add_cache_entry(&pkt);
+      centry = add_cache_entry(&pkt, sa);
     }
     
     // If we have a connected client with this cache entry, then
@@ -233,7 +236,7 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
       // TODO 
     }
   } if (!my_pkt && centry_exists) {
-    update_cache_entry(&pkt);
+    update_cache_entry(&pkt, sa);
   }
 }
 
@@ -244,14 +247,15 @@ listen_on_sockets(void) {
 
 void
 arp_setup(void) {
+  vector_init(&cache, sizeof(cache_entry));
   get_addr_pairs();
   setup_sockets();
-  listen_on_sockets();
 }
 
 int 
 main(int argc, char **argv) {
   assert(sizeof(arp_pkt) == 28);
   arp_setup();
+  listen_on_sockets();
   return 0;
 }
