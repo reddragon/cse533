@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+// The sun_path for the ARP server
 #define SRV_SUNPATH "/tmp/dynamic_duo/arp_serv"
 
 typedef struct hwaddr {
