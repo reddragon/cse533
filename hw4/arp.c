@@ -17,8 +17,10 @@ typedef struct addr_pair {
 typedef struct cache_entry {
   eth_addr_n      eth_n;
   ipaddr_n        ip_n;
+  ipaddr_ascii    ip_a;
   int             sll_ifindex;
   unsigned short  sll_hatype;
+  unsigned char   sll_halen;
   int             sockfd;
 } cache_entry;
 
@@ -162,20 +164,23 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
   c = get_cache_entry(msg->ipaddr_nw);
   if (c == NULL) {
     c = MALLOC(cache_entry);
-    c->ip_n   = msg->ipaddr_nw;
-    // c->sll_ifindex  = msg->sll_ifindex;
+    c->ip_n         = msg->ipaddr_nw;
+    c->ip_a         = msg->ipaddr_a;
+    c->sll_ifindex  = msg->sll_ifindex;
     c->sll_hatype   = msg->sll_hatype;
+    c->sll_halen    = msg->sll_halen;
     vector_push_back(&cache, c);
+    
     INFO("Created an incomplete cache entry for IP Address: %s.\n",
         msg->ipaddr_a.addr);
-    // FIXME What would be the destination ethernet address here?
+    
     ef = create_arp_request(broadcast_eth_addr, c->ip_n);  
     send_over_ethernet(ef);
   } else {
     // Fill up the ethernet address of the requested IP address
     msg->eth_addr     = c->eth_n;
     msg->sll_ifindex  = c->sll_ifindex;
-    Sendto(sockfd, (void *)msg, sizeof(*msg), 0, (SA *)cli, sizeof(*cli));
+    Send(sockfd, (void *)msg, sizeof(*msg), 0);
     close(sockfd);
   }
 }
@@ -204,10 +209,11 @@ cache_entry_exists(ipaddr_n target_addr) {
 cache_entry *
 add_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   cache_entry *c = MALLOC(cache_entry);
-  c->eth_n  = pkt->sender_eth_addr;
-  c->ip_n   = pkt->sender_ip_addr;
+  c->eth_n        = pkt->sender_eth_addr;
+  c->ip_n         = pkt->sender_ip_addr;
   c->sll_ifindex  = sa->sll_ifindex;
   c->sll_hatype   = sa->sll_hatype;
+  c->sll_halen    = sa->sll_halen;
   c->sockfd       = -1;
   return c;
 }
@@ -223,6 +229,7 @@ update_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
       c->ip_n         = pkt->sender_ip_addr;
       c->sll_ifindex  = sa->sll_ifindex;
       c->sll_hatype   = sa->sll_hatype;
+      c->sll_halen    = sa->sll_halen;
       return c;
     }
   }
@@ -231,6 +238,7 @@ update_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
 
 void
 act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
+  api_msg msg;
   arp_pkt pkt;
   cache_entry *centry;
   bool my_pkt, centry_exists;
@@ -268,7 +276,14 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
     // If we have a connected client with this cache entry, then
     // we need to flush out the address
     if (centry->sockfd > 0) {
-      // TODO 
+      msg.eth_addr    = centry->eth_n;
+      msg.ipaddr_a    = centry->ip_a; 
+      msg.ipaddr_nw   = centry->ip_n;
+      msg.sll_ifindex = centry->sll_ifindex;
+      msg.sll_hatype  = centry->sll_hatype;
+      msg.sll_halen   = centry->sll_halen;  
+      Send(centry->sockfd, (void *)&msg, sizeof(msg), 0);
+      centry->sockfd = -1;  // Resetting the sockfd 
     }
   } if (!my_pkt && centry_exists) {
     update_cache_entry(&pkt, sa);
