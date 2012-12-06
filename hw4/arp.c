@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "vector.h"
 #include "api.h"
+#include "fdset.h"
 
 // Essentially a pair of Ethernet Address and the IP Address for an iface
 typedef struct addr_pair {
@@ -44,6 +45,7 @@ typedef struct arp_pkt {
   ipaddr_n    target_ip_addr;
 } arp_pkt;
 
+fdset       fds;
 vector      cache;          // The ARP entry cache
 vector      addr_pairs;
 eth_addr_n  *eth0_hwaddr;
@@ -274,8 +276,78 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
 }
 
 void
+on_pf_recv(void *o) {
+ int r;
+ struct sockaddr_ll sa;
+ socklen_t addrlen = sizeof(sa);
+ eth_frame frame;
+ memset(&frame, 0, sizeof(frame));
+ r = recvfrom(pf_sockfd, &frame, sizeof(frame), 0, (SA*)&sa, &addrlen);
+ VERBOSE("Received an eth_frame of size %d\n", r);
+ if (r < 0 && errno == EINTR) {
+   VERBOSE("recvfrom got EINTR%s\n", "");
+   return;
+ }
+ if (r < 0) {
+   perror("recvfrom");
+   exit(1);
+ }
+ assert_ge(r, 64);
+ // memcpy(sa.if_haddr, frame.src_eth_addr, sizeof(sa.if_haddr));
+ act_on_eth_pkt(&frame, &sa);
+}
+
+void
+on_pf_error(void *o) {
+  INFO("Error while receiving from the PF_PACKET Socket.\n%s", "");
+}
+
+void
+on_ud_recv(void *o) {
+  struct sockaddr_un cliaddr;
+  socklen_t clilen;
+  api_msg m;
+  int c_sockfd;
+
+  clilen = sizeof(cliaddr);
+  memset(&cliaddr, 0, sizeof(cliaddr));
+  memset(&m, 0, sizeof(m));
+  c_sockfd = Accept(ds_sockfd, (SA*)&cliaddr, &clilen);
+
+  Recv(c_sockfd, (char*)&m, sizeof(api_msg), 0);
+  act_on_api_msg(&m, ds_sockfd, &cliaddr);    
+}
+
+void
+on_ud_error(void *o) {
+  INFO("Error while receiving from the Domain Socket.\n%s", "");
+}
+
+void
+on_timeout(void *o) {
+  INFO("Timed out.\n%s", "");
+}
+
+void
 listen_on_sockets(void) {
-  // TODO Fill this
+  int r;
+  struct timeval timeout;
+  timeout.tv_sec = 10; // FIXME when we know better
+  timeout.tv_usec = 0;
+
+  fdset_init(&fds, timeout, NULL);
+  fdset_add(&fds, &fds.rev,  pf_sockfd, &pf_sockfd, on_pf_recv);
+  fdset_add(&fds, &fds.exev, pf_sockfd, &pf_sockfd, on_pf_error);
+
+  fdset_add(&fds, &fds.rev,  ds_sockfd, &ds_sockfd, on_ud_recv);
+  fdset_add(&fds, &fds.exev, ds_sockfd, &ds_sockfd, on_ud_error);
+
+  r = fdset_poll(&fds, &timeout, on_timeout);
+  if (r < 0) {
+    perror("select");
+    ASSERT(errno != EINTR);
+    exit(1);
+  }
 }
 
 void
