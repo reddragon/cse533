@@ -17,7 +17,12 @@ typedef struct hwaddr {
 } hwaddr;
 
 typedef struct api_msg {
-  ipaddr_ascii ipaddr;
+  eth_addr_n      eth_addr; 
+  ipaddr_ascii    ipaddr_a;
+  ipaddr_n        ipaddr_nw;
+  int             sll_ifindex;
+  unsigned short  sll_hatype;
+  unsigned char   sll_halen;
 } api_msg;
 
 int areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr);

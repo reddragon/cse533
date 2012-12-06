@@ -48,6 +48,7 @@ vector      cache;          // The ARP entry cache
 vector      addr_pairs;
 eth_addr_n  *eth0_hwaddr;
 ipaddr_n    *eth0_ipaddr;   
+eth_addr_n  broadcast_eth_addr;
 int         pf_sockfd;
 int         ds_sockfd;
 
@@ -56,28 +57,30 @@ int         ds_sockfd;
 #define ARP_REQUEST  0x1
 #define ARP_RESPONSE 0x2
 
-arp_pkt*
-create_arp_pkt(uint16_t op) {
+void
+send_over_ethernet(eth_frame *ef) {
   // TODO Fill this
-  return NULL;
 }
 
 eth_frame*
-create_arp_request(eth_addr_n dst_addr) {
+create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr) {
   eth_frame *ef;
   arp_pkt pkt;
   ef = MALLOC(eth_frame);   
-  ef->dst_eth_addr  = dst_addr;
-  ef->src_eth_addr  = ((addr_pair *)vector_at(&addr_pairs, 0))->eth_n;
+  ef->dst_eth_addr  = target_eth_addr;
+  ef->src_eth_addr  = *eth0_hwaddr;
   ef->protocol      = ARP_PROTOCOL;
 
   pkt.hard_type = 0x1;          // H/W Type is Ethernet 
   pkt.prot_type = 0x800;        // IP Address
   pkt.hard_size = 6;            // Size of the Ethernet Addr
   pkt.prot_size = 4;            // Size of IP Address
-  pkt.op        = ARP_REQUEST;  
+  pkt.op        = ARP_REQUEST;    
+  pkt.sender_eth_addr = *eth0_hwaddr;
+  pkt.sender_ip_addr  = *eth0_ipaddr;
+  pkt.target_eth_addr = target_eth_addr;
+  pkt.target_ip_addr  = target_ip_addr;
   memcpy(ef->payload, &pkt, sizeof(arp_pkt));
-  // TODO Fill up the target IP and other fields
   return ef;
 }
 
@@ -130,9 +133,49 @@ setup_sockets(void) {
   // involve telling the kernel which interface we want to use.
 }
 
+cache_entry *
+get_cache_entry(ipaddr_n target_addr) {
+  cache_entry *c;
+  int n, i;
+  n = vector_size(&cache);
+  for (i = 0; i < n; i++) {
+    c = (cache_entry *)vector_at(&cache, i);
+    if (!memcmp(&c->ip_n, &target_addr, sizeof(eth_addr_n))) {
+      return c;
+    }
+  }
+  return NULL;
+}
+
+// When the ARP module receives a request for a HW address, it:
+// 1. Checks if it has the H/W address for the IP address in its cache
+//    - If yes, it responds immediately, and closes the socket.
+//    - If no, it makes an incomplete entry in the cache, consisting
+//      of the api_msg params. 
+
 void
-act_on_api_msg(api_msg *msg) {
-  // TODO Fill this
+act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
+  cache_entry *c;
+  eth_frame *ef;
+  c = get_cache_entry(msg->ipaddr_nw);
+  if (c == NULL) {
+    c = MALLOC(cache_entry);
+    c->ip_n   = msg->ipaddr_nw;
+    // c->sll_ifindex  = msg->sll_ifindex;
+    c->sll_hatype   = msg->sll_hatype;
+    vector_push_back(&cache, c);
+    INFO("Created an incomplete cache entry for IP Address: %s.\n",
+        msg->ipaddr_a.addr);
+    // FIXME What would be the destination ethernet address here?
+    ef = create_arp_request(broadcast_eth_addr, c->ip_n);  
+    send_over_ethernet(ef);
+  } else {
+    // Fill up the ethernet address of the requested IP address
+    msg->eth_addr     = c->eth_n;
+    msg->sll_ifindex  = c->sll_ifindex;
+    Sendto(sockfd, (void *)msg, sizeof(*msg), 0, (SA *)cli, sizeof(*cli));
+    close(sockfd);
+  }
 }
 
 // Check if this packet was targeted for me
@@ -153,16 +196,7 @@ is_my_pkt(arp_pkt *pkt) {
 
 bool
 cache_entry_exists(ipaddr_n target_addr) {
-  cache_entry *c;
-  int n, i;
-  n = vector_size(&cache);
-  for (i = 0; i < n; i++) {
-    c = (cache_entry *)vector_at(&cache, i);
-    if (!memcmp(&c->ip_n, &target_addr, sizeof(eth_addr_n))) {
-      return TRUE;
-    }
-  }
-  return FALSE;
+  return (get_cache_entry(target_addr) != NULL);
 }
 
 cache_entry *
@@ -171,8 +205,7 @@ add_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   c->eth_n  = pkt->sender_eth_addr;
   c->ip_n   = pkt->sender_ip_addr;
   c->sll_ifindex  = sa->sll_ifindex;
-  // c->sll_hatype   = sa->sll_hatype;
-  c->sll_hatype   = 1;
+  c->sll_hatype   = sa->sll_hatype;
   c->sockfd       = -1;
   return c;
 }

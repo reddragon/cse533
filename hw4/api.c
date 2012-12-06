@@ -3,6 +3,7 @@
 #include "unp.h"
 #include <unistd.h>
 
+// TODO Think about the case that Dhruv mentioned.
 int 
 areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr) {
   struct sockaddr_un servaddr, cliaddr;
@@ -28,7 +29,8 @@ areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr) {
   strcpy(servaddr.sun_path, SRV_SUNPATH);
 
   Connect(sockfd, (SA *)&servaddr, sizeof(servaddr));
-  msg.ipaddr = ipaddr;
+  msg.ipaddr_a  = ipaddr;
+  inet_pton(AF_INET, ipaddr.addr, &msg.ipaddr_nw);  
   
   Sendto(sockfd, (char *)&msg, sizeof(msg), 0, (SA *)&servaddr, sizeof(servaddr));
 
