@@ -5,7 +5,7 @@
 
 // TODO Think about the case that Dhruv mentioned.
 int 
-areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr) {
+areq(ipaddr_ascii ipaddr, struct hwaddr *hwaddr) {
   struct sockaddr_un servaddr, cliaddr;
   char *tmp_file;
   int sockfd;
@@ -31,7 +31,7 @@ areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr) {
   Connect(sockfd, (SA *)&servaddr, sizeof(servaddr));
   inet_pton(AF_INET, ipaddr.addr, &msg.ipaddr_nw);  
   
-  Sendto(sockfd, (char *)&msg, sizeof(msg), 0, (SA *)&servaddr, sizeof(servaddr));
+  Send(sockfd, (char *)&msg, sizeof(msg), 0);
 
   // FIXME When we have an idea of what is a reasonable timeout
   timeout.tv_sec  = 10;

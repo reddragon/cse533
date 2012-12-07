@@ -28,13 +28,35 @@ on_timeout(void *opaque) {
   // TODO: Send out ping packets.
 }
 
+void
+populate_myip(void) {
+  struct hwa_info *head, *h;
+  struct sockaddr *sa;
+  bool found = FALSE;
+  
+  head = Get_hw_addrs();
+  for (h = head; h != NULL; h = h->hwa_next) {
+    if (!strcmp(h->if_name, "eth0")) {
+      sa = (SA *)h->ip_addr;
+      strcpy(myip_a.addr, (char *)Sock_ntop_host(sa, sizeof(*sa)));      
+      myip_n = ((struct sockaddr_in *)sa)->sin_addr;
+      INFO("My IP Address: %s\n", myip_a.addr);
+      break;
+    }
+  }
+  assert(found);
+}
+
+
+
 void tour_setup(int argc, char *argv[]) {
   const int yes = 1;
   int i, r;
   struct in_addr ia;
   char ipaddr_str[200];
   struct timeval timeout;
-
+  
+  populate_myip();
   rt = Socket(AF_INET, SOCK_RAW, IPPROTO_HW);
   // IP_HDRINCL means that the sender MUST include the header while
   // sending out the packet.

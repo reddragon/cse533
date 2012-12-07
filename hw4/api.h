@@ -24,7 +24,7 @@ typedef struct api_msg {
   unsigned char   sll_halen;
 } api_msg;
 
-int areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr);
+int areq(ipaddr_ascii ipaddr, struct hwaddr *hwaddr);
 
 #endif
 
