@@ -51,6 +51,7 @@ populate_myip(void) {
   assert(found);
 }
 
+void
 on_rt_recv(void *opaque) {
 }
 
