@@ -187,14 +187,16 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
   if (c == NULL) {
     c = MALLOC(cache_entry);
     c->ip_n         = msg->ipaddr_nw;
-    c->ip_a         = msg->ipaddr_a;
+    strcpy(c->ip_a.addr,  
+          (char *)Sock_ntop_host((SA *)&msg->ipaddr_nw, 
+                                  sizeof(msg->ipaddr_nw)));
     c->sll_ifindex  = msg->sll_ifindex;
     c->sll_hatype   = msg->sll_hatype;
     c->sll_halen    = msg->sll_halen;
     vector_push_back(&cache, c);
     
     INFO("Created an incomplete cache entry for IP Address: %s.\n",
-        msg->ipaddr_a.addr);
+        c->ip_a.addr);
     
     ef = create_arp_request(broadcast_eth_addr, c->ip_n);  
     send_over_ethernet(ef);
@@ -300,7 +302,6 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
     // we need to flush out the address
     if (centry->sockfd > 0) {
       msg.eth_addr    = centry->eth_n;
-      msg.ipaddr_a    = centry->ip_a; 
       msg.ipaddr_nw   = centry->ip_n;
       msg.sll_ifindex = centry->sll_ifindex;
       msg.sll_hatype  = centry->sll_hatype;
