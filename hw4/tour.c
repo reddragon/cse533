@@ -6,17 +6,19 @@
 #include <linux/if_ether.h>
 
 int rt, pg, pf, udp; // rt -> Routing; pg -> Ping; pf -> PF Packet; udp -> For Multicast
-vector tour_hosts;   // List of hostnames that we have to visit, excluding us.
 ipaddr_ascii myip_a; // My IP address in presentation format
 ipaddr_n     myip_n; // My IP address in network byte order
 tour_list tour;      // List of IP addresses (in network
                      // order). Includes my own IP address.
 bool visited;        // Whether this node has been touched by a tour
 fdset fds;           // List of FDs to wait on
+vector ping_hosts;   // List of hosts to ping every second
 
-typedef struct hostname_t {
-  char hostname[60];
-} hostname_t;
+typedef struct ping_info_t {
+  ipaddr_n ip;
+  int last_ping_ms;
+  int num_pings;
+} ping_info_t;
 
 void
 on_timeout(void *opaque) {
@@ -29,7 +31,6 @@ on_timeout(void *opaque) {
 void tour_setup(int argc, char *argv[]) {
   const int yes = 1;
   int i, r;
-  hostname_t hn;
   struct in_addr ia;
   char ipaddr_str[200];
   struct timeval timeout;
@@ -43,20 +44,17 @@ void tour_setup(int argc, char *argv[]) {
   pf = Socket(PF_PACKET, SOCK_RAW, ETH_P_IP);
   udp = Socket(AF_INET, SOCK_DGRAM, 0); // FIXME Fix the protocol
 
-  vector_init(&tour_hosts, sizeof(hostname_t));
+  vector_init(&ping_hosts, sizeof(ping_info_t));
 
   // TODO: Get my eth0 IP address.
-  strcpy(hn.hostname, myip_a.addr);
+  Inet_pton(AF_INET, hostname_to_ip_address(myip_a.addr, ipaddr_str), &ia);
+  tour.nodes[0] = ia;
+  tour.num_nodes = 1;
 
-  vector_push_back(&tour_hosts, &hn);
-
-  tour.num_nodes = 0;
   for (i = 1; i < argc; i++) {
-    strcpy(hn.hostname, argv[i]);
-    vector_push_back(&tour_hosts, &hn);
-    Inet_pton(AF_INET, hostname_to_ip_address(hn.hostname, ipaddr_str), &ia);
+    Inet_pton(AF_INET, hostname_to_ip_address(argv[i], ipaddr_str), &ia);
     tour.nodes[i] = ia;
-    tour.num_nodes = i;
+    tour.num_nodes = i + 1;
   }
 
   // TODO: Add handlers.

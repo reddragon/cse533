@@ -94,13 +94,12 @@ typedef struct tour_list {
 
 typedef struct tour_pkt {
   tour_list tlist;
-  uint16_t tlist_ptr;
-  ipaddr_n mcast_addr;
-  int mcast_port;
+  uint16_t  current_node_idx;
+  ipaddr_n  mcast_addr;
+  int       mcast_port;
 } tour_pkt;
 
 char *create_tmp_file(void);
-
 void* my_malloc(size_t size);
 void pretty_print_eth_addr(char hwaddr[6], char *out);
 char *hostname_to_ip_address(const char *hostname, char *ip);
