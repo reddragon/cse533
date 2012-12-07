@@ -2,6 +2,7 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+#include <net/if_arp.h>
 #include <linux/if_packet.h>
 #include <netinet/in.h>
 #include <stdio.h>

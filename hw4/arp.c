@@ -64,6 +64,31 @@ int         ds_sockfd;
 void
 send_over_ethernet(eth_frame *ef) {
   // TODO Fill this
+  struct sockaddr_ll sa;
+  int i;
+  unsigned char mask = 0xff;
+
+  VERBOSE("send_eth_pkt(iface_idx: %d)\n", iface_idx);
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sll_family   = PF_PACKET;
+  sa.sll_hatype   = ARPHRD_ETHER;
+  sa.sll_pkttype  = PACKET_BROADCAST;
+  sa.sll_protocol = ef->protocol;
+  sa.sll_ifindex  = 0; // FIXME fix this
+  sa.sll_halen    = 6;
+
+  for (i = 0; i < 6; ++i) {
+    mask &= *(unsigned char*)(ef->dst_eth_addr.addr + i);
+  }
+
+  if (mask != 0xff) {
+    sa.sll_pkttype = PACKET_OTHERHOST;
+  }
+
+  memcpy(sa.sll_addr, ef->dst_eth_addr.addr, 6);
+  Sendto(pf_sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
+  VERBOSE("send_eth_pkt() terminated successfully\n%s", "");
 }
 
 eth_frame*
