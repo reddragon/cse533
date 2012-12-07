@@ -29,7 +29,6 @@ areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr) {
   strcpy(servaddr.sun_path, SRV_SUNPATH);
 
   Connect(sockfd, (SA *)&servaddr, sizeof(servaddr));
-  msg.ipaddr_a  = ipaddr;
   inet_pton(AF_INET, ipaddr.addr, &msg.ipaddr_nw);  
   
   Sendto(sockfd, (char *)&msg, sizeof(msg), 0, (SA *)&servaddr, sizeof(servaddr));
@@ -37,11 +36,6 @@ areq(ipaddr_ascii ipaddr, socklen_t slen, struct hwaddr *hwaddr) {
   // FIXME When we have an idea of what is a reasonable timeout
   timeout.tv_sec  = 10;
   timeout.tv_usec = 0;
-  /*
-  fdset_init(&fds, timeout, NULL);
-
-  fdset_add(&fds, &fds.rev,  sockfd, &c.sockfd, on_recv);
-  fdset_add(&fds, &fds.exev, sockfd, &c.sockfd, on_error);
-  */
+  
 
 }

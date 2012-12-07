@@ -18,7 +18,6 @@ typedef struct hwaddr {
 
 typedef struct api_msg {
   eth_addr_n      eth_addr; 
-  ipaddr_ascii    ipaddr_a;
   ipaddr_n        ipaddr_nw;
   int             sll_ifindex;
   unsigned short  sll_hatype;
