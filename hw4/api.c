@@ -5,12 +5,12 @@
 
 // TODO Think about the case that Dhruv mentioned.
 int 
-areq(ipaddr_ascii ipaddr, struct hwaddr *hwaddr) {
+areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   struct sockaddr_un servaddr, cliaddr;
   char *tmp_file;
   int sockfd;
   api_msg msg;
-  // fdset fds;
+  fd_set readfds;
   struct timeval timeout;
 
   // First unlink, then create the temp file.
@@ -29,13 +29,15 @@ areq(ipaddr_ascii ipaddr, struct hwaddr *hwaddr) {
   strcpy(servaddr.sun_path, SRV_SUNPATH);
 
   Connect(sockfd, (SA *)&servaddr, sizeof(servaddr));
-  inet_pton(AF_INET, ipaddr.addr, &msg.ipaddr_nw);  
-  
+  msg.ipaddr_nw = ipaddr_nw;
+
   Send(sockfd, (char *)&msg, sizeof(msg), 0);
 
   // FIXME When we have an idea of what is a reasonable timeout
   timeout.tv_sec  = 10;
   timeout.tv_usec = 0;
   
-
+  FD_ZERO(&readfds);
+  FD_SET(sockfd, &readfds);
+  // TODO Add Select()
 }
