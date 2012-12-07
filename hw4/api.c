@@ -8,9 +8,10 @@ int
 areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   struct sockaddr_un servaddr, cliaddr;
   char *tmp_file;
-  int sockfd;
-  api_msg msg;
+  int sockfd, ret;
+  api_msg msg, resp;
   fd_set readfds;
+  size_t recv_sz;
   struct timeval timeout;
 
   // First unlink, then create the temp file.
@@ -39,5 +40,20 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   
   FD_ZERO(&readfds);
   FD_SET(sockfd, &readfds);
-  // TODO Add Select()
+  
+  ret = Select(sockfd + 1, &readfds, NULL, NULL, &timeout);
+  if (FD_ISSET(sockfd, &readfds)) {
+    VERBOSE("Received response from the ARP process.\n%s", "");  
+    recv_sz = Recv(sockfd, &resp, sizeof(resp), 0);
+    assert(recv_sz == sizeof(resp));  
+    hwaddr->sll_ifindex = resp.sll_ifindex;
+    hwaddr->sll_hatype  = resp.sll_hatype;
+    hwaddr->sll_halen   = resp.sll_halen;
+    memcpy(hwaddr->sll_addr, resp.eth_addr.addr, 
+    sizeof(resp.eth_addr.addr));
+    return 0;
+  } else {
+    INFO("Timed out while waiting for the ARP process. ret = %d\n%s", ret);
+  }
+  return 1;
 }
