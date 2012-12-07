@@ -3,9 +3,13 @@
 #include "vector.h"
 #include "unp.h"
 #include "fdset.h"
+#include "api.h"
 #include <linux/if_ether.h>
 
-int rt, pg, pf, udp; // rt -> Routing; pg -> Ping; pf -> PF Packet; udp -> For Multicast
+int rt, pg, pf, udp; // rt -> Routing
+                     // pg -> Ping
+                     // pf -> PF Packet
+                     // udp -> For Multicast
 ipaddr_ascii myip_a; // My IP address in presentation format
 ipaddr_n     myip_n; // My IP address in network byte order
 tour_list tour;      // List of IP addresses (in network
@@ -47,7 +51,36 @@ populate_myip(void) {
   assert(found);
 }
 
+on_rt_recv(void *opaque) {
+}
 
+void
+on_pg_recv(void *opaque) {
+}
+
+void
+on_pf_recv(void *opaque) {
+}
+
+void
+on_udp_recv(void *opaque) {
+}
+
+void
+on_rt_error(void *opaque) {
+}
+
+void
+on_pg_error(void *opaque) {
+}
+
+void
+on_pf_error(void *opaque) {
+}
+
+void
+on_udp_error(void *opaque) {
+}
 
 void tour_setup(int argc, char *argv[]) {
   const int yes = 1;
@@ -55,8 +88,10 @@ void tour_setup(int argc, char *argv[]) {
   struct in_addr ia;
   char ipaddr_str[200];
   struct timeval timeout;
-  
+  struct hwaddr hwaddr;
+
   populate_myip();
+
   rt = Socket(AF_INET, SOCK_RAW, IPPROTO_HW);
   // IP_HDRINCL means that the sender MUST include the header while
   // sending out the packet.
@@ -80,9 +115,24 @@ void tour_setup(int argc, char *argv[]) {
   }
 
   // TODO: Add handlers.
+  fdset_add(&fds, &fds.rev,  rt, &rt, on_rt_recv);
+  fdset_add(&fds, &fds.exev, rt, &rt, on_rt_error);
 
-  if (argc == 1) {
+  fdset_add(&fds, &fds.rev,  pg, &pg, on_pg_recv);
+  fdset_add(&fds, &fds.exev, pg, &pg, on_pg_error);
+
+  fdset_add(&fds, &fds.rev,  pf, &pf, on_pf_recv);
+  fdset_add(&fds, &fds.exev, pf, &pf, on_pf_error);
+
+  fdset_add(&fds, &fds.rev,  udp, &udp, on_udp_recv);
+  fdset_add(&fds, &fds.exev, udp, &udp, on_udp_error);
+
+  if (argc > 1) {
     // TODO: Start a tour.
+    r = areq(tour.nodes[1], &hwaddr);
+    assert_ge(r, 0);
+
+    // TODO: Construct and send out the first tour packet.
   }
 
   timeout.tv_sec =  1; // FIXME when we know better
