@@ -102,6 +102,7 @@ char *create_tmp_file(void);
 
 void* my_malloc(size_t size);
 void pretty_print_eth_addr(char hwaddr[6], char *out);
+char *hostname_to_ip_address(const char *hostname, char *ip);
 struct hwa_info * Get_hw_addrs(void);
 #endif
 

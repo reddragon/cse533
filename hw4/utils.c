@@ -18,6 +18,23 @@ void pretty_print_eth_addr(char hwaddr[6], char *out) {
   } while (--i > 0);
 }
 
+char *hostname_to_ip_address(const char *hostname, char *ip) {
+  struct hostent *he = gethostbyname(hostname);
+  struct in_addr **ina;
+
+  if (!he) {
+    VERBOSE("Invalid hostname/IP Address '%s'\n", hostname);
+    return NULL;
+  }
+
+  for (ina = (struct in_addr**)he->h_addr_list; *ina; ++ina) {
+    char *addr = inet_ntoa(**ina);
+    strcpy(ip, addr);
+    return ip;
+  }
+  return NULL;
+}
+
 char *create_tmp_file(void) {
   int r, fd;
   char *file_name;
