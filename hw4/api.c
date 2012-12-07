@@ -53,7 +53,7 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
     sizeof(resp.eth_addr.addr));
     return 0;
   } else {
-    INFO("Timed out while waiting for the ARP process. ret = %d\n%s", ret);
+    INFO("Timed out while waiting for the ARP process. ret = %d\n", ret);
   }
   return 1;
 }
