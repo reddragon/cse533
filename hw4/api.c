@@ -6,8 +6,7 @@
 // TODO Think about the case that Dhruv mentioned.
 int 
 areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
-  struct sockaddr_un servaddr, cliaddr;
-  char *tmp_file;
+  struct sockaddr_un servaddr;
   int sockfd, ret;
   api_msg msg, resp;
   fd_set readfds;
@@ -15,15 +14,7 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   struct timeval timeout;
 
   // First unlink, then create the temp file.
-  unlink(tmp_file);
-  tmp_file = create_tmp_file();
-
   sockfd = Socket(AF_LOCAL, SOCK_STREAM, 0);
-  bzero(&cliaddr, sizeof(cliaddr));
-  cliaddr.sun_family = AF_LOCAL;
-  strcpy(cliaddr.sun_path, tmp_file);
-  
-  Bind(sockfd, (SA *)&cliaddr, sizeof(cliaddr));
 
   bzero(&servaddr, sizeof(servaddr));
   servaddr.sun_family = AF_LOCAL;
@@ -45,7 +36,7 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   if (FD_ISSET(sockfd, &readfds)) {
     VERBOSE("Received response from the ARP process.\n%s", "");  
     recv_sz = Recv(sockfd, &resp, sizeof(resp), 0);
-    assert(recv_sz == sizeof(resp));  
+    assert_eq(recv_sz, sizeof(resp));
     hwaddr->sll_ifindex = resp.sll_ifindex;
     hwaddr->sll_hatype  = resp.sll_hatype;
     hwaddr->sll_halen   = resp.sll_halen;
