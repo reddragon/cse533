@@ -63,12 +63,9 @@ int         ds_sockfd;
 
 void
 send_over_ethernet(eth_frame *ef) {
-  // TODO Fill this
   struct sockaddr_ll sa;
   int i;
   unsigned char mask = 0xff;
-
-  VERBOSE("send_eth_pkt(iface_idx: %d)\n", iface_idx);
 
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
@@ -180,7 +177,7 @@ get_cache_entry(ipaddr_n target_addr) {
 // 1. Checks if it has the H/W address for the IP address in its cache
 //    - If yes, it responds immediately, and closes the socket.
 //    - If no, it makes an incomplete entry in the cache, consisting
-//      of the api_msg params. 
+//      of the api_msg params, and sends an ARP request 
 
 void
 act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
@@ -355,6 +352,7 @@ on_ud_recv(void *o) {
   c_sockfd = Accept(ds_sockfd, (SA*)&cliaddr, &clilen);
 
   Recv(c_sockfd, (char*)&m, sizeof(api_msg), 0);
+  INFO("Received a message from the Tour process.\n%s", "");
   act_on_api_msg(&m, ds_sockfd, &cliaddr);    
 }
 
@@ -374,7 +372,11 @@ listen_on_sockets(void) {
   struct timeval timeout;
   timeout.tv_sec = 10; // FIXME when we know better
   timeout.tv_usec = 0;
+  
+  // Do a listen() on the Domain Socket
+  Listen(ds_sockfd, LISTENQ);
 
+  VERBOSE("Starting to listen on the sockets.\n%s", "");
   fdset_init(&fds, timeout, NULL);
   fdset_add(&fds, &fds.rev,  pf_sockfd, &pf_sockfd, on_pf_recv);
   fdset_add(&fds, &fds.exev, pf_sockfd, &pf_sockfd, on_pf_error);
@@ -393,13 +395,18 @@ listen_on_sockets(void) {
 void
 arp_setup(void) {
   vector_init(&cache, sizeof(cache_entry));
+  memset(broadcast_eth_addr.addr, 0xff, sizeof(broadcast_eth_addr.addr));
   get_addr_pairs();
   setup_sockets();
 }
 
 int 
 main(int argc, char **argv) {
-  assert(sizeof(arp_pkt) == 28);
+  // TODO 
+  // The size of arp_pkt should be 30.
+  // 2 + 2 + 2 + 1 + 1 + 6 + 4 + 6 + 4 = 30
+  // However, it seems alignment is at play.
+  assert(sizeof(arp_pkt) == 32);
   arp_setup();
   listen_on_sockets();
   return 0;

@@ -27,7 +27,8 @@ typedef int bool;
   fflush(stdout);                             \
 }
 
-#ifdef DEBUG
+// FIXME Change to DEBUG
+#if 1
 #define VERBOSE(X, VARGS...) TIMESTAMPMSG("VERBOSE", X, VARGS)
 #else
 #define VERBOSE(X...)
