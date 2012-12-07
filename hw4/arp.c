@@ -164,7 +164,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
         c->ip_a.addr);
     
     ef = create_arp_request(broadcast_eth_addr, c->ip_n);  
-    send_over_ethernet(pf_sockfd, ef);
+    send_over_ethernet(pf_sockfd, ef, eth0_ifindex);
   } else {
     // Fill up the ethernet address of the requested IP address
     msg->eth_addr     = c->eth_n;

@@ -109,7 +109,7 @@ typedef struct tour_pkt {
 } tour_pkt;
 
 char *create_tmp_file(void);
-void send_over_ethernet(int sockfd, eth_frame *ef);
+void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex);
 void* my_malloc(size_t size);
 void pretty_print_eth_addr(char hwaddr[6], char *out);
 char *hostname_to_ip_address(const char *hostname, char *ip);

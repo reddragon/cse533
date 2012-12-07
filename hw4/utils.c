@@ -47,7 +47,7 @@ char *create_tmp_file(void) {
   return file_name;
 }
 
-void send_over_ethernet(int sockfd, eth_frame *ef) {
+void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
   struct sockaddr_ll sa;
   int i, r;
   unsigned char mask = 0xff;

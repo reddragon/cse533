@@ -6,17 +6,18 @@
 #include "api.h"
 #include <linux/if_ether.h>
 
-int rt, pg, pf, udp; // rt -> Routing
-                     // pg -> Ping
-                     // pf -> PF Packet
-                     // udp -> For Multicast
-ipaddr_ascii myip_a; // My IP address in presentation format
-ipaddr_n     myip_n; // My IP address in network byte order
-tour_list tour;      // List of IP addresses (in network
-                     // order). Includes my own IP address.
-bool visited;        // Whether this node has been touched by a tour
-fdset fds;           // List of FDs to wait on
-vector ping_hosts;   // List of hosts to ping every second
+int rt, pg, pf, udp;      // rt -> Routing
+                          // pg -> Ping
+                          // pf -> PF Packet
+                          // udp -> For Multicast
+ipaddr_ascii myip_a;      // My IP address in presentation format
+ipaddr_n     myip_n;      // My IP address in network byte order
+int          my_ifindex;  // if_index for eth0
+tour_list tour;           // List of IP addresses (in network
+                          // order). Includes my own IP address.
+bool visited;             // Whether this node has been touched by a tour
+fdset fds;                // List of FDs to wait on
+vector ping_hosts;        // List of hosts to ping every second
 
 typedef struct ping_info_t {
   ipaddr_n ip;
@@ -44,6 +45,7 @@ populate_myip(void) {
       sa = (SA *)h->ip_addr;
       strcpy(myip_a.addr, (char *)Sock_ntop_host(sa, sizeof(*sa)));      
       myip_n = ((struct sockaddr_in *)sa)->sin_addr;
+      my_ifindex = h->if_index;
       INFO("My IP Address: %s\n", myip_a.addr);
       found = TRUE;
       break;
