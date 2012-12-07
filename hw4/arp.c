@@ -289,6 +289,7 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   // or update it). Otherwise, if it exists, but the packet is
   // not mine, I will just update the entry if required.
   if (my_pkt) {
+    INFO("Received an ARP request meant for me.\n%s", "");
     if (centry_exists) {
       centry = update_cache_entry(&pkt, sa);
     } else {
