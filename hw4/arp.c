@@ -51,7 +51,8 @@ fdset       fds;
 vector      cache;          // The ARP entry cache
 vector      addr_pairs;
 eth_addr_n  *eth0_hwaddr;
-ipaddr_n    *eth0_ipaddr;   
+ipaddr_n    *eth0_ipaddr;
+int         eth0_ifindex;
 eth_addr_n  broadcast_eth_addr;
 int         pf_sockfd;
 int         ds_sockfd;
@@ -119,7 +120,7 @@ get_addr_pairs(void) {
   vector_init(&addr_pairs, sizeof(addr_pair));
   head = Get_hw_addrs();
   for (h = head; h != NULL; h = h->hwa_next) {
-    if (!strcmp(h->if_name, "eth0")) {
+    if (!strncmp(h->if_name, "eth0", 4)) {
       a = MALLOC(addr_pair);
       memcpy(a->eth_n.addr, h->if_haddr, sizeof(a->eth_n.addr));
       pretty_print_eth_addr(a->eth_n.addr, a->eth_ascii.addr);
@@ -130,14 +131,16 @@ get_addr_pairs(void) {
       INFO("Interface %s (H/W Address: %s, IP Address: %s)\n",
             a->if_name, a->eth_ascii.addr, a->ip_ascii.addr);
       vector_push_back(&addr_pairs, a);
+
+      if (!strcmp(h->if_name, "eth0")) {
+        eth0_hwaddr   = &a->eth_n;
+        eth0_ipaddr   = &a->ip_n;
+        eth0_ifindex  = h->if_index;
+      }
     }
   }
   // Checking if we got atleast one Eth-Addr, IP-Addr pair.
   ASSERT(vector_size(&addr_pairs) > 0);
-  // Get the ethernet address and IP address for eth0 (one of its alias)
-  a = (addr_pair *)vector_at(&addr_pairs, 0);
-  eth0_hwaddr = &a->eth_n;
-  eth0_ipaddr = &a->ip_n;
 }
 
 void
@@ -187,9 +190,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
   if (c == NULL) {
     c = MALLOC(cache_entry);
     c->ip_n         = msg->ipaddr_nw;
-    strcpy(c->ip_a.addr,  
-          (char *)Sock_ntop_host((SA *)&msg->ipaddr_nw, 
-                                  sizeof(msg->ipaddr_nw)));
+    Inet_ntop(AF_INET, (void *)&msg->ipaddr_nw, c->ip_a.addr, sizeof(c->ip_a.addr));
     c->sll_ifindex  = msg->sll_ifindex;
     c->sll_hatype   = msg->sll_hatype;
     c->sll_halen    = msg->sll_halen;
