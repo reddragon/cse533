@@ -45,6 +45,7 @@ populate_myip(void) {
       strcpy(myip_a.addr, (char *)Sock_ntop_host(sa, sizeof(*sa)));      
       myip_n = ((struct sockaddr_in *)sa)->sin_addr;
       INFO("My IP Address: %s\n", myip_a.addr);
+      found = TRUE;
       break;
     }
   }
@@ -93,10 +94,10 @@ void tour_setup(int argc, char *argv[]) {
 
   populate_myip();
 
-  rt = Socket(AF_INET, SOCK_RAW, IPPROTO_HW);
+  rt = Socket(AF_INET, SOCK_RAW, htons(IPPROTO_HW));
   // IP_HDRINCL means that the sender MUST include the header while
   // sending out the packet.
-  Setsockopt(rt, SOL_SOCKET, IP_HDRINCL, &yes, sizeof(yes));
+  Setsockopt(rt, IPPROTO_IP, IP_HDRINCL, &yes, sizeof(yes));
 
   pg = Socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
   pf = Socket(PF_PACKET, SOCK_RAW, ETH_P_IP);
