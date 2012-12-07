@@ -47,6 +47,32 @@ char *create_tmp_file(void) {
   return file_name;
 }
 
+void send_over_ethernet(int sockfd, eth_frame *ef) {
+  struct sockaddr_ll sa;
+  int i, r;
+  unsigned char mask = 0xff;
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sll_family   = PF_PACKET;
+  sa.sll_hatype   = ARPHRD_ETHER;
+  sa.sll_pkttype  = PACKET_BROADCAST;
+  sa.sll_protocol = ef->protocol;
+  sa.sll_ifindex  = 0; // FIXME fix this
+  sa.sll_halen    = 6;
+
+  for (i = 0; i < 6; ++i) {
+    mask &= *(unsigned char*)(ef->dst_eth_addr.addr + i);
+  }
+
+  if (mask != 0xff) {
+    sa.sll_pkttype = PACKET_OTHERHOST;
+  }
+
+  memcpy(sa.sll_addr, ef->dst_eth_addr.addr, 6);
+  Sendto(sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
+  VERBOSE("send_eth_pkt() terminated successfully%s\n", "");
+}
+
 void *my_malloc(size_t size) {
     // assert(size < 2 * 1048676); // 2MiB
     void *ptr = calloc(1, size);

@@ -24,15 +24,6 @@ typedef struct cache_entry {
   int             sockfd;
 } cache_entry;
 
-#define ETHERNET_PAYLOAD_SIZE 120
-
-typedef struct eth_frame {
-  eth_addr_n dst_eth_addr;  // Destination Ethernet Address
-  eth_addr_n src_eth_addr;  // Source Ethernet Address
-  uint16_t protocol;        // Protocol
-  char payload[ETHERNET_PAYLOAD_SIZE];       // Payload
-} eth_frame;
-
 #define ARP_IDENT_NUM 0x6006
 typedef struct arp_pkt {
   uint16_t    ident_num; 
@@ -61,33 +52,6 @@ int         ds_sockfd;
 #define ARP_PROTOCOL 0x8086 
 #define ARP_REQUEST  0x1
 #define ARP_RESPONSE 0x2
-
-void
-send_over_ethernet(eth_frame *ef) {
-  struct sockaddr_ll sa;
-  int i;
-  unsigned char mask = 0xff;
-
-  memset(&sa, 0, sizeof(sa));
-  sa.sll_family   = PF_PACKET;
-  sa.sll_hatype   = ARPHRD_ETHER;
-  sa.sll_pkttype  = PACKET_BROADCAST;
-  sa.sll_protocol = ef->protocol;
-  sa.sll_ifindex  = 0; // FIXME fix this
-  sa.sll_halen    = 6;
-
-  for (i = 0; i < 6; ++i) {
-    mask &= *(unsigned char*)(ef->dst_eth_addr.addr + i);
-  }
-
-  if (mask != 0xff) {
-    sa.sll_pkttype = PACKET_OTHERHOST;
-  }
-
-  memcpy(sa.sll_addr, ef->dst_eth_addr.addr, 6);
-  Sendto(pf_sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
-  VERBOSE("send_eth_pkt() terminated successfully\n%s", "");
-}
 
 eth_frame*
 create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr) {
@@ -200,7 +164,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
         c->ip_a.addr);
     
     ef = create_arp_request(broadcast_eth_addr, c->ip_n);  
-    send_over_ethernet(ef);
+    send_over_ethernet(pf_sockfd, ef);
   } else {
     // Fill up the ethernet address of the requested IP address
     msg->eth_addr     = c->eth_n;

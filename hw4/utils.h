@@ -40,7 +40,6 @@ typedef int bool;
 
 void* my_malloc(size_t size);
 
-
 // IP Address in ASCII (presentation) format
 typedef struct ipaddr_ascii {
   char addr[16];
@@ -64,6 +63,16 @@ typedef struct eth_addr_n {
 typedef struct eth_addr_ascii {
     char addr[20];
 } eth_addr_ascii;
+
+#define ETHERNET_PAYLOAD_SIZE 120
+
+typedef struct eth_frame {
+  eth_addr_n dst_eth_addr;  // Destination Ethernet Address
+  eth_addr_n src_eth_addr;  // Source Ethernet Address
+  uint16_t protocol;        // Protocol
+  char payload[ETHERNET_PAYLOAD_SIZE];       // Payload
+} eth_frame;
+
 
 #define	IF_NAME		16	/* same as IFNAMSIZ    in <net/if.h> */
 #define	IF_HADDR	 6	/* same as IFHWADDRLEN in <net/if.h> */
@@ -100,6 +109,7 @@ typedef struct tour_pkt {
 } tour_pkt;
 
 char *create_tmp_file(void);
+void send_over_ethernet(int sockfd, eth_frame *ef);
 void* my_malloc(size_t size);
 void pretty_print_eth_addr(char hwaddr[6], char *out);
 char *hostname_to_ip_address(const char *hostname, char *ip);
