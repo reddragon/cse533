@@ -29,10 +29,10 @@ fdset.o: fdset.c fdset.h vector.h algorithm.h utils.o myassert.h
 vector.o: vector.c vector.h myassert.h
 	$(CC) $(CFLAGS) -c -o vector.o vector.c
 
-api.o: api.c api.h utils.h
+api.o: api.c api.h utils.h myassert.h
 	$(CC) $(CFLAGS) -c -o api.o api.c
 
-utils.o: utils.c utils.h
+utils.o: utils.c utils.h myassert.h
 	$(CC) $(CFLAGS) -c -o utils.o utils.c
 
 algorithm.o: algorithm.c algorithm.h vector.h myassert.h
@@ -42,7 +42,6 @@ treap.o: treap.c treap.h myassert.h
 	$(CC) $(CFLAGS) -c -o treap.o treap.c
 
 scp:
-	./make_gitcommit.sh
 	./scp.sh
 
 handin:
