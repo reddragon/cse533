@@ -150,7 +150,7 @@ get_cache_entry(ipaddr_n target_addr) {
   n = vector_size(&cache);
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
-    if (!memcmp(&c->ip_n, &target_addr, sizeof(eth_addr_n))) {
+    if (!memcmp(&c->ip_n, &target_addr, sizeof(ipaddr_n))) {
       return c;
     }
   }
@@ -180,6 +180,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     
     INFO("Created an incomplete cache entry for IP Address: %s.\n",
         c->ip_a.addr);
+    VERBOSE("centry->sockfd of the new entry: %d.\n", c->sockfd);
     
     create_eth_frame(broadcast_eth_addr, c->ip_n, &ef, ARP_REQUEST);
     send_over_ethernet(pf_sockfd, &ef, eth0_ifindex);
@@ -233,6 +234,7 @@ update_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
     if (!memcmp(&c->ip_n, &pkt->sender_ip_addr, sizeof(ipaddr_n))) {
+      c->eth_n        = pkt->sender_eth_addr;
       c->ip_n         = pkt->sender_ip_addr;
       c->sll_ifindex  = sa->sll_ifindex;
       c->sll_hatype   = sa->sll_hatype;
@@ -248,12 +250,15 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   api_msg msg;
   arp_pkt pkt;
   eth_frame outgoing_ef;
+  eth_addr_ascii target_addr;
   cache_entry *centry;
+  char ipaddr_buf[30];
   bool my_pkt, centry_exists;
   
   centry = NULL;
   my_pkt = FALSE;
   centry_exists = FALSE;
+  memset(&msg, 0, sizeof(msg));
   
   // Drop the packet if it is not for the protocol that we respect
   if (ef->protocol != htons(ARP_PROTOCOL)) {
@@ -268,7 +273,8 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
           pkt.ident_num);
     return;
   }
-
+  
+  pp_ip(pkt.target_ip_addr, ipaddr_buf, sizeof(ipaddr_buf));
   my_pkt = is_my_pkt(&pkt);
   centry_exists = cache_entry_exists(pkt.target_ip_addr);
   // If it is either my packet (then we should add this entry,
@@ -285,6 +291,11 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
     // If we have a connected client with this cache entry, then
     // we need to flush out the address
     if (centry->sockfd > 0) {
+      target_addr = pp_eth(centry->eth_n.addr);
+      VERBOSE("We have a connection which was waiting on the ethernet address of IP Address %s, which is for ethernet address: %s.\n", 
+      ipaddr_buf, target_addr.addr);
+      VERBOSE("centry->sockfd: %d.\n", centry->sockfd);
+      
       msg.eth_addr    = centry->eth_n;
       msg.ipaddr_nw   = centry->ip_n;
       msg.sll_ifindex = centry->sll_ifindex;
@@ -344,7 +355,7 @@ on_ud_recv(void *o) {
 
   Recv(c_sockfd, (char*)&m, sizeof(api_msg), 0);
   INFO("Received a message from the Tour process.\n%s", "");
-  act_on_api_msg(&m, ds_sockfd, &cliaddr);    
+  act_on_api_msg(&m, c_sockfd, &cliaddr);    
 }
 
 void

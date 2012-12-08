@@ -11,6 +11,7 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   api_msg msg, resp;
   fd_set readfds;
   size_t recv_sz;
+  eth_addr_ascii resp_addr;
   struct timeval timeout;
 
   // First unlink, then create the temp file.
@@ -43,6 +44,8 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
     hwaddr->sll_halen   = resp.sll_halen;
     memcpy(hwaddr->sll_addr, resp.eth_addr.addr, 
     sizeof(resp.eth_addr.addr));
+    resp_addr = pp_eth(resp.eth_addr.addr);
+    VERBOSE("Received address: %s.\n", resp_addr.addr);
     return 0;
   } else {
     INFO("Timed out while waiting for the ARP process. ret = %d\n", ret);

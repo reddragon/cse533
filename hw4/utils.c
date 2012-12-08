@@ -49,6 +49,11 @@ current_time_in_ms(void) {
   return ts;
 }
 
+char *pp_ip(ipaddr_n ipaddr, char *buf, size_t buflen) {
+  Inet_ntop(AF_INET, (void*)&ipaddr, buf, buflen);
+  return buf;
+}
+
 eth_addr_ascii pp_eth(char hwaddr[6]) {
   eth_addr_ascii out;
   char *optr;
