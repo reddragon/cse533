@@ -2,17 +2,21 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
-#include <net/if_arp.h>
-#include <linux/if_packet.h>
-#include <netinet/in.h>
 #include <stdio.h>
-#include <sys/socket.h>
 #include <errno.h>
-#include <sys/ioctl.h>      
-#include <linux/if.h>
 #include <assert.h>
 #include "myassert.h"
 #include "unp.h"
+
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <net/if_arp.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>      
+#include <linux/if_packet.h>
+#include <linux/if.h>
+#include <linux/icmp.h>
+
 
 #define IPPROTO_HW  0x8899
 #define ID_NUM      0x60061E5
@@ -56,12 +60,12 @@ typedef struct ip_pkt {
 
 // The ethernet address in Network Notation
 typedef struct eth_addr_n {
-    char addr[6];
+  char addr[6];
 } eth_addr_n;
 
 // The ethernet address in ASCII Notation
 typedef struct eth_addr_ascii {
-  volatile char addr[20];
+  char addr[20];
 } eth_addr_ascii;
 
 #define ETHERNET_PAYLOAD_SIZE 120
@@ -72,6 +76,16 @@ typedef struct eth_frame {
   uint16_t protocol;        // Protocol
   char payload[ETHERNET_PAYLOAD_SIZE];       // Payload
 } eth_frame;
+
+typedef struct ip_icmp_hdr_t {
+  eth_addr_n dst_eth_addr;  // Destination Ethernet Address
+  eth_addr_n src_eth_addr;  // Source Ethernet Address
+  uint16_t protocol;        // Protocol
+
+  struct iphdr iphdr;
+  struct icmphdr icmphdr;
+  char icmpdata[0];
+} ip_icmp_hdr_t;
 
 
 #define	IF_NAME		16	/* same as IFNAMSIZ    in <net/if.h> */
@@ -108,6 +122,8 @@ typedef struct tour_pkt {
   int       mcast_port;
 } tour_pkt;
 
+void utils_init(void);
+uint32_t current_time_in_ms(void);
 char *create_tmp_file(void);
 void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex);
 void* my_malloc(size_t size);

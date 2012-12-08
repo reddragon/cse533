@@ -6,6 +6,49 @@
 #include <stdio.h>
 #include "myassert.h"
 
+struct timeval dob; // Date of Birth
+
+void
+utils_init(void) {
+  Gettimeofday(&dob, NULL);
+}
+
+int
+timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y) {
+  /* Perform the carry for the later subtraction by updating y. */
+  int nsec;
+  if (x->tv_usec < y->tv_usec) {
+    nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    nsec = (x->tv_usec - y->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  /* Compute the time remaining to wait.
+     tv_usec is certainly positive. */
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+
+  /* Return 1 if result is negative. */
+  return x->tv_sec < y->tv_sec;
+}
+
+uint32_t 
+current_time_in_ms(void) {
+  uint32_t ts;
+  struct timeval now, diff;
+
+  Gettimeofday(&now, NULL);
+  timeval_subtract(&diff, &now, &dob);
+
+  ts = (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
+  return ts;
+}
+
 eth_addr_ascii pp_eth(char hwaddr[6]) {
   eth_addr_ascii out;
   char *optr;

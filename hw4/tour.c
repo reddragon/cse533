@@ -27,11 +27,58 @@ typedef struct ping_info_t {
 } ping_info_t;
 
 void
+send_ping_packets(void) {
+  int i, r;
+  char buff[1600];
+  ip_icmp_hdr_t *picmp;
+  ping_info_t *pif;
+  eth_frame *ef;
+  struct hwaddr hwaddr;
+
+  picmp = (ip_icmp_hdr_t*)buff;
+  ef    = (eth_frame*)buff;
+  for (i = 0; i < vector_size(&ping_hosts); ++i) {
+    pif = vector_at(&ping_hosts, i);
+
+    if (pif->num_pings >= 5) {
+      continue;
+    }
+
+    if (current_time_in_ms() - pif->last_ping_ms < 1000) {
+      continue;
+    }
+
+    memset(buff, 0, sizeof(buff));
+    picmp->iphdr.version  = 4;
+    picmp->iphdr.ihl      = 5;
+    picmp->iphdr.tos      = 0;
+    picmp->iphdr.tot_len  = htons(sizeof(*picmp) + 32);
+    picmp->iphdr.frag_off = htons(1 << 1);
+    picmp->iphdr.ttl      = htons(16);
+    picmp->iphdr.protocol = htons(1);
+
+    picmp->icmphdr.type   = ICMP_ECHO;
+    picmp->icmphdr.code   = 0;
+    picmp->icmphdr.checksum = 0;
+    strcpy(picmp->icmpdata, "Hello world");
+
+    r = areq(pif->ip, &hwaddr);
+    assert_ge(r, 0);
+
+    memcpy(picmp->dst_eth_addr.addr, hwaddr.sll_addr, 6);
+    picmp->src_eth_addr = my_hwaddr;
+    picmp->protocol = ETH_P_IP;
+    send_over_ethernet(pf, ef, my_ifindex);
+  }
+}
+
+void
 on_timeout(void *opaque) {
   // FIXME: Change to VERBOSE
   INFO("Timed out.%s\n", "");
 
   // TODO: Send out ping packets.
+  send_ping_packets();
 }
 
 void
@@ -71,6 +118,25 @@ on_rt_recv(void *opaque) {
 void
 on_pg_recv(void *opaque) {
   // TODO: Ping response. Probably just print it out.
+  int r;
+  struct sockaddr_ll sa;
+  socklen_t addrlen = sizeof(sa);
+  char buff[1600];
+  ip_icmp_hdr_t *picmp;
+  VERBOSE("on_pg_recv()%s\n", "");
+  memset(buff, 0, sizeof(buff));
+  r = recvfrom(pg, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
+  VERBOSE("on_pg_recv::r == %d\n", r);
+  if (r < 0 && errno == EINTR) {
+    return;
+  }
+  if (r < 0) {
+    perror("recvfrom");
+    exit(1);
+  }
+  picmp = (ip_icmp_hdr_t*)(buff - (int)(&((ip_icmp_hdr_t*)0)->iphdr));
+  VERBOSE("Size of payload is: %d\n", r - sizeof(*picmp));
+  INFO("Ping response: %s\n", picmp->icmpdata);
 }
 
 void
@@ -81,6 +147,7 @@ on_pf_recv(void *opaque) {
   struct sockaddr_ll sa;
   socklen_t addrlen = sizeof(sa);
   char buff[1600];
+  VERBOSE("on_pf_recv()%s\n", "");
   r = recvfrom(pf, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
 
 }
@@ -113,6 +180,9 @@ void tour_setup(int argc, char *argv[]) {
   char ipaddr_str[200];
   struct timeval timeout;
   struct hwaddr hwaddr;
+  ping_info_t pif;
+
+  utils_init();
 
   // Get my eth0 IP address.
   populate_myip();
@@ -132,6 +202,12 @@ void tour_setup(int argc, char *argv[]) {
   VERBOSE("Tour starts at IP: %s\n", ipaddr_str);
   tour.nodes[0] = ia;
   tour.num_nodes = 1;
+
+  // <hack>
+  pif.ip = ia;
+  pif.last_ping_ms = current_time_in_ms() - 3000;
+  pif.num_pings = 100;
+  // </hack>
 
   for (i = 1; i < argc; i++) {
     Inet_pton(AF_INET, hostname_to_ip_address(argv[i], ipaddr_str), &ia);
