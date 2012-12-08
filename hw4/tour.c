@@ -39,7 +39,7 @@ populate_myip(void) {
   struct hwa_info *head, *h;
   struct sockaddr *sa;
   bool found = FALSE;
-  char buff[40];
+  eth_addr_ascii eth_str;
 
   head = Get_hw_addrs();
   for (h = head; h != NULL; h = h->hwa_next) {
@@ -50,8 +50,9 @@ populate_myip(void) {
       memcpy(my_hwaddr.addr, h->if_haddr, sizeof(h->if_haddr));
       my_ifindex = h->if_index;
 
-      pretty_print_eth_addr(my_hwaddr.addr, buff);
-      INFO("My (IP:ETH:IDX): (%s:%s:%d)\n", myip_a.addr, buff, my_ifindex);
+      eth_str = pp_eth(my_hwaddr.addr);
+      INFO("My (IP:ETH:IDX): (%s:%s:%d)\n", myip_a.addr,
+           eth_str.addr, my_ifindex);
       found = TRUE;
       break;
     }
@@ -74,7 +75,14 @@ on_pg_recv(void *opaque) {
 
 void
 on_pf_recv(void *opaque) {
-  // TODO: Send out the ping request.
+  // TODO: Send out the ping request using this socket. If this
+  // becomes read ready, we just read the data and ignore it.
+  int r;
+  struct sockaddr_ll sa;
+  socklen_t addrlen = sizeof(sa);
+  char buff[1600];
+  r = recvfrom(pf, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
+
 }
 
 void

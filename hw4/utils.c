@@ -6,16 +6,21 @@
 #include <stdio.h>
 #include "myassert.h"
 
-void pretty_print_eth_addr(char hwaddr[6], char *out) {
+eth_addr_ascii pp_eth(char hwaddr[6]) {
+  eth_addr_ascii out;
+  char *optr;
   char *ptr;
   int i;
 
+  memset(&out, 0, sizeof(out));
+  optr = out.addr;
   ptr = hwaddr;
   i = IF_HADDR;
 
   do {
-    out += sprintf(out, "%.2x%s", *ptr++ & 0xff, (i == 1) ? "" : ":");
+    optr += sprintf(optr, "%.2x%s", *ptr++ & 0xff, (i == 1) ? "" : ":");
   } while (--i > 0);
+  return out;
 }
 
 char *hostname_to_ip_address(const char *hostname, char *ip) {
@@ -51,13 +56,13 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
   struct sockaddr_ll sa;
   int i, r;
   unsigned char mask = 0xff;
-  char eth_from[20], eth_to[20];
+  eth_addr_ascii eth_from, eth_to;
 
-  pretty_print_eth_addr(ef->dst_eth_addr.addr, eth_to);
-  pretty_print_eth_addr(ef->src_eth_addr.addr, eth_from);
-
+  eth_from = pp_eth(ef->src_eth_addr.addr);
+  eth_to = pp_eth(ef->dst_eth_addr.addr);
   VERBOSE("send_over_ethernet(socket: %d, if_idx: %d, [%s -> %s]\n",
-          sockfd, sll_ifindex, eth_from, eth_to);
+          sockfd, sll_ifindex,
+          eth_from.addr, eth_to.addr);
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
   sa.sll_hatype   = ARPHRD_ETHER;

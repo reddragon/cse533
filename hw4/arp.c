@@ -57,7 +57,7 @@ eth_frame*
 create_eth_frame(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
                    eth_frame *ef, uint16_t op) {
   ipaddr_ascii t_ip, s_ip;
-  eth_addr_ascii t_hw, s_hw;
+  eth_addr_ascii t_eth, s_eth;
 
   arp_pkt *pkt = (arp_pkt*)&ef->payload;
   ef->dst_eth_addr  = target_eth_addr;
@@ -78,10 +78,13 @@ create_eth_frame(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
   inet_ntop(AF_INET, (void *)&pkt->target_ip_addr, t_ip.addr, sizeof(t_ip.addr));
   inet_ntop(AF_INET, (void *)&pkt->sender_ip_addr, s_ip.addr, sizeof(s_ip.addr));
   
-  pretty_print_eth_addr(pkt->sender_eth_addr.addr, s_hw.addr);
-  pretty_print_eth_addr(pkt->target_eth_addr.addr, t_hw.addr);
-
-  VERBOSE("[%s :: %s] -> [%s :: %s]\n", s_ip.addr, s_hw.addr, t_ip.addr, t_hw.addr);
+  t_eth = pp_eth(pkt->sender_eth_addr.addr);
+  s_eth = pp_eth(pkt->target_eth_addr.addr);
+  VERBOSE("[%s :: %s] -> [%s :: %s]\n",
+          s_ip.addr,
+          t_eth.addr,
+          t_ip.addr,
+          s_eth.addr);
   return ef;
 }
 
@@ -99,7 +102,7 @@ get_addr_pairs(void) {
       memcpy(a->eth_n.addr, h->if_haddr, sizeof(a->eth_n.addr));
       memcpy(&(a->ip_n), &((struct sockaddr_in*)h->ip_addr)->sin_addr,
              sizeof(struct in_addr));
-      pretty_print_eth_addr(a->eth_n.addr, a->eth_ascii.addr);
+      a->eth_ascii = pp_eth(a->eth_n.addr);
       strcpy(a->if_name, h->if_name);
 
       sa = (struct sockaddr_in *)h->ip_addr;

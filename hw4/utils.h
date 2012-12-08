@@ -61,7 +61,7 @@ typedef struct eth_addr_n {
 
 // The ethernet address in ASCII Notation
 typedef struct eth_addr_ascii {
-    char addr[20];
+  volatile char addr[20];
 } eth_addr_ascii;
 
 #define ETHERNET_PAYLOAD_SIZE 120
@@ -111,7 +111,7 @@ typedef struct tour_pkt {
 char *create_tmp_file(void);
 void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex);
 void* my_malloc(size_t size);
-void pretty_print_eth_addr(char hwaddr[6], char *out);
+eth_addr_ascii pp_eth(char hwaddr[6]);
 char *hostname_to_ip_address(const char *hostname, char *ip);
 struct hwa_info * Get_hw_addrs(void);
 #endif
