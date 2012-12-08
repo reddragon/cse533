@@ -90,12 +90,15 @@ get_addr_pairs(void) {
     if (!strncmp(h->if_name, "eth0", 4)) {
       a = MALLOC(addr_pair);
       memcpy(a->eth_n.addr, h->if_haddr, sizeof(a->eth_n.addr));
+      memcpy(&(a->ip_n), &((struct sockaddr_in*)h->ip_addr)->sin_addr,
+             sizeof(struct in_addr));
       pretty_print_eth_addr(a->eth_n.addr, a->eth_ascii.addr);
       strcpy(a->if_name, h->if_name);
+
       sa = (struct sockaddr_in *)h->ip_addr;
       a->ip_n = sa->sin_addr;
-      strcpy(a->ip_ascii.addr, (char *)Sock_ntop_host((SA *)sa, sizeof(*sa)));      
-      
+      strcpy(a->ip_ascii.addr, (char *)Sock_ntop_host((SA *)sa, sizeof(*sa)));
+
       INFO("Interface [%d]%s (H/W Address: %s, IP Address: %s)\n",
            h->if_index, a->if_name, a->eth_ascii.addr, a->ip_ascii.addr);
       vector_push_back(&addr_pairs, a);

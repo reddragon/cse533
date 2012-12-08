@@ -78,7 +78,7 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
   }
 
   memcpy(sa.sll_addr, ef->dst_eth_addr.addr, 6);
-  Sendto(sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
+  Sendto(sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(sa));
   VERBOSE("send_over_ethernet() terminated successfully%s\n", "");
 }
 

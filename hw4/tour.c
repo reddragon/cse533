@@ -61,18 +61,25 @@ populate_myip(void) {
 
 void
 on_rt_recv(void *opaque) {
+  // TODO: Check the index of the route on this packet and ping the
+  // sender if we aren't already pinging the sender. Increment pointer
+  // and forward or send out multicast packet if we are the last node
+  // on the route.
 }
 
 void
 on_pg_recv(void *opaque) {
+  // TODO: Ping response. Probably just print it out.
 }
 
 void
 on_pf_recv(void *opaque) {
+  // TODO: Send out the ping request.
 }
 
 void
 on_udp_recv(void *opaque) {
+  // TODO: Received the multicast packet.
 }
 
 void
@@ -114,11 +121,13 @@ void tour_setup(int argc, char *argv[]) {
   vector_init(&ping_hosts, sizeof(ping_info_t));
 
   Inet_pton(AF_INET, hostname_to_ip_address(myip_a.addr, ipaddr_str), &ia);
+  VERBOSE("Tour starts at IP: %s\n", ipaddr_str);
   tour.nodes[0] = ia;
   tour.num_nodes = 1;
 
   for (i = 1; i < argc; i++) {
     Inet_pton(AF_INET, hostname_to_ip_address(argv[i], ipaddr_str), &ia);
+    VERBOSE("Adding IP %s to the tour at index %d\n", ipaddr_str, i);
     tour.nodes[i] = ia;
     tour.num_nodes = i + 1;
   }
