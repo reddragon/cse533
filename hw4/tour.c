@@ -94,6 +94,7 @@ void tour_setup(int argc, char *argv[]) {
   struct timeval timeout;
   struct hwaddr hwaddr;
 
+  // Get my eth0 IP address.
   populate_myip();
 
   rt = Socket(AF_INET, SOCK_RAW, htons(IPPROTO_HW));
@@ -107,7 +108,6 @@ void tour_setup(int argc, char *argv[]) {
 
   vector_init(&ping_hosts, sizeof(ping_info_t));
 
-  // TODO: Get my eth0 IP address.
   Inet_pton(AF_INET, hostname_to_ip_address(myip_a.addr, ipaddr_str), &ia);
   tour.nodes[0] = ia;
   tour.num_nodes = 1;
