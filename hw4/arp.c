@@ -70,6 +70,11 @@ create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
   pkt->sender_ip_addr  = *eth0_ipaddr;
   pkt->target_eth_addr = target_eth_addr;
   pkt->target_ip_addr  = target_ip_addr;
+  char buf1[30], buf2[30];
+  inet_ntop(AF_INET, (void *)&pkt->target_ip_addr, buf1, sizeof(buf1));
+  inet_ntop(AF_INET, (void *)&pkt->sender_ip_addr, buf2, sizeof(buf2));
+
+  VERBOSE("Target IP Address: %s, Sender IP Address: %s\n", buf1, buf2);
   return ef;
 }
 
@@ -77,7 +82,7 @@ void
 get_addr_pairs(void) {
   struct hwa_info *head, *h;
   addr_pair *a;
-  struct sockaddr *sa;
+  struct sockaddr_in *sa;
   
   vector_init(&addr_pairs, sizeof(addr_pair));
   head = Get_hw_addrs();
@@ -87,8 +92,9 @@ get_addr_pairs(void) {
       memcpy(a->eth_n.addr, h->if_haddr, sizeof(a->eth_n.addr));
       pretty_print_eth_addr(a->eth_n.addr, a->eth_ascii.addr);
       strcpy(a->if_name, h->if_name);
-      sa = (SA *)h->ip_addr;
-      strcpy(a->ip_ascii.addr, (char *)Sock_ntop_host(sa, sizeof(*sa)));      
+      sa = (struct sockaddr_in *)h->ip_addr;
+      a->ip_n = sa->sin_addr;
+      strcpy(a->ip_ascii.addr, (char *)Sock_ntop_host((SA *)sa, sizeof(*sa)));      
       
       INFO("Interface [%d]%s (H/W Address: %s, IP Address: %s)\n",
            h->if_index, a->if_name, a->eth_ascii.addr, a->ip_ascii.addr);
