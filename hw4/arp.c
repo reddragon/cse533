@@ -54,8 +54,8 @@ int         ds_sockfd;
 #define ARP_RESPONSE 0x2
 
 eth_frame*
-create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
-                   eth_frame *ef) {
+create_eth_frame(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
+                   eth_frame *ef, uint16_t op) {
   ipaddr_ascii t_ip, s_ip;
   eth_addr_ascii t_hw, s_hw;
 
@@ -69,7 +69,7 @@ create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
   pkt->prot_type = 0x800;         // IP Address
   pkt->hard_size = 6;             // Size of the Ethernet Addr
   pkt->prot_size = 4;             // Size of IP Address
-  pkt->op        = ARP_REQUEST;    
+  pkt->op        = op;    
   pkt->sender_eth_addr = *eth0_hwaddr;
   pkt->sender_ip_addr  = *eth0_ipaddr;
   pkt->target_eth_addr = target_eth_addr;
@@ -178,7 +178,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     INFO("Created an incomplete cache entry for IP Address: %s.\n",
         c->ip_a.addr);
     
-    create_arp_request(broadcast_eth_addr, c->ip_n, &ef);
+    create_eth_frame(broadcast_eth_addr, c->ip_n, &ef, ARP_REQUEST);
     send_over_ethernet(pf_sockfd, &ef, eth0_ifindex);
   } else {
     // Fill up the ethernet address of the requested IP address
@@ -198,7 +198,7 @@ is_my_pkt(arp_pkt *pkt) {
   n = vector_size(&addr_pairs);
   for (i = 0; i < n; i++) {
     a = (addr_pair *)vector_at(&addr_pairs, i);
-    if (!memcmp(&a->eth_n, &pkt->target_eth_addr, sizeof(eth_addr_n))) {
+    if (!memcmp(&a->ip_n, &pkt->target_ip_addr, sizeof(ipaddr_n))) {
       return TRUE;
     }
   }
@@ -244,6 +244,7 @@ void
 act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   api_msg msg;
   arp_pkt pkt;
+  eth_frame outgoing_ef;
   cache_entry *centry;
   bool my_pkt, centry_exists;
   
@@ -289,6 +290,11 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
       Send(centry->sockfd, (void *)&msg, sizeof(msg), 0);
       centry->sockfd = -1;  // Resetting the sockfd 
     }
+    VERBOSE("Preparing the outgoing ethernet frame for IP Address: %s\n",
+      "TODO");
+    // TODO Send using the pkt->target_ip_addr as the sending IP address
+    create_eth_frame(pkt.sender_eth_addr, pkt.sender_ip_addr, &outgoing_ef, ARP_RESPONSE);
+    send_over_ethernet(pf_sockfd, &outgoing_ef, sa->sll_ifindex);
   } if (!my_pkt && centry_exists) {
     update_cache_entry(&pkt, sa);
   }
