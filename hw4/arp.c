@@ -63,11 +63,12 @@ create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
   ef->dst_eth_addr  = target_eth_addr;
   ef->src_eth_addr  = *eth0_hwaddr;
   ef->protocol      = htons(ARP_PROTOCOL);
-
-  pkt->hard_type = 0x1;          // H/W Type is Ethernet 
-  pkt->prot_type = 0x800;        // IP Address
-  pkt->hard_size = 6;            // Size of the Ethernet Addr
-  pkt->prot_size = 4;            // Size of IP Address
+  
+  pkt->ident_num = ARP_IDENT_NUM; // Identity Number
+  pkt->hard_type = 0x1;           // H/W Type is Ethernet 
+  pkt->prot_type = 0x800;         // IP Address
+  pkt->hard_size = 6;             // Size of the Ethernet Addr
+  pkt->prot_size = 4;             // Size of IP Address
   pkt->op        = ARP_REQUEST;    
   pkt->sender_eth_addr = *eth0_hwaddr;
   pkt->sender_ip_addr  = *eth0_ipaddr;
