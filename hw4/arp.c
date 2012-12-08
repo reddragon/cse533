@@ -56,6 +56,9 @@ int         ds_sockfd;
 eth_frame*
 create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
                    eth_frame *ef) {
+  ipaddr_ascii t_ip, s_ip;
+  eth_addr_ascii t_hw, s_hw;
+
   arp_pkt *pkt = (arp_pkt*)&ef->payload;
   ef->dst_eth_addr  = target_eth_addr;
   ef->src_eth_addr  = *eth0_hwaddr;
@@ -70,11 +73,14 @@ create_arp_request(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
   pkt->sender_ip_addr  = *eth0_ipaddr;
   pkt->target_eth_addr = target_eth_addr;
   pkt->target_ip_addr  = target_ip_addr;
-  char buf1[30], buf2[30];
-  inet_ntop(AF_INET, (void *)&pkt->target_ip_addr, buf1, sizeof(buf1));
-  inet_ntop(AF_INET, (void *)&pkt->sender_ip_addr, buf2, sizeof(buf2));
+  
+  inet_ntop(AF_INET, (void *)&pkt->target_ip_addr, t_ip.addr, sizeof(t_ip.addr));
+  inet_ntop(AF_INET, (void *)&pkt->sender_ip_addr, s_ip.addr, sizeof(s_ip.addr));
+  
+  pretty_print_eth_addr(pkt->sender_eth_addr.addr, s_hw.addr);
+  pretty_print_eth_addr(pkt->target_eth_addr.addr, t_hw.addr);
 
-  VERBOSE("Target IP Address: %s, Sender IP Address: %s\n", buf1, buf2);
+  VERBOSE("[%s :: %s] -> [%s :: %s]\n", s_ip.addr, s_hw.addr, t_ip.addr, t_hw.addr);
   return ef;
 }
 
