@@ -1,6 +1,7 @@
 #include "vector.h"
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <malloc.h>
 #include <string.h>
 #include "myassert.h"
