@@ -104,7 +104,7 @@ get_addr_pairs(void) {
     }
   }
   // Checking if we got atleast one Eth-Addr, IP-Addr pair.
-  ASSERT(vector_size(&addr_pairs) > 0);
+  ASSERT(!vector_empty(&addr_pairs));
 }
 
 void

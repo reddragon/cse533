@@ -10,8 +10,9 @@ int rt, pg, pf, udp;      // rt -> Routing
                           // pg -> Ping
                           // pf -> PF Packet
                           // udp -> For Multicast
-ipaddr_ascii myip_a;      // My IP address in presentation format
-ipaddr_n     myip_n;      // My IP address in network byte order
+ipaddr_ascii myip_a;      // My (eth0) IP address in presentation format
+ipaddr_n     myip_n;      // My (eth0) IP address in network byte order
+eth_addr_n   my_hwaddr;   // My (eth0) Hardware Address
 int          my_ifindex;  // if_index for eth0
 tour_list tour;           // List of IP addresses (in network
                           // order). Includes my own IP address.
@@ -38,15 +39,19 @@ populate_myip(void) {
   struct hwa_info *head, *h;
   struct sockaddr *sa;
   bool found = FALSE;
-  
+  char buff[40];
+
   head = Get_hw_addrs();
   for (h = head; h != NULL; h = h->hwa_next) {
     if (!strcmp(h->if_name, "eth0")) {
       sa = (SA *)h->ip_addr;
       strcpy(myip_a.addr, (char *)Sock_ntop_host(sa, sizeof(*sa)));      
-      myip_n = ((struct sockaddr_in *)sa)->sin_addr;
+      myip_n     = ((struct sockaddr_in *)sa)->sin_addr;
+      memcpy(my_hwaddr.addr, h->if_haddr, sizeof(h->if_haddr));
       my_ifindex = h->if_index;
-      INFO("My IP Address: %s\n", myip_a.addr);
+
+      pretty_print_eth_addr(my_hwaddr.addr, buff);
+      INFO("My (IP:ETH:IDX): (%s:%s:%d)\n", myip_a.addr, buff, my_ifindex);
       found = TRUE;
       break;
     }
