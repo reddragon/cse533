@@ -72,11 +72,14 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
 
   if (mask != 0xff) {
     sa.sll_pkttype = PACKET_OTHERHOST;
+    VERBOSE("Sending a non-broadcast ethernet message.\n%s", "");
+  } else {
+    VERBOSE("Sending a broadcast ethernet message.\n%s", "");
   }
 
   memcpy(sa.sll_addr, ef->dst_eth_addr.addr, 6);
   Sendto(sockfd, (void *)ef, sizeof(eth_frame), 0, (SA *)&sa, sizeof(sa));
-  VERBOSE("send_eth_pkt() terminated successfully%s\n", "");
+  VERBOSE("send_over_ethernet() terminated successfully%s\n", "");
 }
 
 void *my_malloc(size_t size) {
