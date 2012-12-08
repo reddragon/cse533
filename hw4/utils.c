@@ -61,8 +61,8 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
   sa.sll_hatype   = ARPHRD_ETHER;
-  sa.sll_pkttype  = PACKET_BROADCAST;
-  sa.sll_protocol = ef->protocol;
+  // sa.sll_pkttype  = PACKET_BROADCAST;
+  // sa.sll_protocol = ef->protocol;
   sa.sll_ifindex  = sll_ifindex;
   sa.sll_halen    = 6;
 
