@@ -51,13 +51,19 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
   struct sockaddr_ll sa;
   int i, r;
   unsigned char mask = 0xff;
+  char eth_from[20], eth_to[20];
 
+  pretty_print_eth_addr(ef->dst_eth_addr.addr, eth_to);
+  pretty_print_eth_addr(ef->src_eth_addr.addr, eth_from);
+
+  VERBOSE("send_over_ethernet(socket: %d, if_idx: %d, [%s -> %s]\n",
+          sockfd, sll_ifindex, eth_from, eth_to);
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
   sa.sll_hatype   = ARPHRD_ETHER;
   sa.sll_pkttype  = PACKET_BROADCAST;
   sa.sll_protocol = ef->protocol;
-  sa.sll_ifindex  = sll_ifindex; // FIXME fix this
+  sa.sll_ifindex  = sll_ifindex;
   sa.sll_halen    = 6;
 
   for (i = 0; i < 6; ++i) {

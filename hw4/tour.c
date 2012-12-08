@@ -123,7 +123,12 @@ void tour_setup(int argc, char *argv[]) {
     tour.num_nodes = i + 1;
   }
 
-  // TODO: Add handlers.
+  // Add handlers.
+  timeout.tv_sec =  1; // FIXME when we know better
+  timeout.tv_usec = 0;
+
+  fdset_init(&fds, timeout, NULL);
+
   fdset_add(&fds, &fds.rev,  rt, &rt, on_rt_recv);
   fdset_add(&fds, &fds.exev, rt, &rt, on_rt_error);
 
@@ -143,9 +148,6 @@ void tour_setup(int argc, char *argv[]) {
 
     // TODO: Construct and send out the first tour packet.
   }
-
-  timeout.tv_sec =  1; // FIXME when we know better
-  timeout.tv_usec = 0;
 
   r = fdset_poll(&fds, &timeout, on_timeout);
   if (r < 0) {

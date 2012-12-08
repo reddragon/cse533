@@ -23,6 +23,7 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   Connect(sockfd, (SA *)&servaddr, sizeof(servaddr));
   msg.ipaddr_nw = ipaddr_nw;
 
+  memset(&msg, 0, sizeof(msg));
   Send(sockfd, (char *)&msg, sizeof(msg), 0);
 
   // FIXME When we have an idea of what is a reasonable timeout
