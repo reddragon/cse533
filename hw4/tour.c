@@ -220,9 +220,8 @@ on_rt_recv(void *opaque) {
     INFO("This is the end, my only friend, the end...%s\n", "");
   } else {
     ip = ptour->nodes[tpkt->current_node_idx + 1];
-    r = areq(ip, &hwaddr);
-    assert_ge(r, 0);
 
+    iphdr->check    = 0;
     iphdr->saddr    = myip_n.s_addr;
     iphdr->daddr    = ip.s_addr;
 

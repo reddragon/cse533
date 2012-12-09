@@ -263,6 +263,9 @@ add_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   ce.sll_halen    = sa->sll_halen;
   ce.sockfd       = -1;
   ce.incomplete   = FALSE;
+  Inet_ntop(AF_INET, (void *)&ce.ip_n,
+            ce.ip_a.addr, sizeof(ce.ip_a.addr));
+
   vector_push_back(&cache, &ce);
   return vector_at(&cache, vector_size(&cache) - 1);
 }
