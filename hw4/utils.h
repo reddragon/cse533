@@ -70,7 +70,7 @@ typedef struct eth_addr_ascii {
   char addr[20];
 } eth_addr_ascii;
 
-#define ETHERNET_PAYLOAD_SIZE 120
+#define ETHERNET_PAYLOAD_SIZE 60
 
 typedef struct eth_frame {
   eth_addr_n dst_eth_addr;  // Destination Ethernet Address

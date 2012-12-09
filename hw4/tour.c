@@ -26,6 +26,28 @@ typedef struct ping_info_t {
   int num_pings;
 } ping_info_t;
 
+uint16_t
+icmp_checksum(uint16_t* buffer, int size) 
+{
+    unsigned long cksum = 0;
+    
+    // Sum all the words together, adding the final byte if size is odd
+    while (size > 1) {
+      cksum += *buffer++;
+      size -= sizeof(*buffer);
+    }
+    if (size) {
+      cksum += *(unsigned char*)buffer;
+    }
+
+    // Do a little shuffling
+    cksum = (cksum >> 16) + (cksum & 0xffff);
+    cksum += (cksum >> 16);
+    
+    // Return the bitwise complement of the resulting mishmash
+    return (uint16_t)(~cksum);
+}
+
 void
 send_ping_packets(void) {
   int i, r;
@@ -51,19 +73,33 @@ send_ping_packets(void) {
       continue;
     }
 
+    VERBOSE("Actually sending a packet%s\n", "");
     memset(buff, 0, sizeof(buff));
-    picmp->iphdr.version  = 4;
-    picmp->iphdr.ihl      = 5;
+    picmp->iphdr.version  = 4; // 2;
+    picmp->iphdr.ihl      = 5; // 10;
+    picmp->iphdr.id       = htons(0x04b6);
     picmp->iphdr.tos      = 0;
-    picmp->iphdr.tot_len  = htons(sizeof(*picmp) + 32);
-    picmp->iphdr.frag_off = htons(1 << 1);
-    picmp->iphdr.ttl      = htons(16);
-    picmp->iphdr.protocol = htons(1);
+    picmp->iphdr.tot_len  = htons(sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, iphdr));
+    picmp->iphdr.frag_off = htons(1 << 14);
+    picmp->iphdr.ttl      = 8;
+    picmp->iphdr.protocol = 1;
+    picmp->iphdr.saddr    = myip_n.s_addr;
+    picmp->iphdr.daddr    = pif->ip.s_addr;
 
-    picmp->icmphdr.type   = ICMP_ECHO;
+    picmp->icmphdr.type   = (unsigned char)(ICMP_ECHO);
     picmp->icmphdr.code   = 0;
-    picmp->icmphdr.checksum = 0;
+    picmp->icmphdr.un.echo.id = htons(0x5146);
+    picmp->icmphdr.un.echo.sequence = htons(7);
+
     strcpy(picmp->icmpdata, "Hello world");
+
+    picmp->icmphdr.checksum = 
+      icmp_checksum((uint16_t*)&picmp->icmphdr,
+                    sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmphdr));
+
+    picmp->iphdr.check    = 
+      icmp_checksum((uint16_t*)&picmp->iphdr,
+                    sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, iphdr));
 
     r = areq(pif->ip, &hwaddr);
     assert_ge(r, 0);
@@ -74,8 +110,9 @@ send_ping_packets(void) {
     INFO("Eth addr for IP addr %s is %s\n",
          pp_ip(pif->ip, ip_str, 20), eth_str.addr);
 
+    VERBOSE("Size of payload is: %d\n", sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmpdata));
     picmp->src_eth_addr = my_hwaddr;
-    picmp->protocol = ETH_P_IP;
+    picmp->protocol = htons(ETH_P_IP);
     send_over_ethernet(pf, ef, my_ifindex);
   }
 }
@@ -142,7 +179,7 @@ on_pg_recv(void *opaque) {
     perror("recvfrom");
     exit(1);
   }
-  picmp = (ip_icmp_hdr_t*)(buff - (int)(&((ip_icmp_hdr_t*)0)->iphdr));
+  picmp = (ip_icmp_hdr_t*)(buff - OFFSETOF(ip_icmp_hdr_t, iphdr));
   VERBOSE("Size of payload is: %d\n", r - sizeof(*picmp));
   INFO("Ping response: %s\n", picmp->icmpdata);
 }
@@ -201,7 +238,7 @@ void tour_setup(int argc, char *argv[]) {
   Setsockopt(rt, IPPROTO_IP, IP_HDRINCL, &yes, sizeof(yes));
 
   pg = Socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-  pf = Socket(PF_PACKET, SOCK_RAW, ETH_P_IP);
+  pf = Socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
   udp = Socket(AF_INET, SOCK_DGRAM, 0); // FIXME Fix the protocol
 
   vector_init(&ping_hosts, sizeof(ping_info_t));
@@ -215,7 +252,7 @@ void tour_setup(int argc, char *argv[]) {
   pif.ip = ia;
   pif.last_ping_ms = current_time_in_ms() - 3000;
   pif.num_pings = 100;
-  vector_push_back(&ping_hosts, &pif);
+  // vector_push_back(&ping_hosts, &pif);
   // </hack>
 
   for (i = 1; i < argc; i++) {
@@ -223,6 +260,14 @@ void tour_setup(int argc, char *argv[]) {
     VERBOSE("Adding IP %s to the tour at index %d\n", ipaddr_str, i);
     tour.nodes[i] = ia;
     tour.num_nodes = i + 1;
+
+    // <hack>
+    pif.ip = ia;
+    pif.last_ping_ms = current_time_in_ms() - 3000;
+    pif.num_pings = 100;
+    vector_push_back(&ping_hosts, &pif);
+    // </hack>
+
   }
 
   // Add handlers.
