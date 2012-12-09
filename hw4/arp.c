@@ -61,6 +61,7 @@ create_eth_frame(eth_addr_n target_eth_addr, ipaddr_n target_ip_addr,
   eth_addr_ascii t_eth, s_eth;
 
   arp_pkt *pkt = (arp_pkt*)&ef->payload;
+  memset(ef, 0, sizeof(ef));
   ef->dst_eth_addr  = target_eth_addr;
   ef->src_eth_addr  = *eth0_hwaddr;
   ef->protocol      = htons(ARP_PROTOCOL);
