@@ -178,6 +178,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     ce.sll_ifindex  = msg->sll_ifindex;
     ce.sll_hatype   = msg->sll_hatype;
     ce.sll_halen    = msg->sll_halen;
+    ce.sockfd       = sockfd;
 
     // Add to cache.
     vector_push_back(&cache, &ce);
