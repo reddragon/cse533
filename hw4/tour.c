@@ -30,6 +30,8 @@ void
 send_ping_packets(void) {
   int i, r;
   char buff[1600];
+  char ip_str[20];
+  eth_addr_ascii eth_str;
   ip_icmp_hdr_t *picmp;
   ping_info_t *pif;
   eth_frame *ef;
@@ -67,6 +69,11 @@ send_ping_packets(void) {
     assert_ge(r, 0);
 
     memcpy(picmp->dst_eth_addr.addr, hwaddr.sll_addr, 6);
+
+    eth_str = pp_eth(picmp->dst_eth_addr.addr);
+    INFO("Eth addr for IP addr %s is %s\n",
+         pp_ip(pif->ip, ip_str, 20), eth_str.addr);
+
     picmp->src_eth_addr = my_hwaddr;
     picmp->protocol = ETH_P_IP;
     send_over_ethernet(pf, ef, my_ifindex);
