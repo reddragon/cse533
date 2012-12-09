@@ -68,6 +68,9 @@ add_ping_host(ipaddr_n ip, int ntries) {
   vector_push_back(&ping_hosts, &pif);
 }
 
+#define PING_PACKET_SIZE 70
+
+
 void
 send_ping_packets(void) {
   int i, r;
@@ -93,6 +96,7 @@ send_ping_packets(void) {
       continue;
     }
 
+    pif->last_ping_ms = current_time_in_ms();
     pp_ip(pif->ip, ip_str, 20);
 
     VERBOSE("Actually sending a PING packet to %s\n", ip_str);
@@ -101,8 +105,7 @@ send_ping_packets(void) {
     picmp->iphdr.ihl      = 5;
     picmp->iphdr.id       = htons(IP_HEADER_ID);
     picmp->iphdr.tos      = 0;
-    picmp->iphdr.tot_len  = htons(OFFSETOF(ip_icmp_hdr_t, icmpdata) +
-                                  64 - OFFSETOF(ip_icmp_hdr_t, iphdr));
+    picmp->iphdr.tot_len  = htons(PING_PACKET_SIZE - 14);
     picmp->iphdr.frag_off = htons(1 << 14);
     picmp->iphdr.ttl      = 8;
     picmp->iphdr.protocol = 1;
@@ -117,12 +120,10 @@ send_ping_packets(void) {
     strcpy(picmp->icmpdata, "God Is An Astronaut");
 
     picmp->icmphdr.checksum = 
-      icmp_checksum((uint16_t*)&picmp->icmphdr,
-                    sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmphdr));
+      icmp_checksum((uint16_t*)&picmp->icmphdr, PING_PACKET_SIZE - 34);
 
     picmp->iphdr.check    = 
-      icmp_checksum((uint16_t*)&picmp->iphdr,
-                    sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, iphdr));
+      icmp_checksum((uint16_t*)&picmp->iphdr, PING_PACKET_SIZE - 14);
 
     r = areq(pif->ip, &hwaddr);
     assert_ge(r, 0);
@@ -136,10 +137,7 @@ send_ping_packets(void) {
     VERBOSE("Size of sent payload is: %d\n", sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmpdata));
     picmp->src_eth_addr = my_hwaddr;
     picmp->protocol = htons(ETH_P_IP);
-    send_over_ethernet(pf, ef,
-                       OFFSETOF(ip_icmp_hdr_t, icmpdata) +
-                       64 - OFFSETOF(ip_icmp_hdr_t, iphdr),
-                       my_ifindex, TRUE);
+    send_over_ethernet(pf, ef, PING_PACKET_SIZE, my_ifindex, TRUE);
   }
 }
 
