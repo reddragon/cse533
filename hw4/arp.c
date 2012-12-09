@@ -162,13 +162,7 @@ get_cache_entry(ipaddr_n target_addr) {
   for (i = 0; i < vector_size(&cache); i++) {
     c = (cache_entry *)vector_at(&cache, i);
     if (c->ip_n.s_addr == target_addr.s_addr) {
-      if (c->incomplete == TRUE) {
-        vector_erase(&cache, i);
-        --i;
-        return NULL;
-      } else {
-        return c;
-      }
+      return c;
     }
   }
   return NULL;
