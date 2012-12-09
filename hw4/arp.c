@@ -311,7 +311,7 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   // not mine, I will just update the entry if required.
   if (my_pkt) {
     if (pkt.op == ARP_REQUEST) {
-      INFO("ARP Request (from IP Address %s): H/W for IP Address %s",
+      INFO("ARP Request (from IP Address %s): H/W for IP Address %s.\n",
         sender_ip_buf, ipaddr_buf);
     } else {
       sender_eth_addr = pp_eth(pkt.sender_eth_addr.addr);
