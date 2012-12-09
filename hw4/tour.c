@@ -63,7 +63,7 @@ add_ping_host(ipaddr_n ip, int ntries) {
     }
   }
   pif.ip = ip;
-  pif.last_ping_ms = current_time_in_ms();
+  pif.last_ping_ms = current_time_in_ms() - 5000;
   pif.num_pings = ntries;
   vector_push_back(&ping_hosts, &pif);
 }
@@ -92,7 +92,7 @@ send_ping_packets(void) {
       continue;
     }
 
-    if (current_time_in_ms() - pif->last_ping_ms < 1000) {
+    if (current_time_in_ms() - pif->last_ping_ms < 3000) {
       continue;
     }
 
