@@ -23,7 +23,7 @@ tour_list tour;             // List of IP addresses (in network
                             // order). Includes my own IP address.
 bool visited;               // Whether this node has been touched by a tour
 bool last_node_in_tour;     // Is this the last node in the tour?
-bool can_ping;              // Can we keep pinging?
+// bool can_ping;              // Can we keep pinging?
 bool mcast_received;        // Have I received a multicast request yet?
 fdset fds;                  // List of FDs to wait on
 vector ping_hosts;          // List of hosts to ping every second
@@ -90,9 +90,10 @@ send_ping_packets(void) {
   eth_frame *ef;
   struct hwaddr hwaddr;
   
+  /*
   if (!can_ping) {
     return;
-  }
+  } */
 
   // VERBOSE("send_ping_packets. Queue Size: %d\n", vector_size(&ping_hosts));
   picmp = (ip_icmp_hdr_t*)buff;
@@ -356,7 +357,7 @@ void
 on_udp_recv(void *opaque) {
   VERBOSE("UDP socket is read ready.\n%s", "");
   // TODO: Received the multicast packet.
-  can_ping = FALSE;
+  // can_ping = FALSE;
   recv_mcast_msg(msg_buf, sizeof(msg_buf));
   if (!mcast_received) {
     VERBOSE("This is the first time I received a Multicast message.\n%s", "");
@@ -399,7 +400,7 @@ void tour_setup(int argc, char *argv[]) {
   // This is not the last node in the tour, yet.
   last_node_in_tour = FALSE;
   // We can ping
-  can_ping = TRUE;
+  // can_ping = TRUE;
   // I haven't received the mcast, yet.
   mcast_received = FALSE;
   
