@@ -278,9 +278,9 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   api_msg msg;
   arp_pkt pkt;
   eth_frame outgoing_ef;
-  eth_addr_ascii target_addr;
+  eth_addr_ascii target_addr, sender_eth_addr;
   cache_entry *centry;
-  char ipaddr_buf[30];
+  char ipaddr_buf[30], sender_ip_buf[30];
   bool my_pkt, centry_exists;
   
   centry = NULL;
@@ -303,20 +303,28 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   }
   
   pp_ip(pkt.target_ip_addr, ipaddr_buf, sizeof(ipaddr_buf));
+  pp_ip(pkt.sender_ip_addr, sender_ip_buf, sizeof(sender_ip_buf));
   my_pkt = is_my_pkt(&pkt);
   centry_exists = cache_entry_exists(pkt.sender_ip_addr);
   // If it is either my packet (then we should add this entry,
   // or update it). Otherwise, if it exists, but the packet is
   // not mine, I will just update the entry if required.
   if (my_pkt) {
-    INFO("Received an ARP %s meant for me.\n",
-      ((pkt.op == ARP_REQUEST ? "request" :
-        (pkt.op == ARP_RESPONSE ? "response" : "<unknown>"))));
+    if (pkt.op == ARP_REQUEST) {
+      INFO("ARP Request (from IP Address %s): H/W for IP Address %s",
+        sender_ip_buf, ipaddr_buf);
+    } else {
+      sender_eth_addr = pp_eth(pkt.sender_eth_addr.addr);
+      INFO("ARP Response %s => %s\n", sender_ip_buf, sender_eth_addr.addr);
+    }
+
     if (centry_exists) {
       centry = update_cache_entry(&pkt, sa);
     } else {
       centry = add_cache_entry(&pkt, sa);
     }
+
+    INFO("Cache entry %s.", (centry_exists ? "exists" : "does not exists"));
     
     // If we have a connected client with this cache entry, then
     // we need to flush out the address
