@@ -413,10 +413,10 @@ main(int argc, char **argv) {
   // 2 + 2 + 2 + 1 + 1 + 6 + 4 + 6 + 4 = 30
   // However, it seems alignment is at play.
 
-  assert_eq((int)&((eth_frame*)0)->src_eth_addr, 6);
-  assert_eq((int)&((eth_frame*)0)->protocol, 12);
+  assert_eq(OFFSETOF(eth_frame, src_eth_addr), 6);
+  assert_eq(OFFSETOF(eth_frame, protocol), 12);
+  assert_eq(sizeof(arp_pkt), 30);
 
-  assert_eq(sizeof(arp_pkt), 32);
   arp_setup();
   listen_on_sockets();
   return 0;

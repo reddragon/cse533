@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wstrict-prototypes -g
+CFLAGS = -Wall -Wstrict-prototypes -g -fpack-struct
 OBJDEPS = utils.o api.o algorithm.o vector.o \
       fdset.o treap.o
 OBJ = gmenghani_tour gmenghani_arp $(OBJDEPS)

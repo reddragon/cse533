@@ -26,6 +26,8 @@
 typedef unsigned char byte;
 typedef int bool;
 
+#define OFFSETOF(TYPE,MEMBER) ((int)&((TYPE*)0)->MEMBER)
+
 #define TIMESTAMPMSG(TYPE, X, VARGS...) {     \
   fprintf(stdout, TYPE ": " X, VARGS);        \
   fflush(stdout);                             \

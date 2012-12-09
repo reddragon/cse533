@@ -35,12 +35,13 @@ send_ping_packets(void) {
   eth_frame *ef;
   struct hwaddr hwaddr;
 
+  VERBOSE("send_ping_packets. Queue Size: %d\n", vector_size(&ping_hosts));
   picmp = (ip_icmp_hdr_t*)buff;
   ef    = (eth_frame*)buff;
   for (i = 0; i < vector_size(&ping_hosts); ++i) {
     pif = vector_at(&ping_hosts, i);
 
-    if (pif->num_pings >= 5) {
+    if (pif->num_pings == 0) {
       continue;
     }
 
@@ -207,6 +208,7 @@ void tour_setup(int argc, char *argv[]) {
   pif.ip = ia;
   pif.last_ping_ms = current_time_in_ms() - 3000;
   pif.num_pings = 100;
+  vector_push_back(&ping_hosts, &pif);
   // </hack>
 
   for (i = 1; i < argc; i++) {
@@ -268,6 +270,10 @@ act_on_pkt(ip_pkt *pkt) {
 
 int
 main(int argc, char **argv) {
+  assert_eq(OFFSETOF(ip_icmp_hdr_t, src_eth_addr), 6);
+  assert_eq(OFFSETOF(ip_icmp_hdr_t, protocol), 12);
+  assert_eq(OFFSETOF(ip_icmp_hdr_t, iphdr), 14);
+
   tour_setup(argc, argv);
   return 0;
 }

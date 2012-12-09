@@ -57,12 +57,12 @@ char *pp_ip(ipaddr_n ipaddr, char *buf, size_t buflen) {
 eth_addr_ascii pp_eth(char hwaddr[6]) {
   eth_addr_ascii out;
   char *optr;
-  char *ptr;
+  unsigned char *ptr;
   int i;
 
   memset(&out, 0, sizeof(out));
   optr = out.addr;
-  ptr = hwaddr;
+  ptr = (unsigned char*)hwaddr;
   i = IF_HADDR;
 
   do {
