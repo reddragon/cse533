@@ -173,6 +173,21 @@ get_cache_entry(ipaddr_n target_addr) {
   return NULL;
 }
 
+void
+purge_cache(void) {
+  cache_entry *c;
+  int n, i;
+  n = vector_size(&cache);
+  for (i = 0; i < n; i++) {
+    c = (cache_entry *)vector_at(&cache, i);
+    if (c->incomplete == TRUE) {
+      vector_erase(&cache, i);
+      i--;
+      n--;
+    }
+  }
+}
+
 // When the ARP module receives a request for a HW address, it:
 // 1. Checks if it has the H/W address for the IP address in its cache
 //    - If yes, it responds immediately, and closes the socket.
@@ -184,6 +199,8 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
   cache_entry ce;
   eth_frame ef;
   cache_entry *pce = &ce;
+  
+  purge_cache();
   memset(&ef.payload, 0, sizeof(ef.payload));
   pce = get_cache_entry(msg->ipaddr_nw);
   if (pce == NULL) {
@@ -324,7 +341,7 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
       centry = add_cache_entry(&pkt, sa);
     }
 
-    INFO("Cache entry %s.\n", (centry_exists ? "exists" : "does not exists"));
+    INFO("Cache entry %s for %s\n", (centry_exists ? "exists" : "does not exists"), sender_ip_buf);
     
     // If we have a connected client with this cache entry, then
     // we need to flush out the address
