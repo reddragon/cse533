@@ -210,7 +210,7 @@ on_rt_recv(void *opaque) {
           pp_ip(ptour->nodes[tpkt->current_node_idx], ip_str, 20));
 
   // Add the previous node to the list of nodes to ping.
-  add_ping_host(ptour->nodes[tpkt->current_node_idx - 1], 5);
+  add_ping_host(ptour->nodes[tpkt->current_node_idx - 1], 100);
 
   if (tpkt->current_node_idx == ptour->num_nodes) {
     INFO("This is the end, my only friend, the end...%s\n", "");
@@ -311,7 +311,7 @@ void tour_setup(int argc, char *argv[]) {
   // Get my eth0 IP address.
   populate_myip();
 
-  rt = Socket(AF_INET, SOCK_RAW, htons(IPPROTO_HW));
+  rt = Socket(AF_INET, SOCK_RAW, IPPROTO_HW);
   // IP_HDRINCL means that the sender MUST include the header while
   // sending out the packet.
   Setsockopt(rt, IPPROTO_IP, IP_HDRINCL, &yes, sizeof(yes));
@@ -388,13 +388,15 @@ void tour_setup(int argc, char *argv[]) {
     iphdr->tot_len  = htons(sizeof(struct iphdr) + sizeof(tour_pkt));
     iphdr->frag_off = htons(1 << 14);
     iphdr->ttl      = 8;
-    iphdr->protocol = 1;
+    iphdr->protocol = IPPROTO_HW;
     iphdr->saddr    = myip_n.s_addr;
     iphdr->daddr    = tour.nodes[1].s_addr;
 
     memset(&sa, 0, sizeof(sa));
     sa.sin_family = AF_INET;
     sa.sin_addr = tour.nodes[1];
+
+    VERBOSE("Sending out the tour packet with %d hosts\n", tpkt->tour.num_nodes);
 
     Sendto(rt, buff, sizeof(struct iphdr) + sizeof(tour_pkt),
            0, (SA*)&sa, sizeof(sa));
