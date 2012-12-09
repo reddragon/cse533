@@ -5,6 +5,7 @@
 #include "fdset.h"
 #include "api.h"
 #include <linux/if_ether.h>
+#include <time.h>
 
 #define IP_HEADER_ID   0x04b6
 #define ICMP_HEADER_ID 0x5146
@@ -191,6 +192,7 @@ on_rt_recv(void *opaque) {
   tour_pkt *tpkt;
   tour_list *ptour;
   ipaddr_n ip;
+  time_t t;
 
   VERBOSE("on_rt_recv()%s\n", "");
   memset(buff, 0, sizeof(buff));
@@ -203,6 +205,11 @@ on_rt_recv(void *opaque) {
     perror("recvfrom");
     exit(1);
   }
+
+  t = time(NULL);
+  pp_ip(sa.sin_addr, ip_str, 20);
+  INFO("<%s> received source souting message from <%s>\n", ctime(&t), ip_str);
+
   iphdr = (struct iphdr*)buff;
   tpkt  = (tour_pkt*)(iphdr + 1);
   ptour = &tpkt->tour;
