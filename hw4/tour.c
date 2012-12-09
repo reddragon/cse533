@@ -234,7 +234,7 @@ on_rt_recv(void *opaque) {
   tour_list *ptour;
   ipaddr_n ip;
   time_t t;
-  struct hwaddr hwaddr;
+  char tstr[100];
 
   VERBOSE("on_rt_recv()%s\n", "");
   memset(buff, 0, sizeof(buff));
@@ -250,7 +250,9 @@ on_rt_recv(void *opaque) {
 
   t = time(NULL);
   pp_ip(sa.sin_addr, ip_str, 20);
-  INFO("<%s> received source souting message from <%s>\n", ctime(&t), ip_str);
+  strcpy(tstr, ctime(&t));
+  tstr[strlen(tstr) - 1] = '\0';
+  INFO("<%s> received source souting message from <%s>\n", tstr, ip_str);
 
   iphdr = (struct iphdr*)buff;
   tpkt  = (tour_pkt*)(iphdr + 1);
@@ -269,7 +271,7 @@ on_rt_recv(void *opaque) {
     join_mcast_group(tpkt->mcast_addr, tpkt->mcast_port);
   }
 
-  if (tpkt->current_node_idx == ptour->num_nodes) {
+  if (tpkt->current_node_idx == ptour->num_nodes - 1) {
     INFO("This is the end, my only friend, the end...%s\n", "");
     last_node_in_tour = TRUE;  
   } else {
