@@ -150,7 +150,7 @@ get_cache_entry(ipaddr_n target_addr) {
   n = vector_size(&cache);
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
-    if (!memcmp(&c->ip_n, &target_addr, sizeof(ipaddr_n))) {
+    if (c->ip_n.s_addr == target_addr.s_addr) {
       return c;
     }
   }
@@ -165,29 +165,33 @@ get_cache_entry(ipaddr_n target_addr) {
 
 void
 act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
-  cache_entry *c;
+  cache_entry ce;
   eth_frame ef;
+  cache_entry *pce = &ce;
   memset(&ef.payload, 0, sizeof(ef.payload));
-  c = get_cache_entry(msg->ipaddr_nw);
-  if (c == NULL) {
-    c = MALLOC(cache_entry);
-    c->ip_n         = msg->ipaddr_nw;
-    Inet_ntop(AF_INET, (void *)&msg->ipaddr_nw, c->ip_a.addr, sizeof(c->ip_a.addr));
-    c->sll_ifindex  = msg->sll_ifindex;
-    c->sll_hatype   = msg->sll_hatype;
-    c->sll_halen    = msg->sll_halen;
-    vector_push_back(&cache, c);
-    
+  pce = get_cache_entry(msg->ipaddr_nw);
+  if (pce == NULL) {
+    memset(&ce, 0, sizeof(cache_entry));
+    ce.ip_n         = msg->ipaddr_nw;
+    Inet_ntop(AF_INET, (void *)&msg->ipaddr_nw,
+              ce.ip_a.addr, sizeof(ce.ip_a.addr));
+    ce.sll_ifindex  = msg->sll_ifindex;
+    ce.sll_hatype   = msg->sll_hatype;
+    ce.sll_halen    = msg->sll_halen;
+
+    // Add to cache.
+    vector_push_back(&cache, &ce);
+
     INFO("Created an incomplete cache entry for IP Address: %s.\n",
-        c->ip_a.addr);
-    VERBOSE("centry->sockfd of the new entry: %d.\n", c->sockfd);
-    
-    create_eth_frame(broadcast_eth_addr, c->ip_n, &ef, ARP_REQUEST);
+         ce.ip_a.addr);
+    VERBOSE("sockfd of the new entry: %d.\n", ce.sockfd);
+
+    create_eth_frame(broadcast_eth_addr, ce.ip_n, &ef, ARP_REQUEST);
     send_over_ethernet(pf_sockfd, &ef, eth0_ifindex);
   } else {
     // Fill up the ethernet address of the requested IP address
-    msg->eth_addr     = c->eth_n;
-    msg->sll_ifindex  = c->sll_ifindex;
+    msg->eth_addr     = pce->eth_n;
+    msg->sll_ifindex  = pce->sll_ifindex;
     Send(sockfd, (void *)msg, sizeof(*msg), 0);
     close(sockfd);
   }
@@ -216,14 +220,16 @@ cache_entry_exists(ipaddr_n target_addr) {
 
 cache_entry *
 add_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
-  cache_entry *c = MALLOC(cache_entry);
-  c->eth_n        = pkt->sender_eth_addr;
-  c->ip_n         = pkt->sender_ip_addr;
-  c->sll_ifindex  = sa->sll_ifindex;
-  c->sll_hatype   = sa->sll_hatype;
-  c->sll_halen    = sa->sll_halen;
-  c->sockfd       = -1;
-  return c;
+  cache_entry ce;
+  memset(&ce, 0, sizeof(ce));
+  ce.eth_n        = pkt->sender_eth_addr;
+  ce.ip_n         = pkt->sender_ip_addr;
+  ce.sll_ifindex  = sa->sll_ifindex;
+  ce.sll_hatype   = sa->sll_hatype;
+  ce.sll_halen    = sa->sll_halen;
+  ce.sockfd       = -1;
+  vector_push_back(&cache, &ce);
+  return vector_at(&cache, vector_size(&cache) - 1);
 }
 
 cache_entry *
@@ -233,7 +239,7 @@ update_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   n = vector_size(&cache);
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
-    if (!memcmp(&c->ip_n, &pkt->sender_ip_addr, sizeof(ipaddr_n))) {
+    if (c->ip_n.s_addr == pkt->sender_ip_addr.s_addr) {
       c->eth_n        = pkt->sender_eth_addr;
       c->ip_n         = pkt->sender_ip_addr;
       c->sll_ifindex  = sa->sll_ifindex;
@@ -242,7 +248,7 @@ update_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
       return c;
     }
   }
-  return NULL;
+  ASSERT(FALSE);
 }
 
 void
