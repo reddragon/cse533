@@ -427,6 +427,7 @@ listen_on_sockets(void) {
 
 void
 arp_setup(void) {
+  utils_init();
   vector_init(&cache, sizeof(cache_entry));
   memset(broadcast_eth_addr.addr, 0xff, sizeof(broadcast_eth_addr.addr));
   get_addr_pairs();

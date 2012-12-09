@@ -46,9 +46,11 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
     sizeof(resp.eth_addr.addr));
     resp_addr = pp_eth(resp.eth_addr.addr);
     VERBOSE("Received address: %s.\n", resp_addr.addr);
+    close(sockfd);
     return 0;
   } else {
     INFO("Timed out while waiting for the ARP process. ret = %d\n", ret);
+    close(sockfd);
   }
   return -1;
 }

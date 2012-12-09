@@ -10,6 +10,7 @@ struct timeval dob; // Date of Birth
 
 void
 utils_init(void) {
+  mkdir("/tmp/dynamic_duo/", 0777);
   Gettimeofday(&dob, NULL);
 }
 
