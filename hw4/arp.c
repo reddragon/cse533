@@ -22,6 +22,7 @@ typedef struct cache_entry {
   unsigned short  sll_hatype;
   unsigned char   sll_halen;
   int             sockfd;
+  bool            incomplete;
 } cache_entry;
 
 #define ARP_IDENT_NUM 0x6006
@@ -160,7 +161,12 @@ get_cache_entry(ipaddr_n target_addr) {
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
     if (c->ip_n.s_addr == target_addr.s_addr) {
-      return c;
+      if (c->incomplete == TRUE) {
+        vector_erase(&cache, i);
+        return NULL;
+      } else {
+        return c;
+      }
     }
   }
   return NULL;
@@ -188,6 +194,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     ce.sll_hatype   = msg->sll_hatype;
     ce.sll_halen    = msg->sll_halen;
     ce.sockfd       = sockfd;
+    ce.incomplete   = TRUE;
 
     // Add to cache.
     vector_push_back(&cache, &ce);
@@ -240,6 +247,7 @@ add_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
   ce.sll_hatype   = sa->sll_hatype;
   ce.sll_halen    = sa->sll_halen;
   ce.sockfd       = -1;
+  ce.incomplete   = FALSE;
   vector_push_back(&cache, &ce);
   return vector_at(&cache, vector_size(&cache) - 1);
 }
@@ -257,6 +265,7 @@ update_cache_entry(arp_pkt *pkt, struct sockaddr_ll *sa) {
       c->sll_ifindex  = sa->sll_ifindex;
       c->sll_hatype   = sa->sll_hatype;
       c->sll_halen    = sa->sll_halen;
+      c->incomplete   = FALSE;
       return c;
     }
   }
