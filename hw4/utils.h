@@ -133,6 +133,7 @@ void* my_malloc(size_t size);
 eth_addr_ascii pp_eth(char hwaddr[6]);
 char *pp_ip(ipaddr_n ipaddr, char *buf, size_t buflen);
 char *hostname_to_ip_address(const char *hostname, char *ip);
+char *ip_address_to_hostname(const char *ip, char *hostname);
 struct hwa_info * Get_hw_addrs(void);
 #endif
 

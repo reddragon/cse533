@@ -146,7 +146,7 @@ on_timeout(void *opaque) {
   // FIXME: Change to VERBOSE
   INFO("Timed out.%s\n", "");
 
-  // TODO: Send out ping packets.
+  // Send out ping packets.
   send_ping_packets();
 }
 
@@ -253,8 +253,9 @@ on_pg_recv(void *opaque) {
   }
   picmp = (ip_icmp_hdr_t*)(buff - OFFSETOF(ip_icmp_hdr_t, iphdr));
 
-  // FIXME: Check ID/type.
-  if (picmp->iphdr.id != htons(IP_HEADER_ID)) {
+  // Check ID/type.
+  if (picmp->iphdr.id != htons(IP_HEADER_ID) ||
+      picmp->icmphdr.un.echo.id != htons(ICMP_HEADER_ID)) {
     send_ping_packets();
     return;
   }
@@ -360,18 +361,18 @@ void tour_setup(int argc, char *argv[]) {
   fdset_add(&fds, &fds.exev, udp, &udp, on_udp_error);
 
   if (argc > 1) {
-    // TODO: Start a tour.
+    // Start a tour.
     r = areq(tour.nodes[1], &hwaddr);
     assert_ge(r, 0);
 
-    // TODO: Construct and send out the first tour packet.
+    // Construct and send out the first tour packet.
     memset(buff, 0, sizeof(buff));
     iphdr = (struct iphdr*)buff;
     tpkt = (tour_pkt*)(iphdr + 1);
     memcpy(&tpkt->tour, &tour, sizeof(tour));
     tpkt->current_node_idx = 0;
 
-    // TODO: Send out the packet.
+    // Send out the packet.
     iphdr->version  = 4;
     iphdr->ihl      = 5;
     iphdr->id       = htons(IP_HEADER_ID);

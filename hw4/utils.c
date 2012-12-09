@@ -89,6 +89,24 @@ char *hostname_to_ip_address(const char *hostname, char *ip) {
   return NULL;
 }
 
+char *ip_address_to_hostname(const char *ip, char *hostname) {
+  struct hostent *he_name;
+  struct in_addr ia;
+  int r;
+  r = inet_pton(AF_INET, ip, &ia);
+  if (r != 1) {
+    VERBOSE("Invalid IP address: %s\n", ip);
+    return NULL;
+  }
+  he_name = gethostbyaddr(&ia, sizeof(ia), AF_INET);
+  if (he_name) {
+    strcpy(hostname, he_name->h_name);
+    return hostname;
+  }
+  VERBOSE("Could not perform IP to hostname lookup for IP address: %s\n", ip);
+  return NULL;
+}
+
 char *create_tmp_file(void) {
   int r, fd;
   char *file_name;
