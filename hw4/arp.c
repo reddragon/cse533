@@ -276,12 +276,14 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   
   pp_ip(pkt.target_ip_addr, ipaddr_buf, sizeof(ipaddr_buf));
   my_pkt = is_my_pkt(&pkt);
-  centry_exists = cache_entry_exists(pkt.target_ip_addr);
+  centry_exists = cache_entry_exists(pkt.sender_ip_addr);
   // If it is either my packet (then we should add this entry,
   // or update it). Otherwise, if it exists, but the packet is
   // not mine, I will just update the entry if required.
   if (my_pkt) {
-    INFO("Received an ARP request meant for me.\n%s", "");
+    INFO("Received an ARP %s meant for me.\n",
+      ((pkt.op == ARP_REQUEST ? "request" :
+        (pkt.op == ARP_RESPONSE ? "response" : "<unknown>"))));
     if (centry_exists) {
       centry = update_cache_entry(&pkt, sa);
     } else {
@@ -304,11 +306,13 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
       Send(centry->sockfd, (void *)&msg, sizeof(msg), 0);
       centry->sockfd = -1;  // Resetting the sockfd 
     }
-    VERBOSE("Preparing the outgoing ethernet frame for IP Address: %s\n",
-      "TODO");
-    // TODO Send using the pkt->target_ip_addr as the sending IP address
-    create_eth_frame(pkt.sender_eth_addr, pkt.sender_ip_addr, &outgoing_ef, ARP_RESPONSE);
-    send_over_ethernet(pf_sockfd, &outgoing_ef, sa->sll_ifindex);
+    
+    if (pkt.op == ARP_REQUEST) {
+      VERBOSE("Preparing the outgoing ethernet frame for IP Address: %s\n",
+          ipaddr_buf);
+      create_eth_frame(pkt.sender_eth_addr, pkt.sender_ip_addr, &outgoing_ef, ARP_RESPONSE);
+      send_over_ethernet(pf_sockfd, &outgoing_ef, sa->sll_ifindex);
+    }
   } if (!my_pkt && centry_exists) {
     update_cache_entry(&pkt, sa);
   }
