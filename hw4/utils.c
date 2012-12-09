@@ -127,9 +127,10 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int size, int sll_ifindex) {
   }
 
   if (mask != 0xff) {
-    // sa.sll_pkttype = PACKET_OTHERHOST;
+    sa.sll_pkttype = PACKET_OTHERHOST;
     VERBOSE("Sending a non-broadcast ethernet message.\n%s", "");
   } else {
+    sa.sll_pkttype = PACKET_BROADCAST;
     VERBOSE("Sending a broadcast ethernet message.\n%s", "");
   }
 

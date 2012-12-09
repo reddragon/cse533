@@ -176,6 +176,8 @@ purge_cache(void) {
   for (i = 0; i < n; i++) {
     c = (cache_entry *)vector_at(&cache, i);
     if (c->incomplete == TRUE) {
+      VERBOSE("Purging a cache entry for IP Address: %s.\n",
+        c->ip_a.addr); 
       vector_erase(&cache, i);
       i--;
       n--;
@@ -342,9 +344,8 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
     // we need to flush out the address
     if (centry->sockfd > 0) {
       target_addr = pp_eth(centry->eth_n.addr);
-      VERBOSE("We have a connection which was waiting on the ethernet address of IP Address %s, which is for ethernet address: %s.\n", 
-      ipaddr_buf, target_addr.addr);
-      VERBOSE("centry->sockfd: %d.\n", centry->sockfd);
+      VERBOSE("To be flushed to Tour (sockfd: %d) :: [%s => %s].\n", 
+        centry->sockfd, ipaddr_buf, target_addr.addr);
       
       msg.eth_addr    = centry->eth_n;
       msg.ipaddr_nw   = centry->ip_n;
