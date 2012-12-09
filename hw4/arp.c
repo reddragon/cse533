@@ -98,6 +98,7 @@ get_addr_pairs(void) {
   head = Get_hw_addrs();
   for (h = head; h != NULL; h = h->hwa_next) {
     if (!strncmp(h->if_name, "eth0", 4)) {
+      cache_entry c;
       a = MALLOC(addr_pair);
       memcpy(a->eth_n.addr, h->if_haddr, sizeof(a->eth_n.addr));
       memcpy(&(a->ip_n), &((struct sockaddr_in*)h->ip_addr)->sin_addr,
@@ -112,6 +113,14 @@ get_addr_pairs(void) {
       INFO("Interface [%d]%s (H/W Address: %s, IP Address: %s)\n",
            h->if_index, a->if_name, a->eth_ascii.addr, a->ip_ascii.addr);
       vector_push_back(&addr_pairs, a);
+      
+      c.eth_n = a->eth_n;
+      c.ip_n = a->ip_n;
+      c.ip_a = a->ip_ascii;
+      c.sll_ifindex = h->if_index;
+      c.sll_hatype = -1;
+      c.sockfd = -1;
+      vector_push_back(&cache, &c);
 
       if (!strcmp(h->if_name, "eth0")) {
         eth0_hwaddr   = &a->eth_n;
