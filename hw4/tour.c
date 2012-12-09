@@ -88,6 +88,10 @@ send_ping_packets(void) {
   ping_info_t *pif;
   eth_frame *ef;
   struct hwaddr hwaddr;
+  
+  if (!can_ping) {
+    return;
+  }
 
   // VERBOSE("send_ping_packets. Queue Size: %d\n", vector_size(&ping_hosts));
   picmp = (ip_icmp_hdr_t*)buff;
@@ -285,8 +289,8 @@ on_rt_recv(void *opaque) {
   // The docs say that we should wait for some small number of echo
   // replies to arrive, before we do this. Is it taken care of?
   if (last_node_in_tour) {
-    can_ping = FALSE;
-    sprintf(msg_buf, "This is node %s. Tour has ended. Group members please identify yourselves.\n", my_name);
+    // can_ping = FALSE;
+    sprintf(msg_buf, "This is node %s. Tour has ended. Group members please identify yourselves.", my_name);
     send_mcast_msg(msg_buf, sizeof(msg_buf)); 
   }
 }
@@ -345,7 +349,7 @@ on_udp_recv(void *opaque) {
   if (!mcast_received) {
     VERBOSE("This is the first time I received a Multicast message.\n%s", "");
     mcast_received = TRUE;
-    sprintf(msg_buf, "Node %s. I am a member of the group.\n", my_name);
+    sprintf(msg_buf, "Node %s. I am a member of the group.", my_name);
     send_mcast_msg(msg_buf, sizeof(msg_buf));
   }
 }
