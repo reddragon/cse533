@@ -18,7 +18,7 @@
 #include <linux/icmp.h>
 
 
-#define IPPROTO_HW  0x8899
+#define IPPROTO_HW  0x99
 #define ID_NUM      0x60061E5
 #define FALSE       0
 #define TRUE        1
