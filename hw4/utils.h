@@ -19,6 +19,9 @@
 
 
 #define IPPROTO_HW  0x73
+#define MCAST_ADDR  "225.0.0.40"
+#define MCAST_PORT  12010
+#define IPPROTO_HW  0x99
 #define ID_NUM      0x60061E5
 #define FALSE       0
 #define TRUE        1

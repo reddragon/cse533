@@ -221,9 +221,17 @@ on_rt_recv(void *opaque) {
 
   // Add the previous node to the list of nodes to ping.
   add_ping_host(ptour->nodes[tpkt->current_node_idx - 1], 100);
+  
+  if (!visited) {
+    INFO("This is the first time this node has been visited in the tour.\n%s", "");
+    visited = TRUE;
+    // Join the Multicast group.
+
+  }
 
   if (tpkt->current_node_idx == ptour->num_nodes) {
     INFO("This is the end, my only friend, the end...%s\n", "");
+    // TODO Add multicast stuff here
   } else {
     ip = ptour->nodes[tpkt->current_node_idx + 1];
 
@@ -318,6 +326,9 @@ void tour_setup(int argc, char *argv[]) {
   char buff[1600];
   tour_pkt *tpkt;
   struct iphdr *iphdr;
+
+  // This node has not been visited yet
+  visited = FALSE;
 
   utils_init();
 
