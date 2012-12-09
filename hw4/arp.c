@@ -324,7 +324,7 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
       centry = add_cache_entry(&pkt, sa);
     }
 
-    INFO("Cache entry %s.", (centry_exists ? "exists" : "does not exists"));
+    INFO("Cache entry %s.\n", (centry_exists ? "exists" : "does not exists"));
     
     // If we have a connected client with this cache entry, then
     // we need to flush out the address
