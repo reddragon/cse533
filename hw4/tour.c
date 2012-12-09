@@ -110,7 +110,7 @@ send_ping_packets(void) {
     INFO("Eth addr for IP addr %s is %s\n",
          pp_ip(pif->ip, ip_str, 20), eth_str.addr);
 
-    VERBOSE("Size of payload is: %d\n", sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmpdata));
+    VERBOSE("Size of sent payload is: %d\n", sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmpdata));
     picmp->src_eth_addr = my_hwaddr;
     picmp->protocol = htons(ETH_P_IP);
     send_over_ethernet(pf, ef, my_ifindex);
@@ -180,7 +180,7 @@ on_pg_recv(void *opaque) {
     exit(1);
   }
   picmp = (ip_icmp_hdr_t*)(buff - OFFSETOF(ip_icmp_hdr_t, iphdr));
-  VERBOSE("Size of payload is: %d\n", r - sizeof(*picmp));
+  VERBOSE("Size of received payload is: %d\n", r - sizeof(*picmp) + 14);
   INFO("Ping response: %s\n", picmp->icmpdata);
 }
 
@@ -240,6 +240,8 @@ void tour_setup(int argc, char *argv[]) {
   pg = Socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
   pf = Socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
   udp = Socket(AF_INET, SOCK_DGRAM, 0); // FIXME Fix the protocol
+
+  VERBOSE("rt: %d, pg: %d, pf: %d, udp: %d\n", rt, pg, pf, udp);
 
   vector_init(&ping_hosts, sizeof(ping_info_t));
 
