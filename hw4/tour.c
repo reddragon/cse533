@@ -511,6 +511,8 @@ main(int argc, char **argv) {
   assert_eq(OFFSETOF(ip_icmp_hdr_t, protocol), 12);
   assert_eq(OFFSETOF(ip_icmp_hdr_t, iphdr), 14);
 
+  VERBOSE("&pf: %p, &msg_buf: %p\n", &pf, msg_buf);
+
   tour_setup(argc, argv);
   return 0;
 }
