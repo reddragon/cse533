@@ -19,7 +19,7 @@
 
 
 #define IPPROTO_HW  0x73
-#define MCAST_ADDR  "225.0.0.40"
+#define MCAST_ADDR  "224.0.101.101"
 #define MCAST_PORT  12010
 #define ID_NUM      0x60061E5
 #define FALSE       0
@@ -122,7 +122,7 @@ typedef struct tour_list {
 typedef struct tour_pkt {
   uint16_t  current_node_idx;
   ipaddr_n  mcast_addr;
-  int       mcast_port;
+  uint16_t  mcast_port;
   tour_list tour;
 } tour_pkt;
 

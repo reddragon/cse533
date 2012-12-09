@@ -10,25 +10,26 @@
 #define IP_HEADER_ID   0x04b6
 #define ICMP_HEADER_ID 0x5146
 
-int rt, pg, pf, udp;      // rt -> Routing
-                          // pg -> Ping
-                          // pf -> PF Packet
-                          // udp -> For Multicast
-ipaddr_ascii myip_a;      // My (eth0) IP address in presentation format
-ipaddr_n     myip_n;      // My (eth0) IP address in network byte order
-eth_addr_n   my_hwaddr;   // My (eth0) Hardware Address
-char         my_name[30]; // My Host Name
-int          my_ifindex;  // if_index for eth0
-tour_list tour;           // List of IP addresses (in network
-                          // order). Includes my own IP address.
-bool visited;             // Whether this node has been touched by a tour
-bool last_node_in_tour;   // Is this the last node in the tour?
-bool can_ping;            // Can we keep pinging?
-bool mcast_received;      // Have I received a multicast request yet?
-fdset fds;                // List of FDs to wait on
-vector ping_hosts;        // List of hosts to ping every second
-struct sockaddr_in maddr; // The multicast address
-char msg_buf[50];         // A temporary message buffer
+int rt, pg, pf, udp;        // rt -> Routing
+                            // pg -> Ping
+                            // pf -> PF Packet
+                            // udp -> For Multicast
+ipaddr_ascii myip_a;        // My (eth0) IP address in presentation format
+ipaddr_n     myip_n;        // My (eth0) IP address in network byte order
+eth_addr_n   my_hwaddr;     // My (eth0) Hardware Address
+char         my_name[30];   // My Host Name
+int          my_ifindex;    // if_index for eth0
+tour_list tour;             // List of IP addresses (in network
+                            // order). Includes my own IP address.
+bool visited;               // Whether this node has been touched by a tour
+bool last_node_in_tour;     // Is this the last node in the tour?
+bool can_ping;              // Can we keep pinging?
+bool mcast_received;        // Have I received a multicast request yet?
+fdset fds;                  // List of FDs to wait on
+vector ping_hosts;          // List of hosts to ping every second
+struct sockaddr_in s_addr;  // The multicast address
+char msg_buf[500];          // A temporary message buffer
+struct ip_mreq mreq;
 
 typedef struct ping_info_t {
   ipaddr_n ip;
@@ -155,14 +156,15 @@ send_ping_packets(void) {
 void
 send_mcast_msg(char *buf, size_t buflen) {
   INFO("Node %s. Sending: %s.\n", my_name, buf); 
-  Sendto(udp, buf, buflen, 0, (SA *)&maddr, sizeof(maddr));
+  Sendto(udp, buf, buflen, 0, (SA *)&s_addr, sizeof(s_addr));
 }
 
 void
 recv_mcast_msg(char *buf, size_t buflen) {
   size_t addrlen, rc;
-  addrlen = sizeof(maddr);
-  rc = Recvfrom(udp, buf, buflen, 0, (SA *)&maddr, &addrlen);
+  struct sockaddr_in r_addr;
+  addrlen = sizeof(r_addr);
+  rc = Recvfrom(udp, buf, buflen, 0, (SA *)&r_addr, &addrlen);
   INFO("Node %s. Received: %s.\n", my_name, buf);
 }
 
@@ -202,20 +204,27 @@ populate_myip(void) {
 }
 
 void
-join_mcast_group(ipaddr_n mcast_addr, int mcast_port) {
-  struct ip_mreq mreq;
-  visited = TRUE;
-  memset(&maddr, 0, sizeof(maddr));
-  maddr.sin_family = AF_INET;
-  maddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  maddr.sin_port = mcast_port;
+join_mcast_group(ipaddr_n mcast_addr, uint16_t mcast_port) {
+  char buf[100];
+  struct sockaddr_in addr;
+  memset(&s_addr, 0, sizeof(s_addr));
+  s_addr.sin_family = AF_INET;
+  s_addr.sin_addr.s_addr = mcast_addr.s_addr;
+  s_addr.sin_port = mcast_port;
 
-  Bind(udp, (struct sockaddr *) &maddr, sizeof(maddr));
+  visited = TRUE;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr.sin_port = htons(mcast_port);
+
+  Bind(udp, (struct sockaddr *) &addr, sizeof(addr));
 
   mreq.imr_multiaddr.s_addr = mcast_addr.s_addr;
   mreq.imr_interface.s_addr = htonl(INADDR_ANY);
   Setsockopt(udp, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
-  INFO("Joined the multicast group.\n%s", "");
+  INFO("Joined the multicast group at %s : %d\n",
+    pp_ip(mcast_addr, buf, sizeof(buf)), mcast_port);
 }
 
 void
@@ -292,8 +301,8 @@ on_rt_recv(void *opaque) {
   // replies to arrive, before we do this. Is it taken care of?
   if (last_node_in_tour) {
     // can_ping = FALSE;
-    sprintf(msg_buf, "This is node %s. Tour has ended. Group members please identify yourselves.", my_name);
-    send_mcast_msg(msg_buf, sizeof(msg_buf)); 
+    snprintf(msg_buf, sizeof(msg_buf), "This is node %s. Tour has ended. Group members please identify yourselves.", my_name);
+    send_mcast_msg(msg_buf, strlen(msg_buf)); 
   }
 }
 
@@ -345,14 +354,15 @@ on_pf_recv(void *opaque) {
 
 void
 on_udp_recv(void *opaque) {
+  VERBOSE("UDP socket is read ready.\n%s", "");
   // TODO: Received the multicast packet.
   can_ping = FALSE;
   recv_mcast_msg(msg_buf, sizeof(msg_buf));
   if (!mcast_received) {
     VERBOSE("This is the first time I received a Multicast message.\n%s", "");
     mcast_received = TRUE;
-    sprintf(msg_buf, "Node %s. I am a member of the group.", my_name);
-    send_mcast_msg(msg_buf, sizeof(msg_buf));
+    snprintf(msg_buf, sizeof(msg_buf), "Node %s. I am a member of the group.", my_name);
+    send_mcast_msg(msg_buf, strlen(msg_buf));
   }
 }
 
