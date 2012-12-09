@@ -122,6 +122,7 @@ get_addr_pairs(void) {
       c.sll_ifindex = h->if_index;
       c.sll_hatype = -1;
       c.sockfd = -1;
+      c.incomplete = FALSE;
       vector_push_back(&cache, &c);
 
       if (!strcmp(h->if_name, "eth0")) {
@@ -157,13 +158,13 @@ setup_sockets(void) {
 cache_entry *
 get_cache_entry(ipaddr_n target_addr) {
   cache_entry *c;
-  int n, i;
-  n = vector_size(&cache);
-  for (i = 0; i < n; i++) {
+  int i;
+  for (i = 0; i < vector_size(&cache); i++) {
     c = (cache_entry *)vector_at(&cache, i);
     if (c->ip_n.s_addr == target_addr.s_addr) {
       if (c->incomplete == TRUE) {
         vector_erase(&cache, i);
+        --i;
         return NULL;
       } else {
         return c;
