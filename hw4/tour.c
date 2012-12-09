@@ -191,7 +191,6 @@ on_rt_recv(void *opaque) {
   tour_pkt *tpkt;
   tour_list *ptour;
   ipaddr_n ip;
-  struct hwaddr hwaddr;
 
   VERBOSE("on_rt_recv()%s\n", "");
   memset(buff, 0, sizeof(buff));
@@ -308,7 +307,6 @@ void tour_setup(int argc, char *argv[]) {
   char ipaddr_str[200];
   struct timeval timeout;
   struct hwaddr hwaddr;
-  ping_info_t pif;
   char buff[1600];
   tour_pkt *tpkt;
   struct iphdr *iphdr;
@@ -336,25 +334,11 @@ void tour_setup(int argc, char *argv[]) {
   tour.nodes[0] = ia;
   tour.num_nodes = 1;
 
-  // <hack>
-  pif.ip = ia;
-  pif.last_ping_ms = current_time_in_ms() - 3000;
-  pif.num_pings = 100;
-  // vector_push_back(&ping_hosts, &pif);
-  // </hack>
-
   for (i = 1; i < argc; i++) {
     Inet_pton(AF_INET, hostname_to_ip_address(argv[i], ipaddr_str), &ia);
     VERBOSE("Adding IP %s to the tour at index %d\n", ipaddr_str, i);
     tour.nodes[i] = ia;
     tour.num_nodes = i + 1;
-
-    // <hack>
-    pif.ip = ia;
-    pif.last_ping_ms = current_time_in_ms() - 3000;
-    pif.num_pings = 100;
-    // vector_push_back(&ping_hosts, &pif);
-    // </hack>
   }
 
   // Add handlers.
@@ -369,7 +353,7 @@ void tour_setup(int argc, char *argv[]) {
   fdset_add(&fds, &fds.rev,  pg, &pg, on_pg_recv);
   fdset_add(&fds, &fds.exev, pg, &pg, on_pg_error);
 
-  fdset_add(&fds, &fds.rev,  pf, &pf, on_pf_recv);
+  // fdset_add(&fds, &fds.rev,  pf, &pf, on_pf_recv);
   fdset_add(&fds, &fds.exev, pf, &pf, on_pf_error);
 
   fdset_add(&fds, &fds.rev,  udp, &udp, on_udp_recv);
@@ -407,8 +391,6 @@ void tour_setup(int argc, char *argv[]) {
 
     Sendto(rt, buff, sizeof(struct iphdr) + sizeof(tour_pkt),
            0, (SA*)&sa, sizeof(sa));
-
-    // Sendto() // FIXME
   }
 
   r = fdset_poll(&fds, &timeout, on_timeout);
