@@ -189,6 +189,8 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     create_eth_frame(broadcast_eth_addr, ce.ip_n, &ef, ARP_REQUEST);
     send_over_ethernet(pf_sockfd, &ef, eth0_ifindex);
   } else {
+    VERBOSE("The tour process requested for the address of IP Address: %s, which was served from the cache.\n",
+      pce->ip_a.addr);
     // Fill up the ethernet address of the requested IP address
     msg->eth_addr     = pce->eth_n;
     msg->sll_ifindex  = pce->sll_ifindex;

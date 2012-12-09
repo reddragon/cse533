@@ -50,5 +50,5 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   } else {
     INFO("Timed out while waiting for the ARP process. ret = %d\n", ret);
   }
-  return 1;
+  return -1;
 }
