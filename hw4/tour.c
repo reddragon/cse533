@@ -210,7 +210,7 @@ join_mcast_group(ipaddr_n mcast_addr, uint16_t mcast_port) {
   memset(&s_addr, 0, sizeof(s_addr));
   s_addr.sin_family = AF_INET;
   s_addr.sin_addr.s_addr = mcast_addr.s_addr;
-  s_addr.sin_port = mcast_port;
+  s_addr.sin_port = htons(mcast_port);
 
   visited = TRUE;
   memset(&addr, 0, sizeof(addr));
