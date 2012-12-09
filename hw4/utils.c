@@ -101,7 +101,7 @@ char *create_tmp_file(void) {
   return file_name;
 }
 
-void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
+void send_over_ethernet(int sockfd, eth_frame *ef, int size, int sll_ifindex) {
   struct sockaddr_ll sa;
   int i, r;
   unsigned char mask = 0xff;
@@ -116,7 +116,7 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
   sa.sll_family   = PF_PACKET;
   sa.sll_hatype   = ARPHRD_ETHER;
   // sa.sll_pkttype  = PACKET_OUTGOING;
-  sa.sll_pkttype = PACKET_LOOPBACK;
+  // sa.sll_pkttype = PACKET_LOOPBACK;
   // sa.sll_pkttype  = PACKET_BROADCAST;
   sa.sll_protocol = ef->protocol;
   sa.sll_ifindex  = sll_ifindex;
@@ -134,7 +134,7 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex) {
   }
 
   memcpy(sa.sll_addr, ef->dst_eth_addr.addr, 6);
-  Sendto(sockfd, (void *)ef, sizeof(*ef), 0, (SA *)&sa, sizeof(sa));
+  Sendto(sockfd, (void *)ef, size, 0, (SA *)&sa, sizeof(sa));
   VERBOSE("send_over_ethernet() terminated successfully%s\n", "");
 }
 

@@ -6,6 +6,9 @@
 #include "api.h"
 #include <linux/if_ether.h>
 
+#define IP_HEADER_ID   0x04b6
+#define ICMP_HEADER_ID 0x5146
+
 int rt, pg, pf, udp;      // rt -> Routing
                           // pg -> Ping
                           // pf -> PF Packet
@@ -49,6 +52,23 @@ icmp_checksum(uint16_t* buffer, int size)
 }
 
 void
+add_ping_host(ipaddr_n ip, int ntries) {
+  int i;
+  ping_info_t *ppif;
+  ping_info_t pif;
+  for (i = 0; i < vector_size(&ping_hosts); ++i) {
+    ppif = vector_at(&ping_hosts, i);
+    if (ip.s_addr == ppif->ip.s_addr) {
+      return;
+    }
+  }
+  pif.ip = ip;
+  pif.last_ping_ms = current_time_in_ms();
+  pif.num_pings = ntries;
+  vector_push_back(&ping_hosts, &pif);
+}
+
+void
 send_ping_packets(void) {
   int i, r;
   char buff[1600];
@@ -75,9 +95,9 @@ send_ping_packets(void) {
 
     VERBOSE("Actually sending a packet%s\n", "");
     memset(buff, 0, sizeof(buff));
-    picmp->iphdr.version  = 4; // 2;
-    picmp->iphdr.ihl      = 5; // 10;
-    picmp->iphdr.id       = htons(0x04b6);
+    picmp->iphdr.version  = 4;
+    picmp->iphdr.ihl      = 5;
+    picmp->iphdr.id       = htons(IP_HEADER_ID);
     picmp->iphdr.tos      = 0;
     picmp->iphdr.tot_len  = htons(sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, iphdr));
     picmp->iphdr.frag_off = htons(1 << 14);
@@ -88,10 +108,10 @@ send_ping_packets(void) {
 
     picmp->icmphdr.type   = (unsigned char)(ICMP_ECHO);
     picmp->icmphdr.code   = 0;
-    picmp->icmphdr.un.echo.id = htons(0x5146);
+    picmp->icmphdr.un.echo.id = htons(ICMP_HEADER_ID);
     picmp->icmphdr.un.echo.sequence = htons(7);
 
-    strcpy(picmp->icmpdata, "Hello world");
+    strcpy(picmp->icmpdata, "God Is An Astronaut");
 
     picmp->icmphdr.checksum = 
       icmp_checksum((uint16_t*)&picmp->icmphdr,
@@ -113,7 +133,7 @@ send_ping_packets(void) {
     VERBOSE("Size of sent payload is: %d\n", sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmpdata));
     picmp->src_eth_addr = my_hwaddr;
     picmp->protocol = htons(ETH_P_IP);
-    send_over_ethernet(pf, ef, my_ifindex);
+    send_over_ethernet(pf, ef, sizeof(*ef), my_ifindex);
   }
 }
 
@@ -158,6 +178,56 @@ on_rt_recv(void *opaque) {
   // sender if we aren't already pinging the sender. Increment pointer
   // and forward or send out multicast packet if we are the last node
   // on the route.
+  int r;
+  struct sockaddr_in sa;
+  socklen_t addrlen = sizeof(sa);
+  char buff[1600];
+  char ip_str[20];
+  struct iphdr *iphdr;
+  tour_pkt *tpkt;
+  tour_list *ptour;
+  ipaddr_n ip;
+  struct hwaddr hwaddr;
+
+  VERBOSE("on_rt_recv()%s\n", "");
+  memset(buff, 0, sizeof(buff));
+  r = recvfrom(pg, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
+  VERBOSE("on_rt_recv::r == %d\n", r);
+  if (r < 0 && errno == EINTR) {
+    return;
+  }
+  if (r < 0) {
+    perror("recvfrom");
+    exit(1);
+  }
+  iphdr = (struct iphdr*)buff;
+  tpkt  = (tour_pkt*)(iphdr + 1);
+  ptour = &tpkt->tour;
+
+  ++tpkt->current_node_idx;
+  VERBOSE("# of nodes in tour: %d, Current Index: %d, Crrant IP: %s\n",
+          ptour->num_nodes, tpkt->current_node_idx,
+          pp_ip(ptour->nodes[tpkt->current_node_idx], ip_str, 20));
+
+  // Add the previous node to the list of nodes to ping.
+  add_ping_host(ptour->nodes[tpkt->current_node_idx - 1], 5);
+
+  if (tpkt->current_node_idx == ptour->num_nodes) {
+    INFO("This is the end, my only friend, the end...%s\n", "");
+  } else {
+    ip = ptour->nodes[tpkt->current_node_idx + 1];
+    r = areq(ip, &hwaddr);
+    assert_ge(r, 0);
+
+    iphdr->saddr    = myip_n.s_addr;
+    iphdr->daddr    = ip.s_addr;
+
+    sa.sin_addr = ip;
+
+    Sendto(rt, buff, r, 0, (SA*)&sa, sizeof(sa));
+  }
+
+  send_ping_packets();
 }
 
 void
@@ -180,8 +250,12 @@ on_pg_recv(void *opaque) {
     exit(1);
   }
   picmp = (ip_icmp_hdr_t*)(buff - OFFSETOF(ip_icmp_hdr_t, iphdr));
+
+  // FIXME: Check ID/type.
+
   VERBOSE("Size of received payload is: %d\n", r - sizeof(*picmp) + 14);
   INFO("Ping response: %s\n", picmp->icmpdata);
+  send_ping_packets();
 }
 
 void
@@ -194,12 +268,13 @@ on_pf_recv(void *opaque) {
   char buff[1600];
   VERBOSE("on_pf_recv()%s\n", "");
   r = recvfrom(pf, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
-
+  send_ping_packets();
 }
 
 void
 on_udp_recv(void *opaque) {
   // TODO: Received the multicast packet.
+  send_ping_packets();
 }
 
 void
@@ -222,10 +297,14 @@ void tour_setup(int argc, char *argv[]) {
   const int yes = 1;
   int i, r;
   struct in_addr ia;
+  struct sockaddr_in sa;
   char ipaddr_str[200];
   struct timeval timeout;
   struct hwaddr hwaddr;
   ping_info_t pif;
+  char buff[1600];
+  tour_pkt *tpkt;
+  struct iphdr *iphdr;
 
   utils_init();
 
@@ -267,9 +346,8 @@ void tour_setup(int argc, char *argv[]) {
     pif.ip = ia;
     pif.last_ping_ms = current_time_in_ms() - 3000;
     pif.num_pings = 100;
-    vector_push_back(&ping_hosts, &pif);
+    // vector_push_back(&ping_hosts, &pif);
     // </hack>
-
   }
 
   // Add handlers.
@@ -296,6 +374,32 @@ void tour_setup(int argc, char *argv[]) {
     assert_ge(r, 0);
 
     // TODO: Construct and send out the first tour packet.
+    memset(buff, 0, sizeof(buff));
+    iphdr = (struct iphdr*)buff;
+    tpkt = (tour_pkt*)(iphdr + 1);
+    memcpy(&tpkt->tour, &tour, sizeof(tour));
+    tpkt->current_node_idx = 0;
+
+    // TODO: Send out the packet.
+    iphdr->version  = 4;
+    iphdr->ihl      = 5;
+    iphdr->id       = htons(IP_HEADER_ID);
+    iphdr->tos      = 0;
+    iphdr->tot_len  = htons(sizeof(struct iphdr) + sizeof(tour_pkt));
+    iphdr->frag_off = htons(1 << 14);
+    iphdr->ttl      = 8;
+    iphdr->protocol = 1;
+    iphdr->saddr    = myip_n.s_addr;
+    iphdr->daddr    = tour.nodes[1].s_addr;
+
+    memset(&sa, 0, sizeof(sa));
+    sa.sin_family = AF_INET;
+    sa.sin_addr = tour.nodes[1];
+
+    Sendto(rt, buff, sizeof(struct iphdr) + sizeof(tour_pkt),
+           0, (SA*)&sa, sizeof(sa));
+
+    // Sendto() // FIXME
   }
 
   r = fdset_poll(&fds, &timeout, on_timeout);
@@ -304,22 +408,6 @@ void tour_setup(int argc, char *argv[]) {
     ASSERT(errno != EINTR);
     exit(1);
   }
-
-
-}
-
-void
-act_on_pkt(ip_pkt *pkt) {
-  /*
-    if (pkt->id != ID_NUM) {
-    // TODO Add message
-    return;
-   }
-   if (!visited) {
-   // TODO Join Multicast
-   visited = TRUE;
-   }
-  */
 }
 
 int

@@ -118,16 +118,17 @@ typedef struct tour_list {
 } tour_list;
 
 typedef struct tour_pkt {
-  tour_list tlist;
   uint16_t  current_node_idx;
   ipaddr_n  mcast_addr;
   int       mcast_port;
+  tour_list tour;
 } tour_pkt;
 
 void utils_init(void);
 uint32_t current_time_in_ms(void);
 char *create_tmp_file(void);
-void send_over_ethernet(int sockfd, eth_frame *ef, int sll_ifindex);
+void send_over_ethernet(int sockfd, eth_frame *ef,
+                        int size, int sll_ifindex);
 void* my_malloc(size_t size);
 eth_addr_ascii pp_eth(char hwaddr[6]);
 char *pp_ip(ipaddr_n ipaddr, char *buf, size_t buflen);
