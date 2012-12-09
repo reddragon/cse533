@@ -99,7 +99,8 @@ send_ping_packets(void) {
     picmp->iphdr.ihl      = 5;
     picmp->iphdr.id       = htons(IP_HEADER_ID);
     picmp->iphdr.tos      = 0;
-    picmp->iphdr.tot_len  = htons(sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, iphdr));
+    picmp->iphdr.tot_len  = htons(OFFSETOF(ip_icmp_hdr_t, icmpdata) +
+                                  64 - OFFSETOF(ip_icmp_hdr_t, iphdr));
     picmp->iphdr.frag_off = htons(1 << 14);
     picmp->iphdr.ttl      = 8;
     picmp->iphdr.protocol = 1;
@@ -133,7 +134,10 @@ send_ping_packets(void) {
     VERBOSE("Size of sent payload is: %d\n", sizeof(eth_frame) - OFFSETOF(ip_icmp_hdr_t, icmpdata));
     picmp->src_eth_addr = my_hwaddr;
     picmp->protocol = htons(ETH_P_IP);
-    send_over_ethernet(pf, ef, sizeof(*ef), my_ifindex);
+    send_over_ethernet(pf, ef,
+                       OFFSETOF(ip_icmp_hdr_t, icmpdata) +
+                       64 - OFFSETOF(ip_icmp_hdr_t, iphdr),
+                       my_ifindex);
   }
 }
 
@@ -253,6 +257,8 @@ on_pg_recv(void *opaque) {
 
   // FIXME: Check ID/type.
   if (picmp->iphdr.id != htons(IP_HEADER_ID)) {
+    send_ping_packets();
+    return;
   }
 
   VERBOSE("Size of received payload is: %d\n", r - sizeof(*picmp) + 14);
