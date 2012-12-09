@@ -93,7 +93,9 @@ send_ping_packets(void) {
       continue;
     }
 
-    VERBOSE("Actually sending a packet%s\n", "");
+    pp_ip(pif->ip, ip_str, 20);
+
+    VERBOSE("Actually sending a PING packet to %s\n", ip_str);
     memset(buff, 0, sizeof(buff));
     picmp->iphdr.version  = 4;
     picmp->iphdr.ihl      = 5;
@@ -137,7 +139,7 @@ send_ping_packets(void) {
     send_over_ethernet(pf, ef,
                        OFFSETOF(ip_icmp_hdr_t, icmpdata) +
                        64 - OFFSETOF(ip_icmp_hdr_t, iphdr),
-                       my_ifindex);
+                       my_ifindex, TRUE);
   }
 }
 

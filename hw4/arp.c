@@ -219,7 +219,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     VERBOSE("sockfd of the new entry: %d.\n", ce.sockfd);
 
     create_eth_frame(broadcast_eth_addr, ce.ip_n, &ef, ARP_REQUEST);
-    send_over_ethernet(pf_sockfd, &ef, sizeof(ef), eth0_ifindex);
+    send_over_ethernet(pf_sockfd, &ef, sizeof(ef), eth0_ifindex, FALSE);
   } else {
     VERBOSE("The tour process requested for the address of IP Address: %s, which was served from the cache.\n",
       pce->ip_a.addr);
@@ -364,7 +364,7 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
           ipaddr_buf);
       create_eth_frame(pkt.sender_eth_addr, pkt.sender_ip_addr, &outgoing_ef, ARP_RESPONSE);
       send_over_ethernet(pf_sockfd, &outgoing_ef,
-                         sizeof(outgoing_ef), sa->sll_ifindex);
+                         sizeof(outgoing_ef), sa->sll_ifindex, FALSE);
     }
   } if (!my_pkt && centry_exists) {
     update_cache_entry(&pkt, sa);

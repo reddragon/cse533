@@ -119,7 +119,8 @@ char *create_tmp_file(void) {
   return file_name;
 }
 
-void send_over_ethernet(int sockfd, eth_frame *ef, int size, int sll_ifindex) {
+void send_over_ethernet(int sockfd, eth_frame *ef, int size,
+                        int sll_ifindex, bool for_ping) {
   struct sockaddr_ll sa;
   int i, r;
   unsigned char mask = 0xff;
@@ -133,12 +134,15 @@ void send_over_ethernet(int sockfd, eth_frame *ef, int size, int sll_ifindex) {
   memset(&sa, 0, sizeof(sa));
   sa.sll_family   = PF_PACKET;
   sa.sll_hatype   = ARPHRD_ETHER;
-  // sa.sll_pkttype  = PACKET_OUTGOING;
-  // sa.sll_pkttype = PACKET_LOOPBACK;
-  // sa.sll_pkttype  = PACKET_BROADCAST;
-  // sa.sll_protocol = ef->protocol;
   sa.sll_ifindex  = sll_ifindex;
   sa.sll_halen    = 6;
+
+  if (for_ping) {
+    sa.sll_pkttype  = PACKET_OUTGOING;
+    sa.sll_protocol = ef->protocol;
+    // sa.sll_pkttype = PACKET_LOOPBACK;
+    // sa.sll_pkttype  = PACKET_BROADCAST;
+  }
 
   for (i = 0; i < 6; ++i) {
     mask &= *(unsigned char*)(ef->dst_eth_addr.addr + i);
