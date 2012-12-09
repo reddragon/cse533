@@ -17,12 +17,18 @@ int rt, pg, pf, udp;      // rt -> Routing
 ipaddr_ascii myip_a;      // My (eth0) IP address in presentation format
 ipaddr_n     myip_n;      // My (eth0) IP address in network byte order
 eth_addr_n   my_hwaddr;   // My (eth0) Hardware Address
+char         my_name[30]; // My Host Name
 int          my_ifindex;  // if_index for eth0
 tour_list tour;           // List of IP addresses (in network
                           // order). Includes my own IP address.
 bool visited;             // Whether this node has been touched by a tour
+bool last_node_in_tour;   // Is this the last node in the tour?
+bool can_ping;            // Can we keep pinging?
+bool mcast_received;      // Have I received a multicast request yet?
 fdset fds;                // List of FDs to wait on
 vector ping_hosts;        // List of hosts to ping every second
+struct sockaddr_in maddr; // The multicast address
+char msg_buf[50];         // A temporary message buffer
 
 typedef struct ping_info_t {
   ipaddr_n ip;
@@ -143,6 +149,20 @@ send_ping_packets(void) {
 }
 
 void
+send_mcast_msg(char *buf, size_t buflen) {
+  INFO("Node %s. Sending: %s.\n", my_name, buf); 
+  Sendto(udp, buf, buflen, 0, (SA *)&maddr, sizeof(maddr));
+}
+
+void
+recv_mcast_msg(char *buf, size_t buflen) {
+  size_t addrlen, rc;
+  addrlen = sizeof(maddr);
+  rc = Recvfrom(udp, buf, buflen, 0, (SA *)&maddr, &addrlen);
+  INFO("Node %s. Received: %s.\n", my_name, buf);
+}
+
+void
 on_timeout(void *opaque) {
   // FIXME: Change to VERBOSE
   INFO("Timed out.%s\n", "");
@@ -178,6 +198,23 @@ populate_myip(void) {
 }
 
 void
+join_mcast_group(ipaddr_n mcast_addr, int mcast_port) {
+  struct ip_mreq mreq;
+  visited = TRUE;
+  memset(&maddr, 0, sizeof(maddr));
+  maddr.sin_family = AF_INET;
+  maddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  maddr.sin_port = mcast_port;
+
+  Bind(udp, (struct sockaddr *) &maddr, sizeof(maddr));
+
+  mreq.imr_multiaddr.s_addr = mcast_addr.s_addr;
+  mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+  Setsockopt(udp, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+  INFO("Joined the multicast group.\n%s", "");
+}
+
+void
 on_rt_recv(void *opaque) {
   // TODO: Check the index of the route on this packet and ping the
   // sender if we aren't already pinging the sender. Increment pointer
@@ -193,6 +230,7 @@ on_rt_recv(void *opaque) {
   tour_list *ptour;
   ipaddr_n ip;
   time_t t;
+  struct hwaddr hwaddr;
 
   VERBOSE("on_rt_recv()%s\n", "");
   memset(buff, 0, sizeof(buff));
@@ -224,14 +262,12 @@ on_rt_recv(void *opaque) {
   
   if (!visited) {
     INFO("This is the first time this node has been visited in the tour.\n%s", "");
-    visited = TRUE;
-    // Join the Multicast group.
-
+    join_mcast_group(tpkt->mcast_addr, tpkt->mcast_port);
   }
 
   if (tpkt->current_node_idx == ptour->num_nodes) {
     INFO("This is the end, my only friend, the end...%s\n", "");
-    // TODO Add multicast stuff here
+    last_node_in_tour = TRUE;  
   } else {
     ip = ptour->nodes[tpkt->current_node_idx + 1];
 
@@ -245,6 +281,14 @@ on_rt_recv(void *opaque) {
   }
 
   send_ping_packets();
+  // TODO
+  // The docs say that we should wait for some small number of echo
+  // replies to arrive, before we do this. Is it taken care of?
+  if (last_node_in_tour) {
+    can_ping = FALSE;
+    sprintf(msg_buf, "This is node %s. Tour has ended. Group members please identify yourselves.\n", my_name);
+    send_mcast_msg(msg_buf, sizeof(msg_buf)); 
+  }
 }
 
 void
@@ -296,7 +340,14 @@ on_pf_recv(void *opaque) {
 void
 on_udp_recv(void *opaque) {
   // TODO: Received the multicast packet.
-  send_ping_packets();
+  can_ping = FALSE;
+  recv_mcast_msg(msg_buf, sizeof(msg_buf));
+  if (!mcast_received) {
+    VERBOSE("This is the first time I received a Multicast message.\n%s", "");
+    mcast_received = TRUE;
+    sprintf(msg_buf, "Node %s. I am a member of the group.\n", my_name);
+    send_mcast_msg(msg_buf, sizeof(msg_buf));
+  }
 }
 
 void
@@ -329,11 +380,21 @@ void tour_setup(int argc, char *argv[]) {
 
   // This node has not been visited yet
   visited = FALSE;
-
+  // This is not the last node in the tour, yet.
+  last_node_in_tour = FALSE;
+  // We can ping
+  can_ping = TRUE;
+  // I haven't received the mcast, yet.
+  mcast_received = FALSE;
+  
   utils_init();
 
   // Get my eth0 IP address.
   populate_myip();
+  
+  // Get my hostname
+  ip_address_to_hostname(myip_a.addr, my_name);
+  VERBOSE("My hostname is: %s\n", my_name);
 
   rt = Socket(AF_INET, SOCK_RAW, IPPROTO_HW);
   // IP_HDRINCL means that the sender MUST include the header while
@@ -389,6 +450,13 @@ void tour_setup(int argc, char *argv[]) {
     tpkt = (tour_pkt*)(iphdr + 1);
     memcpy(&tpkt->tour, &tour, sizeof(tour));
     tpkt->current_node_idx = 0;
+    
+    // Add the multicast address and port
+    tpkt->mcast_port = MCAST_PORT;
+    Inet_pton(AF_INET, MCAST_ADDR, (void *)&tpkt->mcast_addr);
+    
+    // Join the Multicast group
+    join_mcast_group(tpkt->mcast_addr, tpkt->mcast_port);
 
     // Send out the packet.
     iphdr->version  = 4;
