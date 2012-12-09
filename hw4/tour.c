@@ -266,9 +266,9 @@ on_pf_recv(void *opaque) {
   struct sockaddr_ll sa;
   socklen_t addrlen = sizeof(sa);
   char buff[1600];
-  VERBOSE("on_pf_recv()%s\n", "");
+  // VERBOSE("on_pf_recv()%s\n", "");
   r = recvfrom(pf, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
-  send_ping_packets();
+  // send_ping_packets();
 }
 
 void

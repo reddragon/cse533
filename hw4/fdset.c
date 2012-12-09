@@ -108,7 +108,7 @@ int fdset_poll(fdset *fds, struct timeval *timeout, ev_callback_t timeout_cb) {
         for (i = 0; i < vector_size(&fds->rev); ++i) {
             select_event_t *pse = (select_event_t*)vector_at(&fds->rev, i);
             if (FD_ISSET(pse->fd, &fds->rfds)) {
-                VERBOSE("FD %d is read ready\n", pse->fd);
+                // VERBOSE("FD %d is read ready\n", pse->fd);
                 pse->callback(pse->opaque);
             }
         }
