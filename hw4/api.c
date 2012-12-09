@@ -28,12 +28,12 @@ areq(ipaddr_n ipaddr_nw, struct hwaddr *hwaddr) {
   Send(sockfd, (char *)&msg, sizeof(msg), 0);
 
   // FIXME When we have an idea of what is a reasonable timeout
-  timeout.tv_sec  = 10;
+  timeout.tv_sec  = 1;
   timeout.tv_usec = 0;
-  
+
   FD_ZERO(&readfds);
   FD_SET(sockfd, &readfds);
-  
+
   ret = Select(sockfd + 1, &readfds, NULL, NULL, &timeout);
   if (FD_ISSET(sockfd, &readfds)) {
     VERBOSE("Received response from the ARP process.\n%s", "");  
