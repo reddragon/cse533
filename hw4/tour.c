@@ -79,7 +79,7 @@ send_ping_packets(void) {
   eth_frame *ef;
   struct hwaddr hwaddr;
 
-  VERBOSE("send_ping_packets. Queue Size: %d\n", vector_size(&ping_hosts));
+  // VERBOSE("send_ping_packets. Queue Size: %d\n", vector_size(&ping_hosts));
   picmp = (ip_icmp_hdr_t*)buff;
   ef    = (eth_frame*)buff;
   for (i = 0; i < vector_size(&ping_hosts); ++i) {
@@ -195,7 +195,7 @@ on_rt_recv(void *opaque) {
 
   VERBOSE("on_rt_recv()%s\n", "");
   memset(buff, 0, sizeof(buff));
-  r = recvfrom(pg, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
+  r = recvfrom(rt, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
   VERBOSE("on_rt_recv::r == %d\n", r);
   if (r < 0 && errno == EINTR) {
     return;
@@ -242,10 +242,10 @@ on_pg_recv(void *opaque) {
   socklen_t addrlen = sizeof(sa);
   char buff[1600];
   ip_icmp_hdr_t *picmp;
-  VERBOSE("on_pg_recv()%s\n", "");
+  // VERBOSE("on_pg_recv()%s\n", "");
   memset(buff, 0, sizeof(buff));
   r = recvfrom(pg, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
-  VERBOSE("on_pg_recv::r == %d\n", r);
+  // VERBOSE("on_pg_recv::r == %d\n", r);
   if (r < 0 && errno == EINTR) {
     return;
   }
