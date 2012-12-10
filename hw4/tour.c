@@ -292,7 +292,7 @@ on_rt_recv(void *opaque) {
   pp_ip(sa.sin_addr, ip_str, 20);
   strcpy(tstr, ctime(&t));
   tstr[strlen(tstr) - 1] = '\0';
-  INFO("<%s> received source souting message from <%s>\n", tstr, ip_str);
+  INFO("<%s> received source routing message from <%s>\n", tstr, ip_str);
 
   iphdr = (struct iphdr*)buff;
   tpkt  = (tour_pkt*)(iphdr + 1);
