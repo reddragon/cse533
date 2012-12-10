@@ -221,8 +221,8 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     create_eth_frame(broadcast_eth_addr, ce.ip_n, &ef, ARP_REQUEST);
     send_over_ethernet(pf_sockfd, &ef, sizeof(ef), eth0_ifindex, FALSE);
   } else {
-    INFO("Tour Process requested Eth Address: %s, which was served from the cache.\n",
-      pce->ip_a.addr);
+    INFO("Tour Process requested Eth Address: %s, which was served "
+         "from the cache.\n", pce->ip_a.addr);
     // Fill up the ethernet address of the requested IP address
     msg->eth_addr     = pce->eth_n;
     msg->sll_ifindex  = pce->sll_ifindex;
@@ -328,8 +328,8 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
   // not mine, I will just update the entry if required.
   if (my_pkt) {
     if (pkt.op == ARP_REQUEST) {
-      INFO("ARP Request (from IP Address %s): H/W for IP Address %s.\n",
-        sender_ip_buf, ipaddr_buf);
+      INFO("ARP at node %s wants to know the Ethernet address for node at %s\n",
+           sender_ip_buf, ipaddr_buf);
     } else {
       sender_eth_addr = pp_eth(pkt.sender_eth_addr.addr);
       INFO("ARP Response %s => %s\n", sender_ip_buf, sender_eth_addr.addr);
@@ -341,8 +341,9 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
       centry = add_cache_entry(&pkt, sa);
     }
 
-    INFO("Cache entry %s for %s\n", (centry_exists ? "exist" : "does not exist"), sender_ip_buf);
-    
+    INFO("Cache entry %s for %s\n",
+         (centry_exists ? "exists" : "does not exist"), sender_ip_buf);
+
     // If we have a connected client with this cache entry, then
     // we need to flush out the address
     if (centry->sockfd > 0) {
@@ -411,8 +412,8 @@ on_ud_recv(void *o) {
   c_sockfd = Accept(ds_sockfd, (SA*)&cliaddr, &clilen);
 
   Recv(c_sockfd, (char*)&m, sizeof(api_msg), 0);
-  INFO("Received a message from the Tour process.\n%s", "");
-  act_on_api_msg(&m, c_sockfd, &cliaddr);    
+  INFO("Received an ARP request message from the Tour process.\n%s", "");
+  act_on_api_msg(&m, c_sockfd, &cliaddr);
 }
 
 void
