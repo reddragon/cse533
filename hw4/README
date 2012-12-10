@@ -1,0 +1,11 @@
+Group members:
+--------------
+
+Gaurav Menghani
+Dhruv Matani
+
+To compile, run:
+$ make
+
+To compile with more verbose output, run:
+$ make debug
