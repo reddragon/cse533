@@ -221,7 +221,7 @@ act_on_api_msg(api_msg *msg, int sockfd, struct sockaddr_un *cli) {
     create_eth_frame(broadcast_eth_addr, ce.ip_n, &ef, ARP_REQUEST);
     send_over_ethernet(pf_sockfd, &ef, sizeof(ef), eth0_ifindex, FALSE);
   } else {
-    VERBOSE("Tour Process requested Eth Address: %s, which was served from the cache.\n",
+    INFO("Tour Process requested Eth Address: %s, which was served from the cache.\n",
       pce->ip_a.addr);
     // Fill up the ethernet address of the requested IP address
     msg->eth_addr     = pce->eth_n;
@@ -341,7 +341,7 @@ act_on_eth_pkt(eth_frame *ef, struct sockaddr_ll *sa) {
       centry = add_cache_entry(&pkt, sa);
     }
 
-    INFO("Cache entry %s for %s\n", (centry_exists ? "exists" : "does not exists"), sender_ip_buf);
+    INFO("Cache entry %s for %s\n", (centry_exists ? "exist" : "does not exist"), sender_ip_buf);
     
     // If we have a connected client with this cache entry, then
     // we need to flush out the address
