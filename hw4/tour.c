@@ -329,11 +329,12 @@ on_pg_recv(void *opaque) {
   picmp = (ip_icmp_hdr_t*)(buff - OFFSETOF(ip_icmp_hdr_t, iphdr));
 
   // Check ID/type.
-  if (picmp->iphdr.id != htons(IP_HEADER_ID) ||
-      picmp->icmphdr.un.echo.id != htons(ICMP_HEADER_ID)) {
+  if (picmp->icmphdr.un.echo.id != htons(ICMP_HEADER_ID) || ICMP_ECHOREPLY != picmp->icmphdr.type) {
     send_ping_packets();
     return;
   }
+
+  // TODO: Filter out all packets of type other than ICMP Reply.
 
   VERBOSE("Size of received payload is: %d, Type: %d\n", r - sizeof(*picmp) + 14, picmp->icmphdr.type);
   INFO("Ping response: %s\n", picmp->icmpdata);
