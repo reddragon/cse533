@@ -31,10 +31,15 @@ struct sockaddr_in s_addr;  // The multicast address
 char msg_buf[500];          // A temporary message buffer
 struct ip_mreq mreq;
 
+// Sample PING response:
+//
+// 64 bytes from vm2 (192.168.1.102): icmp_seq=1 ttl=64 time=14.6 ms
+
 typedef struct ping_info_t {
   ipaddr_n ip;
   int last_ping_ms;
   int num_pings;
+  int seq;
 } ping_info_t;
 
 uint16_t
@@ -73,6 +78,7 @@ add_ping_host(ipaddr_n ip, int ntries) {
   pif.ip = ip;
   pif.last_ping_ms = current_time_in_ms() - 5000;
   pif.num_pings = ntries;
+  pif.seq = 1;
   vector_push_back(&ping_hosts, &pif);
 }
 
@@ -128,9 +134,9 @@ send_ping_packets(void) {
     picmp->icmphdr.type   = (unsigned char)(ICMP_ECHO);
     picmp->icmphdr.code   = 0;
     picmp->icmphdr.un.echo.id = htons(ICMP_HEADER_ID);
-    picmp->icmphdr.un.echo.sequence = htons(7);
+    picmp->icmphdr.un.echo.sequence = htons(pif->seq++);
 
-    strcpy(picmp->icmpdata, "God Is An Astronaut");
+    sprintf(picmp->icmpdata, "%d", current_time_in_ms());
 
     picmp->icmphdr.checksum = 
       icmp_checksum((uint16_t*)&picmp->icmphdr, PING_PACKET_SIZE - 34);
@@ -315,6 +321,9 @@ on_pg_recv(void *opaque) {
   socklen_t addrlen = sizeof(sa);
   char buff[1600];
   ip_icmp_hdr_t *picmp;
+  int sent_at_ms;
+  char from_hostname[30];
+  char from_ip[30];
   // VERBOSE("on_pg_recv()%s\n", "");
   memset(buff, 0, sizeof(buff));
   r = recvfrom(pg, buff, sizeof(buff), 0, (SA*)&sa, &addrlen);
@@ -328,16 +337,27 @@ on_pg_recv(void *opaque) {
   }
   picmp = (ip_icmp_hdr_t*)(buff - OFFSETOF(ip_icmp_hdr_t, iphdr));
 
-  // Check ID/type.
+  // Check ID/type & filter out all packets of type other than ICMP Reply.
   if (picmp->icmphdr.un.echo.id != htons(ICMP_HEADER_ID) || ICMP_ECHOREPLY != picmp->icmphdr.type) {
     send_ping_packets();
     return;
   }
 
-  // TODO: Filter out all packets of type other than ICMP Reply.
+  VERBOSE("Size of received payload is: %d, Type: %d\n",
+          r - sizeof(struct iphdr) - sizeof(struct icmphdr),
+          picmp->icmphdr.type);
+  sscanf(picmp->icmpdata, "%d", &sent_at_ms);
+  pp_ip(*(struct in_addr*)&picmp->iphdr.saddr, from_ip, sizeof(from_ip));
+  ip_address_to_hostname(from_ip, from_hostname);
 
-  VERBOSE("Size of received payload is: %d, Type: %d\n", r - sizeof(*picmp) + 14, picmp->icmphdr.type);
-  INFO("Ping response: %s\n", picmp->icmpdata);
+  INFO("%d bytes from %s (%s): icmp_seq=%d ttl=%d time=%d ms\n",
+       r - sizeof(struct iphdr) - sizeof(struct icmphdr),
+       from_hostname,
+       from_ip,
+       ntohs(picmp->icmphdr.un.echo.sequence),
+       (int)picmp->iphdr.ttl,
+       current_time_in_ms() - sent_at_ms);
+
   send_ping_packets();
 }
 
