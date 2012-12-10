@@ -22,8 +22,16 @@ int          my_ifindex;    // if_index for eth0
 tour_list tour;             // List of IP addresses (in network
                             // order). Includes my own IP address.
 bool visited;               // Whether this node has been touched by a tour
-bool last_node_in_tour;     // Is this the last node in the tour?
-// bool can_ping;              // Can we keep pinging?
+bool last_node_in_tour = 
+  FALSE;                    // Is this the last node in the tour?
+bool tour_end_msg_sent =
+  FALSE;                    // Have we sent the tour ending message, yet?
+uint32_t last_visit_time;   // If this is the last node in the tour,
+                            // when did we realize this?
+uint32_t last_udp_mcast_recv_time;
+                            // When was the last time we received a 
+                            // multicast message?
+bool can_ping = TRUE;       // Can we keep pinging?
 bool mcast_received;        // Have I received a multicast request yet?
 fdset fds;                  // List of FDs to wait on
 vector ping_hosts;          // List of hosts to ping every second
@@ -96,10 +104,23 @@ send_ping_packets(void) {
   eth_frame *ef;
   struct hwaddr hwaddr;
   
-  /*
+  if (last_node_in_tour) {
+    if (!tour_end_msg_sent && 
+    (current_time_in_ms() - last_visit_time >= 5000)) {
+      tour_end_msg_sent = TRUE;
+      
+      snprintf(msg_buf, sizeof(msg_buf), "This is node %s. Tour has ended. Group members please identify yourselves.", my_name);
+      send_mcast_msg(msg_buf, strlen(msg_buf)); 
+    }
+  }
+
   if (!can_ping) {
+    if (current_time_in_ms() - last_udp_mcast_recv_time >= 5000) {
+      INFO("No Multicast message received for >= 5s. Ending tour.\n%s", "");
+      exit(0);
+    }
     return;
-  } */
+  }
 
   // VERBOSE("send_ping_packets. Queue Size: %d\n", vector_size(&ping_hosts));
   picmp = (ip_icmp_hdr_t*)buff;
@@ -162,7 +183,7 @@ send_ping_packets(void) {
 
 void
 send_mcast_msg(char *buf, size_t buflen) {
-  INFO("Node %s. Sending: %s.\n", my_name, buf); 
+  INFO("Node %s. Sending: %s\n", my_name, buf); 
   Sendto(udp, buf, buflen, 0, (SA *)&s_addr, sizeof(s_addr));
 }
 
@@ -290,6 +311,7 @@ on_rt_recv(void *opaque) {
   if (tpkt->current_node_idx == ptour->num_nodes - 1) {
     INFO("This is the end, my only friend, the end...%s\n", "");
     last_node_in_tour = TRUE;  
+    last_visit_time = current_time_in_ms();
   } else {
     ip = ptour->nodes[tpkt->current_node_idx + 1];
 
@@ -303,14 +325,6 @@ on_rt_recv(void *opaque) {
   }
 
   send_ping_packets();
-  // TODO
-  // The docs say that we should wait for some small number of echo
-  // replies to arrive, before we do this. Is it taken care of?
-  if (last_node_in_tour) {
-    // can_ping = FALSE;
-    snprintf(msg_buf, sizeof(msg_buf), "This is node %s. Tour has ended. Group members please identify yourselves.", my_name);
-    send_mcast_msg(msg_buf, strlen(msg_buf)); 
-  }
 }
 
 void
@@ -377,8 +391,11 @@ on_pf_recv(void *opaque) {
 void
 on_udp_recv(void *opaque) {
   VERBOSE("UDP socket is read ready.\n%s", "");
-  // TODO: Received the multicast packet.
-  // can_ping = FALSE;
+  if (!can_ping) {
+    VERBOSE("Disabling ping now\n%s", "");
+  }
+  last_udp_mcast_recv_time = current_time_in_ms();
+  can_ping = FALSE;
   recv_mcast_msg(msg_buf, sizeof(msg_buf));
   if (!mcast_received) {
     VERBOSE("This is the first time I received a Multicast message.\n%s", "");
