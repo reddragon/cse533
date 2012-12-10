@@ -335,7 +335,7 @@ on_pg_recv(void *opaque) {
     return;
   }
 
-  VERBOSE("Size of received payload is: %d\n", r - sizeof(*picmp) + 14);
+  VERBOSE("Size of received payload is: %d, Type: %d\n", r - sizeof(*picmp) + 14, picmp->icmphdr.type);
   INFO("Ping response: %s\n", picmp->icmpdata);
   send_ping_packets();
 }
