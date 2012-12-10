@@ -192,7 +192,10 @@ recv_mcast_msg(char *buf, size_t buflen) {
   size_t addrlen, rc;
   struct sockaddr_in r_addr;
   addrlen = sizeof(r_addr);
-  rc = Recvfrom(udp, buf, buflen, 0, (SA *)&r_addr, &addrlen);
+  rc = Recvfrom(udp, buf, buflen-1, 0, (SA *)&r_addr, &addrlen);
+  if (rc > 0) {
+    buf[rc] = '\0';
+  }
   INFO("Node %s. Received: %s.\n", my_name, buf);
 }
 
